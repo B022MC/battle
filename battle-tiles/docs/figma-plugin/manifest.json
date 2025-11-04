@@ -1,0 +1,10 @@
+{
+  "name": "Migrant H5 Prototype Generator",
+  "id": "migrant-h5-prototype",
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "main": "code.js"
+}
+
+
+

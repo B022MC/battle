@@ -1,0 +1,89 @@
+import { isWeb } from './platform';
+import { alert } from './alert';
+import { useAuthStore } from '@/hooks/use-auth-store';
+
+type RequestOptions = RequestInit & {
+  params?: Record<string, any>;
+  data?: Record<string, any>;
+  showError?: boolean; // 是否展示全局错误弹窗，默认 false
+};
+
+export type ResponseStructure<T> = {
+  code?: number;
+  data?: T;
+  msg?: string;
+};
+
+export const request = async <T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<ResponseStructure<T>> => {
+  const { headers, params, data, showError = false, ...rest } = options;
+
+  const apiUrl = isWeb
+    ? process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB
+    : process.env.EXPO_PUBLIC_DEV_API_URL;
+  const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+  const url = `${apiUrl}${path}${query}`;
+
+  const config: RequestOptions = { ...rest };
+
+  const { platform, accessToken, updateAuth } = useAuthStore.getState();
+
+  config.headers = {
+    Accept: 'application/json',
+    ...(data && { 'Content-Type': 'application/json' }),
+    ...(platform && { Platform: platform }),
+    ...(accessToken && { Authorization: `${accessToken}` }),
+    ...headers,
+  };
+
+  if (data) config.body = JSON.stringify(data);
+
+  const response = await fetch(url, config);
+  let res: ResponseStructure<T>;
+
+  try {
+    res = await response.json();
+  } catch (error) {
+    const msg = `Failed to parse response as JSON: ${error}`;
+    if (showError) alert.show({ title: '请求失败', description: msg });
+    throw new Error(msg);
+  }
+
+  if (!response.ok || res.code !== 0) {
+    const msg = res.msg ?? response.statusText ?? `Request Failed with status ${response.status}`;
+    if (showError) alert.show({ title: '请求失败', description: msg });
+    throw new Error(msg);
+  }
+
+  // 登录/注册响应附带令牌、平台、角色、权限、用户信息时，更新到会话
+  const d: any = res.data;
+  if (d && (d.access_token || d.refresh_token)) {
+    updateAuth({
+      accessToken: d.access_token,
+      refreshToken: d.refresh_token,
+      expiresIn: d.expires_in,
+      platform: d.platform,
+      roles: d.roles,
+      perms: d.perms,
+      user: d.user,
+    });
+  }
+
+  return res;
+};
+
+export const get = <T>(path: string, params?: Record<string, any>) =>
+  request<T>(path, { method: 'GET', params });
+
+export const post = <T>(path: string, data?: Record<string, any>) =>
+  request<T>(path, { method: 'POST', data });
+
+export const patch = <T>(path: string, data?: Record<string, any>) =>
+  request<T>(path, { method: 'PATCH', data });
+
+export const put = <T>(path: string, data?: Record<string, any>) =>
+  request<T>(path, { method: 'PUT', data });
+
+export const del = <T>(path: string) => request<T>(path, { method: 'DELETE' });

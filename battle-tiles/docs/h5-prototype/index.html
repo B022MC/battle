@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>H5 原型 - Migrant</title>
+  <style>
+    :root {
+      --primary: #3D7EFF;
+      --text: #1f2329;
+      --muted: #6b7280;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --danger: #ef4444;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; color: var(--text); background: var(--bg); }
+    .page { display: none; padding-bottom: 72px; }
+    .page.active { display: block; }
+    .appbar { position: sticky; top: 0; background: var(--card); padding: 14px 16px; font-size: 18px; font-weight: 600; border-bottom: 1px solid #eee; z-index: 10; }
+    .container { padding: 12px 12px 0; }
+    .card { background: var(--card); border-radius: var(--radius); padding: 12px; box-shadow: 0 1px 2px rgba(15,15,15,0.06); margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    .field { margin-bottom: 10px; }
+    .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .input, .select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; font-size: 14px; }
+    .btn { display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 12px 14px; border-radius: 12px; border: none; background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; }
+    .btn.secondary { background: #111827; }
+    .btn.ghost { background: #fff; color: var(--text); border: 1px solid #e5e7eb; }
+    .btn.danger { background: var(--danger); }
+    .btn.block { width: 100%; }
+    .btn.small { padding: 8px 10px; font-size: 13px; border-radius: 10px; }
+    .toolbar { position: sticky; top: 44px; background: var(--bg); z-index: 9; padding: 8px 12px; }
+    .list { display: grid; gap: 10px; }
+    .item { background: var(--card); border: 1px solid #f0f1f5; border-radius: 12px; padding: 12px; }
+    .item .title { font-size: 15px; font-weight: 600; }
+    .item .meta { margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .item .actions { display: flex; gap: 8px; margin-top: 10px; }
+    .tabs { display: flex; background: #fff; border-radius: 10px; padding: 4px; gap: 4px; }
+    .tab { flex: 1; text-align: center; padding: 8px 6px; font-size: 13px; border-radius: 8px; }
+    .tab.active { background: var(--primary); color: #fff; font-weight: 600; }
+    .seg { display: inline-flex; background: #f3f4f6; padding: 4px; border-radius: 8px; gap: 4px; }
+    .seg .seg-item { padding: 6px 8px; border-radius: 6px; font-size: 12px; }
+    .seg .seg-item.active { background: #fff; border: 1px solid #e5e7eb; }
+    .fab { position: fixed; right: 16px; bottom: 84px; width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 8px 20px rgba(61,126,255,0.35); }
+    .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 100px; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 12px; border-radius: 8px; font-size: 12px; display: none; }
+    .tabbar { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #fff; border-top: 1px solid #eee; display: grid; grid-template-columns: repeat(4, 1fr); }
+    .tabbar .item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6b7280; font-size: 11px; }
+    .tabbar .item.active { color: var(--primary); font-weight: 600; }
+    /* role & multi nav */
+    .rolebar { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1px solid #eee; }
+    .rolebar .inner { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
+    .role-seg { display: inline-flex; gap: 6px; background: #f3f4f6; padding: 4px; border-radius: 8px; }
+    .role-seg .seg-item { padding: 6px 10px; border-radius: 6px; font-size: 12px; }
+    .role-seg .seg-item.active { background: #fff; border: 1px solid #e5e7eb; }
+    nav.tabbar { display: none; grid-template-columns: repeat(5, 1fr); }
+    nav.tabbar.active { display: grid; }
+    .bottom-action { position: fixed; left: 0; right: 0; bottom: 60px; background: #fff; border-top: 1px solid #eee; display: none; align-items: center; justify-content: space-between; padding: 10px 12px; }
+    .bottom-action.active { display: flex; }
+  </style>
+</head>
+<body>
+  <!-- 角色切换 -->
+  <div class="rolebar" id="roleBar">
+    <div class="inner">
+      <div style="font-size:13px;color:#6b7280;">角色</div>
+      <div class="role-seg" id="roleSeg">
+        <div class="seg-item" data-role="root">超管</div>
+        <div class="seg-item active" data-role="admin">店铺管理员</div>
+        <div class="seg-item" data-role="user">普通用户</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 首页 -->
+  <section id="page-home" class="page active">
+    <div class="appbar">首页</div>
+    <div class="container">
+      <div class="card">
+        <div class="tabs" id="statsTabs">
+          <div class="tab active" data-range="today">今日</div>
+          <div class="tab" data-range="yesterday">昨日</div>
+          <div class="tab" data-range="week">本周</div>
+          <div class="tab" data-range="lastweek">上周</div>
+        </div>
+        <div id="statsCards" class="row" style="margin-top:10px;">
+          <div class="card" style="flex:1;">
+            <div class="label">收入</div>
+            <div style="font-size:20px;font-weight:700;">--</div>
+          </div>
+          <div class="card" style="flex:1;">
+            <div class="label">活跃</div>
+            <div style="font-size:20px;font-weight:700;">--</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">快捷入口</div>
+        <div class="row">
+          <button class="btn block" onclick="go('page-shop')">店铺</button>
+          <button class="btn block" onclick="go('page-game')">游戏</button>
+          <button class="btn block" onclick="go('page-funds')">资金</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 管理员：成员列表与详情入口 -->
+  <section id="page-members" class="page" data-role="admin">
+    <div class="appbar">成员</div>
+    <div class="toolbar">
+      <div class="row">
+        <input id="memberSearch" class="input" placeholder="搜ID/昵称/圈号" />
+        <button class="btn" onclick="renderMembers()">查询</button>
+      </div>
+    </div>
+    <div class="container">
+      <div id="memberList" class="list"></div>
+    </div>
+  </section>
+
+  <!-- 管理员：房间列表 -->
+  <section id="page-shop" class="page" data-role="admin">
+    <div class="appbar">房间</div>
+    <div class="toolbar">
+      <div class="row">
+        <input id="roomSearch" class="input" placeholder="玩家/圈号/房间号" />
+        <button class="btn" onclick="renderRooms()">刷新</button>
+      </div>
+    </div>
+    <div class="container">
+      <div id="roomList" class="list"></div>
+    </div>
+    <div id="roomActionBar" class="bottom-action">
+      <div>
+        <label><input type="checkbox" id="roomSelectAll" onchange="toggleSelectAllRooms(this)" /> 全选</label>
+        <span id="roomSelectedCount" style="margin-left:8px;color:#6b7280;">已选 0 个房间</span>
+      </div>
+      <button class="btn danger" onclick="batchDismissRooms()">批量解桌</button>
+    </div>
+  </section>
+
+  <!-- 游戏 - 会话 -->
+  <section id="page-game" class="page">
+    <div class="appbar">游戏</div>
+    <div class="container">
+      <div class="card">
+        <div class="label">开始会话</div>
+        <div class="field">
+          <div class="label">选择类型</div>
+          <div class="seg" id="sessionTypeSeg">
+            <div class="seg-item active" data-type="account">游戏账号</div>
+            <div class="seg-item" data-type="ctrl">中控</div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">店铺 GID</div>
+          <input id="sessionHouse" class="input" placeholder="输入店铺GID" inputmode="numeric" />
+        </div>
+        <div class="field">
+          <div class="label">备注</div>
+          <input id="sessionNote" class="input" placeholder="备注（可选）" />
+        </div>
+        <button class="btn block" onclick="startSession()">开始</button>
+      </div>
+      <div class="card">
+        <div class="label">停止会话</div>
+        <div class="field">
+          <div class="label">会话标识</div>
+          <input id="stopSessionId" class="input" placeholder="输入会话ID" inputmode="numeric" />
+        </div>
+        <button class="btn danger block" onclick="stopSession()">停止</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 资金 - 信用账户 -->
+  <section id="page-funds" class="page">
+    <div class="appbar">资金</div>
+    <div class="container">
+      <div class="card">
+        <div class="label">存入</div>
+        <div class="row">
+          <input id="depositUser" class="input" placeholder="用户ID" inputmode="numeric" />
+          <input id="depositAmount" class="input" placeholder="金额" inputmode="decimal" />
+        </div>
+        <input id="depositNote" class="input" placeholder="备注(可选)" style="margin-top:8px;" />
+        <button class="btn block" onclick="deposit()">提交存入</button>
+      </div>
+      <div class="card">
+        <div class="label">提现 / 强制提现</div>
+        <div class="row">
+          <input id="withdrawUser" class="input" placeholder="用户ID" inputmode="numeric" />
+          <input id="withdrawAmount" class="input" placeholder="金额" inputmode="decimal" />
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn block" onclick="withdraw(false)">提现</button>
+          <button class="btn danger block" onclick="withdraw(true)">强制提现</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 底部导航：店铺管理员 -->
+  <nav id="tabbar-admin" class="tabbar active" data-role="admin">
+    <div class="item active" data-target="page-home" onclick="go('page-home')">首页</div>
+    <div class="item" data-target="page-shop" onclick="go('page-shop')">房间</div>
+    <div class="item" data-target="page-members" onclick="go('page-members')">成员</div>
+    <div class="item" data-target="page-funds" onclick="go('page-funds')">积分</div>
+    <div class="item" data-target="page-admin-my" onclick="go('page-admin-my')">我的</div>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const API = {
+      stats: (range) => ({ method: 'POST', url: `/stats/${range}` }),
+      ctrlListAll: () => ({ method: 'POST', url: '/shops/ctrlAccounts/listAll' }),
+      ctrlCreate: () => ({ method: 'POST', url: '/shops/ctrlAccounts' }),
+      ctrlBind: () => ({ method: 'POST', url: '/shops/ctrlAccounts/bind' }),
+      ctrlUnbind: () => ({ method: 'DELETE', url: '/shops/ctrlAccounts/bind' }),
+      sessionStart: () => ({ method: 'POST', url: '/game/accounts/sessionStart' }),
+      sessionStop: () => ({ method: 'POST', url: '/game/accounts/sessionStop' }),
+      deposit: () => ({ method: 'POST', url: '/members/credit/deposit' }),
+      withdraw: () => ({ method: 'POST', url: '/members/credit/withdraw' }),
+      forceWithdraw: () => ({ method: 'POST', url: '/members/credit/force_withdraw' }),
+    };
+
+    let currentRole = 'admin';
+    function getQuery() { const p = new URLSearchParams(location.search); const o = {}; p.forEach((v,k)=>o[k]=v); return o; }
+    function go(id) {
+      // 仅切换当前角色可见页面
+      document.querySelectorAll(`.page[data-role="${currentRole}"]`).forEach(p => p.classList.remove('active'));
+      const page = document.getElementById(id);
+      if (page) page.classList.add('active');
+      // 更新对应底部栏高亮
+      document.querySelectorAll(`nav.tabbar[data-role="${currentRole}"] .item`).forEach(i => i.classList.toggle('active', i.dataset.target === id));
+      updateRoomActionBar();
+    }
+    function setRole(role) {
+      currentRole = role;
+      // 切换底部栏
+      document.querySelectorAll('nav.tabbar').forEach(t => t.classList.remove('active'));
+      const tab = document.getElementById(role === 'admin' ? 'tabbar-admin' : role === 'root' ? 'tabbar-root' : 'tabbar-user');
+      if (tab) tab.classList.add('active');
+      // 切换到默认首页
+      const defaultPage = role === 'admin' ? 'page-home' : role === 'root' ? 'root-home' : 'user-accounts';
+      // 隐藏所有页面，显示本角色页面
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll(`.page[data-role="${currentRole}"]`).forEach(p => { if (p.id === defaultPage) p.classList.add('active'); });
+      // 高亮默认Tab
+      document.querySelectorAll(`nav.tabbar[data-role="${currentRole}"] .item`).forEach(i => i.classList.toggle('active', i.dataset.target === defaultPage));
+      updateRoomActionBar();
+    }
+    const roleSegEl = document.getElementById('roleSeg');
+    if (roleSegEl) {
+      roleSegEl.addEventListener('click', e => {
+        const t = e.target.closest('.seg-item'); if (!t) return;
+        document.querySelectorAll('#roleSeg .seg-item').forEach(i => i.classList.remove('active'));
+        t.classList.add('active');
+        setRole(t.dataset.role);
+      });
+    }
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 1600);
+    }
+    function $(id) { return document.getElementById(id); }
+
+    // Stats tab switch（保留原型交互）
+    const statsTabs = document.getElementById('statsTabs');
+    if (statsTabs) {
+      statsTabs.addEventListener('click', e => {
+        const t = e.target.closest('.tab'); if (!t) return;
+        document.querySelectorAll('#statsTabs .tab').forEach(i => i.classList.remove('active'));
+        t.classList.add('active');
+        toast('切换：' + t.dataset.range);
+      });
+    }
+
+    // Session type seg
+    document.getElementById('sessionTypeSeg').addEventListener('click', e => {
+      const t = e.target.closest('.seg-item'); if (!t) return;
+      document.querySelectorAll('#sessionTypeSeg .seg-item').forEach(i => i.classList.remove('active'));
+      t.classList.add('active');
+    });
+
+    // 移除旧的“中控列表”页面逻辑，改为房间/成员/申请等
+
+    function startSession() {
+      const type = document.querySelector('#sessionTypeSeg .seg-item.active').dataset.type;
+      const house = $('#sessionHouse').value.trim();
+      if (!house) { toast('请输入店铺GID'); return; }
+      // TODO: fetch(API.sessionStart)
+      toast(`会话开始(${type}) -> house#${house}`);
+    }
+    function stopSession() {
+      const id = $('#stopSessionId').value.trim();
+      if (!id) { toast('会话ID必填'); return; }
+      // TODO: fetch(API.sessionStop)
+      toast(`会话停止#${id}`);
+    }
+
+    function deposit() {
+      const uid = $('#depositUser').value.trim();
+      const amt = $('#depositAmount').value.trim();
+      if (!uid || !amt) { toast('用户与金额必填'); return; }
+      toast(`存入 用户#${uid} 金额 ${amt}`);
+    }
+    function withdraw(force) {
+      const uid = $('#withdrawUser').value.trim();
+      const amt = $('#withdrawAmount').value.trim();
+      if (!uid || !amt) { toast('用户与金额必填'); return; }
+      toast(`${force? '强制':''}提现 用户#${uid} 金额 ${amt}`);
+    }
+
+    // 初始
+    const q = getQuery();
+    const role = q.role || 'admin';
+    const pageId = q.page;
+    const embed = q.embed === '1';
+    if (embed) {
+      const rb = document.getElementById('roleBar'); if (rb) rb.style.display = 'none';
+      const tbA = document.getElementById('tabbar-admin'); if (tbA) tbA.style.display = 'none';
+      const tbR = document.getElementById('tabbar-root'); if (tbR) tbR.style.display = 'none';
+      const tbU = document.getElementById('tabbar-user'); if (tbU) tbU.style.display = 'none';
+    }
+    setRole(role);
+    if (pageId) go(pageId);
+    renderRooms();
+    renderMembers();
+    renderApps();
+  </script>
+</body>
+</html>
+
+

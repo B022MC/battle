@@ -1,0 +1,44 @@
+server:
+  http:
+    addr: "[::]:8000"
+#    addr: "0.0.0.0:8000"
+    timeout: 1s
+  asynq:
+    addr: "118.24.135.171:6379"
+    password: "banishmentB022"
+    db: 1
+    subscriber:
+      - name: "refresh:test:job"
+        schedule: "@every 6s"
+
+data:
+  database:
+    driver: cloudsqlpostgres
+    source: "user=B022MC password=banishmentB022 host=118.24.135.171 port=26655 dbname=battle-tiles-dev sslmode=disable"
+  databaseList:
+    - driver: cloudsqlpostgres
+      source: "user=B022MC password=banishmentB022 host=118.24.135.171 port=26655 sslmode=disable dbname=battle-cloud-dev"
+      alias: "cloud-cloud"
+  redis:
+    addr: "118.24.135.171:6379"
+    password: "banishmentB022"
+    db: 15
+    nq_db: 9
+  redisList:
+    - addr: "118.24.135.171:6379"
+      password: "banishmentB022"
+      db: 0
+      # nq: 2
+      alias: "redis_device_collect"
+
+
+global:
+  rsa:
+    public: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1FEFPxWg1zYquQZJmqW4svXPLEjYPQ7PvtgqZWkQ0R5LnjnSjLdaNmpl1tcYA9lCiz21IEUK1ROfldnhVtS9ehK3zV2F0p5+6Vz/lU+kukfe6VVnwRXKGX2pBbQ3GU0m4Ih3yJ2KTTeMy6ZfZ0EC7agDGa9qDp1bfxoehfCz2HrTZl2WJkQOK+ily6uWt1zJDcUYffGD433eGEah8ISf3VOTdFmQzFiXxilwlnVTAeILGSS0/WhXrOs3Xqk5wgp41mMZxQ/uYIrQN4KIYZFlFosS1xuOQiTkrPBAVcZen8pfEjLv9yigD49H/QogkrONvQgfOYdruaN5sGvAODckwIDAQAB"
+    private: "MIIEpAIBAAKCAQEAu1FEFPxWg1zYquQZJmqW4svXPLEjYPQ7PvtgqZWkQ0R5LnjnSjLdaNmpl1tcYA9lCiz21IEUK1ROfldnhVtS9ehK3zV2F0p5+6Vz/lU+kukfe6VVnwRXKGX2pBbQ3GU0m4Ih3yJ2KTTeMy6ZfZ0EC7agDGa9qDp1bfxoehfCz2HrTZl2WJkQOK+ily6uWt1zJDcUYffGD433eGEah8ISf3VOTdFmQzFiXxilwlnVTAeILGSS0/WhXrOs3Xqk5wgp41mMZxQ/uYIrQN4KIYZFlFosS1xuOQiTkrPBAVcZen8pfEjLv9yigD49H/QogkrONvQgfOYdruaN5sGvAODckwIDAQABAoIBAQCFiOmADGOgQhAzw2gqetIV3DsUiTMvauzReWLvgj4XtjitaIN54cj1djXwMLEpyc+98VAFLf+y4+cRKj4iU3hQ1ciKVxJYiD9tpgWKyjpRgN9wxezD79QyeH3bfGhotb1LHvoGmAqkVYwR8KZ7ZfP8ZbSzIosR4prUTZwtbcLzEyBtVJRuE3pd+yvpDtvNeWqdx5tNJrncs7z0VnThBuNOjAFuVtCYwAYBMbujKOznucJNt/2CIX0gxkMjZcWOJAd162qq/TtVnxUF7goADypYBo/F2PFptYrmUGg5olXMDGrCOFQuGPFnT2jcjzZZ/5DrrdmTJK7doOyYdX+Ca/wBAoGBAPilH1dLA14uWzuslG7mOKtsEko7IAflDZ8+hgOk8VmLZYOvhyyI7GTq0cLFMvoYv+FmZD9r7kJ+U/O4w4mrTNRaYjUUjwbZInzXGFDK03MtlTdLVJrPgSqnjkchS2cYv/31LW+AmZNDgicAEtCiq9LI8POxliwfXGFWOqODuzm3AoGBAMDbvL3mFuBpEmtG3IAtVp7pqnBDPLOgbqt4K98se3t3Ty2K3pIwtb35O1TY1LU8L5MYF8KbDxb5QQRP+dzgrTA4YWuKD4hg7i0ohzb7Ye6XmOdBYrN8QKJHOhY5w18D7Sj+JcIV/AxuLUTgGVlmsKHEo2jBgK2D4XBIc0ZyvSQFAoGAaWZtm65jthfGesxUe5JB8YC1XBwmHtKc7KUvX/oaiQ/LL4BHt7wvITRdSMgZLOUy6ZRi6HOTI0KzybvHv+MKhXXu7XtSid+fe/YeC5l++vMWrsLTEXDm2zL93+8gLIrUUA4PfZWxBDj4whmI4EIkvgyJ/3OHKhr9KRHJd6kOw48CgYAroElkx6y7HOmevMvabuceUYtNk9giZhNC1I9QD7brKgUOL1DDzyL9k2h5fAc57CBy7MtLKVpTfxTXDeRes7BZrRdUhUmYNx0JuBZGOL1hhIeBIIhcQ6o3S1d3eZ+ZWcEHOd5+tgxrH208HFl/oLwqC9pPMx6RobiYdrsk34WrpQKBgQCqocOlPIxdqlfKTwYrGSgoeHcoBzUE0zW3LTZd9j4meH7uqIbs1oS3WbNxMO/Z66vJ9gqqO0z+dO7QULJePaUtWQa5vGUiBAL6SaEUv/A5pwgf96Nz3mQYsHUxy7hP+dNI8N/QynsQMmmV6aKmhjbUBIUzfKL2H41UDY0GvWisGg=="
+  game:
+    plaza:
+      server82: "androidsc.foxuc.com:8200"
+      server87Host: "newbgp.foxuc.com"
+      keepalive_seconds: 30
+      auto_reconnect: true

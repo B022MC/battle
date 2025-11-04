@@ -1,0 +1,30 @@
+package utils
+
+import (
+	"battle-tiles/pkg/utils/rsax"
+	"fmt"
+	"testing"
+)
+
+const pubBase64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1FEFPxWg1zYquQZJmqW4svXPLEjYPQ7PvtgqZWkQ0R5LnjnSjLdaNmpl1tcYA9lCiz21IEUK1ROfldnhVtS9ehK3zV2F0p5+6Vz/lU+kukfe6VVnwRXKGX2pBbQ3GU0m4Ih3yJ2KTTeMy6ZfZ0EC7agDGa9qDp1bfxoehfCz2HrTZl2WJkQOK+ily6uWt1zJDcUYffGD433eGEah8ISf3VOTdFmQzFiXxilwlnVTAeILGSS0/WhXrOs3Xqk5wgp41mMZxQ/uYIrQN4KIYZFlFosS1xuOQiTkrPBAVcZen8pfEjLv9yigD49H/QogkrONvQgfOYdruaN5sGvAODckwIDAQAB"
+const priBase64 = "MIIEpAIBAAKCAQEAu1FEFPxWg1zYquQZJmqW4svXPLEjYPQ7PvtgqZWkQ0R5LnjnSjLdaNmpl1tcYA9lCiz21IEUK1ROfldnhVtS9ehK3zV2F0p5+6Vz/lU+kukfe6VVnwRXKGX2pBbQ3GU0m4Ih3yJ2KTTeMy6ZfZ0EC7agDGa9qDp1bfxoehfCz2HrTZl2WJkQOK+ily6uWt1zJDcUYffGD433eGEah8ISf3VOTdFmQzFiXxilwlnVTAeILGSS0/WhXrOs3Xqk5wgp41mMZxQ/uYIrQN4KIYZFlFosS1xuOQiTkrPBAVcZen8pfEjLv9yigD49H/QogkrONvQgfOYdruaN5sGvAODckwIDAQABAoIBAQCFiOmADGOgQhAzw2gqetIV3DsUiTMvauzReWLvgj4XtjitaIN54cj1djXwMLEpyc+98VAFLf+y4+cRKj4iU3hQ1ciKVxJYiD9tpgWKyjpRgN9wxezD79QyeH3bfGhotb1LHvoGmAqkVYwR8KZ7ZfP8ZbSzIosR4prUTZwtbcLzEyBtVJRuE3pd+yvpDtvNeWqdx5tNJrncs7z0VnThBuNOjAFuVtCYwAYBMbujKOznucJNt/2CIX0gxkMjZcWOJAd162qq/TtVnxUF7goADypYBo/F2PFptYrmUGg5olXMDGrCOFQuGPFnT2jcjzZZ/5DrrdmTJK7doOyYdX+Ca/wBAoGBAPilH1dLA14uWzuslG7mOKtsEko7IAflDZ8+hgOk8VmLZYOvhyyI7GTq0cLFMvoYv+FmZD9r7kJ+U/O4w4mrTNRaYjUUjwbZInzXGFDK03MtlTdLVJrPgSqnjkchS2cYv/31LW+AmZNDgicAEtCiq9LI8POxliwfXGFWOqODuzm3AoGBAMDbvL3mFuBpEmtG3IAtVp7pqnBDPLOgbqt4K98se3t3Ty2K3pIwtb35O1TY1LU8L5MYF8KbDxb5QQRP+dzgrTA4YWuKD4hg7i0ohzb7Ye6XmOdBYrN8QKJHOhY5w18D7Sj+JcIV/AxuLUTgGVlmsKHEo2jBgK2D4XBIc0ZyvSQFAoGAaWZtm65jthfGesxUe5JB8YC1XBwmHtKc7KUvX/oaiQ/LL4BHt7wvITRdSMgZLOUy6ZRi6HOTI0KzybvHv+MKhXXu7XtSid+fe/YeC5l++vMWrsLTEXDm2zL93+8gLIrUUA4PfZWxBDj4whmI4EIkvgyJ/3OHKhr9KRHJd6kOw48CgYAroElkx6y7HOmevMvabuceUYtNk9giZhNC1I9QD7brKgUOL1DDzyL9k2h5fAc57CBy7MtLKVpTfxTXDeRes7BZrRdUhUmYNx0JuBZGOL1hhIeBIIhcQ6o3S1d3eZ+ZWcEHOd5+tgxrH208HFl/oLwqC9pPMx6RobiYdrsk34WrpQKBgQCqocOlPIxdqlfKTwYrGSgoeHcoBzUE0zW3LTZd9j4meH7uqIbs1oS3WbNxMO/Z66vJ9gqqO0z+dO7QULJePaUtWQa5vGUiBAL6SaEUv/A5pwgf96Nz3mQYsHUxy7hP+dNI8N/QynsQMmmV6aKmhjbUBIUzfKL2H41UDY0GvWisGg=="
+
+func TestRSA_Print(t *testing.T) {
+	plain := "123456789"
+
+	// 公钥加密 -> Base64 密文
+	cipherB64, err := rsax.RsaEncryptBase64([]byte(plain), pubBase64)
+	if err != nil {
+		t.Fatal("encrypt failed:", err)
+	}
+
+	// 私钥解密 <- Base64 密文
+	back, err := rsax.RsaDecryptByBase64(cipherB64, priBase64)
+	if err != nil {
+		t.Fatal("decrypt failed:", err)
+	}
+
+	fmt.Println("原文   :", plain)
+	fmt.Println("密文B64:", cipherB64)
+	fmt.Println("解密后 :", string(back))
+}

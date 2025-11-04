@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>H5 原型 - 画布视图</title>
+  <style>
+    body { margin:0; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',Arial; background:#0f1115; color:#e5e7eb; }
+    .grid { display:grid; grid-template-columns: repeat(3, 420px); gap: 24px; padding: 24px; }
+    .frame { background:#151821; border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    .title { font-size:14px; margin-bottom:8px; color:#9ca3af; }
+    iframe { width:375px; height:812px; border:0; border-radius: 12px; background:#fff; }
+    .topbar { position:sticky; top:0; background:#0f1115; padding:12px 24px; border-bottom:1px solid #1f2430; display:flex; gap:12px; align-items:center; }
+    .btn { background:#1f2430; color:#e5e7eb; border:1px solid #2b3242; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .btn:hover { background:#252b3a; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>H5 原型 - 画布视图（模拟 Figma 全量画板）</div>
+    <button class="btn" onclick="reloadAll()">刷新全部</button>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const pages = [
+      // admin
+      { role:'admin', id:'page-home', label:'管理员/首页' },
+      { role:'admin', id:'page-shop', label:'管理员/房间' },
+      { role:'admin', id:'page-members', label:'管理员/成员' },
+      { role:'admin', id:'page-funds', label:'管理员/积分' },
+      { role:'admin', id:'page-admin-apps', label:'管理员/入馆申请' },
+      { role:'admin', id:'page-admin-my', label:'管理员/我的' },
+      // root
+      { role:'root', id:'root-home', label:'超管/首页' },
+      { role:'root', id:'root-shops', label:'超管/店铺选择' },
+      { role:'root', id:'root-rooms', label:'超管/房间（选店后）' },
+      { role:'root', id:'root-ctrl', label:'超管/中控' },
+      { role:'root', id:'root-my', label:'超管/我的' },
+      // user
+      { role:'user', id:'user-accounts', label:'用户/账号' },
+      { role:'user', id:'user-wallet', label:'用户/钱包' },
+      { role:'user', id:'user-my', label:'用户/我的' },
+    ];
+    function createCard(p) {
+      const wrap = document.createElement('div'); wrap.className='frame';
+      const title = document.createElement('div'); title.className='title'; title.textContent = p.label; wrap.appendChild(title);
+      const ifr = document.createElement('iframe');
+      const src = `./index.html?embed=1&role=${encodeURIComponent(p.role)}&page=${encodeURIComponent(p.id)}`;
+      ifr.src = src; wrap.appendChild(ifr);
+      return wrap;
+    }
+    function render() {
+      const grid = document.getElementById('grid'); grid.innerHTML='';
+      pages.forEach(p => grid.appendChild(createCard(p)));
+    }
+    function reloadAll() {
+      document.querySelectorAll('iframe').forEach(f => f.contentWindow?.location.reload());
+    }
+    render();
+  </script>
+</body>
+</html>
+
+

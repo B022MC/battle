@@ -1,0 +1,5457 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/applications/approve": {
+            "post": {
+                "description": "通过指定申请（按消息ID在在线会话缓存中查找）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/申请"
+                ],
+                "summary": "审批通过",
+                "parameters": [
+                    {
+                        "description": "入参在body：{ id }",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.DecideApplicationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.AckVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "application not found in online sessions",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "no online session",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/applications/reject": {
+            "post": {
+                "description": "拒绝指定申请（按消息ID在在线会话缓存中查找）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/申请"
+                ],
+                "summary": "审批拒绝",
+                "parameters": [
+                    {
+                        "description": "入参在body：{ id }",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.DecideApplicationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.AckVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "application not found in online sessions",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "no online session",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/addOne": {
+            "post": {
+                "description": "Add by model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "BaseMenu 添加单条",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.AddBasicMenuReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/basic.BasicMenuDoc"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/delMany": {
+            "post": {
+                "description": "Delete by ids",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "批量删除",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ReqByIds"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/delOne": {
+            "get": {
+                "description": "Delete by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "删除单条",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "唯一主键",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/getOne": {
+            "get": {
+                "description": "Get by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "获取单条",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "唯一主键",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/basic.BasicMenuDoc"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/getOption": {
+            "get": {
+                "description": "Option list (label/value)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "下拉字典",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "example": 10,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/utils.PageResult"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "list": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/common.Option"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/getPage": {
+            "get": {
+                "description": "Get list by page",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "分页列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "example": 10,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/utils.PageResult"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "list": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/basic.BasicMenuDoc"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/getTree": {
+            "get": {
+                "description": "支持 keyword 模糊筛选后再组树",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "菜单树",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.Menu"
+                                            }
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/saveTree": {
+            "post": {
+                "description": "成功后返回最新菜单树",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "保存整棵菜单树（覆盖式）",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.SaveMenuTree"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.Menu"
+                                            }
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/baseMenu/updateOne": {
+            "post": {
+                "description": "Update by ID + fields",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "BaseMenu 更新单条",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.UpdateBasicMenuReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/role/all": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/角色"
+                ],
+                "summary": "角色全量（启用）",
+                "responses": {}
+            }
+        },
+        "/basic/role/getOne": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/角色"
+                ],
+                "summary": "角色详情",
+                "responses": {}
+            }
+        },
+        "/basic/role/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/角色"
+                ],
+                "summary": "角色列表",
+                "responses": {}
+            }
+        },
+        "/basic/user/addOne": {
+            "post": {
+                "description": "新增单条记录 Add Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "新增单条记录",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.AddBasicUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/basic.BasicUserDoc"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/delMany": {
+            "post": {
+                "description": "删除多条记录 Del Many Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "删除多条记录",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "主键ID（多值：?id=1\u0026id=2\u0026id=3）",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/delOne": {
+            "get": {
+                "description": "删除单条记录 Del Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "删除单条记录",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "主键",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/getList": {
+            "get": {
+                "description": "查询N条记录 List/Page Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "查询N条记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "是否不分页 需要不分页是传递 true",
+                        "name": "not_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "页码",
+                        "name": "page_no",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "example": 10,
+                        "description": "每页大小 不可大于1000",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/utils.PageResult"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "list": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/basic.BasicUserDoc"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/getOne": {
+            "get": {
+                "description": "查询单条记录 By PK Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "查询单条记录",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "主键",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/basic.BasicUserDoc"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/getOption": {
+            "get": {
+                "description": "查询N条记录 List/Page Model To Option",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "查询N条记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "是否不分页 需要不分页是传递 true",
+                        "name": "not_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "页码",
+                        "name": "page_no",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "example": 10,
+                        "description": "每页大小 不可大于1000",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/utils.PageResult"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "list": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/basic.BasicUserDoc"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/me/perms": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "我的权限码",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/me/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "我的角色ID",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/updateOne": {
+            "post": {
+                "description": "修改单条记录 Update Model",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "修改单条记录",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "inParam",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.AddBasicUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/basic.BasicUserDoc"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/game/accounts": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "普通用户仅能绑定1个游戏账号（DB 触发器兜底）；管理员不受限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/我的账号"
+                ],
+                "summary": "绑定“我的”游戏账号（仅允许 1 条）",
+                "parameters": [
+                    {
+                        "description": "入参在 body",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.BindMyAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.AccountVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "you have already bound a game account",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/accounts/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/我的账号"
+                ],
+                "summary": "我的游戏账号",
+                "responses": {
+                    "200": {
+                        "description": "若未绑定，data 为 null",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.AccountVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/我的账号"
+                ],
+                "summary": "解绑我的游戏账号",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/accounts/sessionStart": {
+            "post": {
+                "description": "使用中控账号在指定店铺建立会话",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/会话"
+                ],
+                "summary": "启动会话（中控账号）",
+                "parameters": [
+                    {
+                        "description": "id=game_ctrl_account主键ID; house_gid=店铺号",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StartSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "state=online",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.SessionStateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/accounts/sessionStop": {
+            "post": {
+                "description": "停止中控账号与店铺的会话",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/会话"
+                ],
+                "summary": "停止会话（中控账号）",
+                "parameters": [
+                    {
+                        "description": "id=game_ctrl_account主键ID; house_gid=店铺号",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StopSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "state=offline",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.SessionStateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/game/accounts/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "只做登录探测，不写库、不建立会话",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/我的账号"
+                ],
+                "summary": "校验游戏账号是否可用（探活82）",
+                "parameters": [
+                    {
+                        "description": "mode: account|mobile；account: 账号或手机号",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.VerifyAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { ok: true }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.VerifyAccountResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/login/register": {
+            "post": {
+                "description": "使用用户名与密码注册新用户，成功后返回访问令牌与用户信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/登录"
+                ],
+                "summary": "用户注册（用户名 + 密码）",
+                "parameters": [
+                    {
+                        "description": "注册参数",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.LoginResponse"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "注册失败",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login/username": {
+            "post": {
+                "description": "使用用户名与密码登录，成功后返回访问令牌与用户信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/登录"
+                ],
+                "summary": "用户名密码登录",
+                "parameters": [
+                    {
+                        "description": "登录参数",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.UsernamePasswordLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.LoginResponse"
+                                        },
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "登录失败",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "msg": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/members/battle/details": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "战绩"
+                ],
+                "summary": "用户战绩明细（外部HTTP）",
+                "parameters": [
+                    {
+                        "description": "house_gid, group_id, period(=today|yesterday|thisweek), 可选game_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.BattleDetailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.BattleRecordVO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/members/credit/deposit": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/额度"
+                ],
+                "summary": "上分",
+                "parameters": [
+                    {
+                        "description": "入参在body",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.CreditDepositRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { balance: 123 }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.FundsBalanceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/credit/force_withdraw": {
+            "post": {
+                "description": "忽略 forbid 与 limit_min，仅记录流水",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/额度"
+                ],
+                "summary": "强制下分",
+                "parameters": [
+                    {
+                        "description": "入参在body",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.CreditForceWithdrawRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { balance: 123 }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.FundsBalanceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/credit/withdraw": {
+            "post": {
+                "description": "受 forbid 与 limit_min 约束",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/额度"
+                ],
+                "summary": "下分",
+                "parameters": [
+                    {
+                        "description": "入参在body",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.CreditWithdrawRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { balance: 123 }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.FundsBalanceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "422": {
+                        "description": "越过 limit_min 或已禁分",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/ledger/list": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/流水"
+                ],
+                "summary": "资金流水查询",
+                "parameters": [
+                    {
+                        "description": "house_gid, member_id 可选, type 可选, 时间范围",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListLedgerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.LedgerListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/members/limit": {
+            "patch": {
+                "description": "forbid=true 会尝试调用会话进行禁分；false 解除禁分",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/额度"
+                ],
+                "summary": "设置禁分阈值/禁用状态",
+                "parameters": [
+                    {
+                        "description": "入参在body（limit_min/forbid 任一可选）",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.UpdateMemberLimitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { balance, forbid, limit_min }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.FundsLimitResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "会话不存在（需要下发禁分指令时）",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/members/wallet/get": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/钱包"
+                ],
+                "summary": "查询单人钱包",
+                "parameters": [
+                    {
+                        "description": "house_gid, member_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GetWalletRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.WalletVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/members/wallet/list": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/钱包"
+                ],
+                "summary": "钱包列表（支持余额区间/是否个性额度过滤）",
+                "parameters": [
+                    {
+                        "description": "house_gid, min/max_balance, has_custom_limit, page",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListWalletsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.WalletListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/ops/plaza/health": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回 plaza.Manager 的健康状态",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ops"
+                ],
+                "summary": "获取广场健康状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/ops/plaza/housesByLogin": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ops"
+                ],
+                "summary": "通过账号登录尝试列出店铺",
+                "parameters": [
+                    {
+                        "description": "login_mode 默认 account",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.housesByLoginReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/ops/plaza/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回 plaza.Manager 的指标快照",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ops"
+                ],
+                "summary": "获取广场指标",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/platforms/list": {
+            "get": {
+                "description": "返回全部平台",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "平台列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/admins": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/管理员"
+                ],
+                "summary": "分配店铺管理员",
+                "parameters": [
+                    {
+                        "description": "house_gid, user_id, role(admin|operator, 默认admin)",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.AssignShopAdminRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/管理员"
+                ],
+                "summary": "撤销店铺管理员",
+                "parameters": [
+                    {
+                        "description": "house_gid, user_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.RevokeShopAdminRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/admins/list": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/管理员"
+                ],
+                "summary": "店铺管理员列表",
+                "parameters": [
+                    {
+                        "description": "house_gid 必填",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListShopAdminsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.ShopAdminVO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/applications/list": {
+            "post": {
+                "description": "按店铺号列出最近收到的管理员申请（依赖在线会话缓存）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/申请"
+                ],
+                "summary": "店铺管理员申请列表",
+                "parameters": [
+                    {
+                        "description": "入参在body：{ house_gid }",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListApplicationsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.ApplicationsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "session not online",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/ctrlAccounts": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "创建/更新中控账号（不绑定店铺）；兼容：若携带 house_gid，则创建后立即绑定",
+                "parameters": [
+                    {
+                        "description": "入参在body",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/game.createCtrlAccountOnlyReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.CtrlAccountVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/ctrlAccounts/bind": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "绑定中控到店铺",
+                "parameters": [
+                    {
+                        "description": "ctrl_id, house_gid, status(可选), alias(可选)",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/game.bindCtrlReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "解绑中控与店铺",
+                "parameters": [
+                    {
+                        "description": "ctrl_id, house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/game.unbindCtrlReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/ctrlAccounts/list": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "按店铺列出中控账号",
+                "parameters": [
+                    {
+                        "description": "house_gid 必填",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.CtrlAccountListRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.CtrlAccountVO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/ctrlAccounts/listAll": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "中控账号全量列表（可筛选分页）",
+                "parameters": [
+                    {
+                        "description": "筛选：login_mode(1/2) status(0/1) keyword 模糊 identifier",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListAllCtrlAccountsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "附带 houses（绑定店铺列表）",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.CtrlAccountAllVO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/diamond/query": {
+            "post": {
+                "description": "调用会话 GetDiamond；接口返回触发状态。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/成员"
+                ],
+                "summary": "查询当前中控账号财富（钻石）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListTablesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { triggered: bool }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.DiamondQueryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/fees/get": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺"
+                ],
+                "summary": "查询店铺设置（运费/分运/推送额度）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GetWalletRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.HouseSettingsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/groups/bind": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "圈/群"
+                ],
+                "summary": "绑圈（同意申请）",
+                "parameters": [
+                    {
+                        "description": "house_gid, message_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GroupBindRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/groups/delete": {
+            "post": {
+                "description": "若无直通删除圈协议，则逐个踢出成员以达到删除效果",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "圈/群"
+                ],
+                "summary": "删圈",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GroupBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/groups/forbid": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "圈/群"
+                ],
+                "summary": "禁圈",
+                "parameters": [
+                    {
+                        "description": "house_gid, key, member_ids 可选",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GroupForbidRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/groups/unbind": {
+            "post": {
+                "description": "无直通退圈协议时，等价：停止当前店铺会话",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "圈/群"
+                ],
+                "summary": "退圈",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GroupBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/groups/unforbid": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "圈/群"
+                ],
+                "summary": "解圈",
+                "parameters": [
+                    {
+                        "description": "house_gid, key, member_ids 可选",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.GroupForbidRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/members/kick": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/成员"
+                ],
+                "summary": "踢出成员",
+                "parameters": [
+                    {
+                        "description": "house_gid, member_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.KickMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "no online session",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/members/list": {
+            "post": {
+                "description": "触发 GetGroupMembers 并返回最近一次的成员快照（若无则返回空列表）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/成员"
+                ],
+                "summary": "成员列表快照",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListTablesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { items: [] }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.ShopMemberListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/members/logout": {
+            "post": {
+                "description": "使用 KickOffMember 强制下线（实现侧等价于从圈成员删除），与“踢人”动作在结果上相同。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/成员"
+                ],
+                "summary": "强制用户下线（区别于踢出）",
+                "parameters": [
+                    {
+                        "description": "house_gid, member_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.KickMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/members/pull": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/成员"
+                ],
+                "summary": "手动刷新成员列表（触发拉取）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListTablesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/tables/check": {
+            "post": {
+                "description": "调用会话 QueryTable；仅触发下发，不保证立即返回玩家列表，返回触发状态和最近一次房间快照中该桌是否存在。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/房间"
+                ],
+                "summary": "查询单桌玩家（直透 Plaza）",
+                "parameters": [
+                    {
+                        "description": "house_gid, mapped_num",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.QueryTableRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { triggered: bool, exists_in_cache: bool }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.ShopTableCheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "session not online",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/tables/detail": {
+            "post": {
+                "description": "从会话缓存读取该桌信息，并触发一次 QueryTable(mapped_num)；若缓存中不存在则返回 404。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/房间"
+                ],
+                "summary": "查桌详情（快照+触发刷新）",
+                "parameters": [
+                    {
+                        "description": "house_gid, mapped_num",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.QueryTableRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { table: TableInfoVO, triggered: bool }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.ShopTableDetailResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "table not found in cache",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "session not online",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/tables/dismiss": {
+            "post": {
+                "description": "`kind_id` 可选；若不传则从当前会话缓存中按 `mapped_num` 推断，不存在则返回 422。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/房间"
+                ],
+                "summary": "解散房间",
+                "parameters": [
+                    {
+                        "description": "入参在body（house_gid, mapped_num, kind_id 可选）",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.DismissTableRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权/Token 失效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "会话不存在或未在线",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "422": {
+                        "description": "需要提供 kind_id（缓存中未找到且未提交）",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/tables/list": {
+            "post": {
+                "description": "需要管理员在该店铺下已建立在线会话；返回最近一次 SUB_GA_TABLE_LIST 的本地快照。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/房间"
+                ],
+                "summary": "会话中的房间列表",
+                "parameters": [
+                    {
+                        "description": "入参在body（house_gid）",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListTablesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "data: { items: []TableInfoVO }",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.ShopTableListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权/Token 失效",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "409": {
+                        "description": "会话不存在或未在线",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/tables/pull": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "店铺/房间"
+                ],
+                "summary": "手动刷新房间列表（触发拉取）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListTablesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/lastweek": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "上周统计（上周一至本周一）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StatsBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.StatsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/member/today": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "成员-今日统计",
+                "parameters": [
+                    {
+                        "description": "house_gid, member_id",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.MemberStatsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.StatsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/today": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "今日统计",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StatsBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.StatsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/week": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "本周统计（近7天）",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StatsBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.StatsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/yesterday": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "昨日统计",
+                "parameters": [
+                    {
+                        "description": "house_gid",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.StatsBaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.StatsVO"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "basic.BasicMenuDoc": {
+            "type": "object",
+            "properties": {
+                "active_path": {
+                    "type": "string"
+                },
+                "auths": {
+                    "type": "string"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/basic.BasicMenuDoc"
+                    }
+                },
+                "component": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enter_transition": {
+                    "type": "string"
+                },
+                "extra_icon": {
+                    "type": "string"
+                },
+                "fixed_tag": {
+                    "type": "boolean"
+                },
+                "frame_loading": {
+                    "type": "boolean"
+                },
+                "frame_src": {
+                    "type": "string"
+                },
+                "hidden_tag": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "keep_alive": {
+                    "type": "boolean"
+                },
+                "leave_transition": {
+                    "type": "string"
+                },
+                "menu_type": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "string"
+                },
+                "redirect": {
+                    "type": "string"
+                },
+                "show_link": {
+                    "type": "boolean"
+                },
+                "show_parent": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "basic.BasicUserDoc": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "description": "头像",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "first_letter": {
+                    "description": "首字母",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "introduction": {
+                    "description": "个人介绍",
+                    "type": "string"
+                },
+                "last_login_at": {
+                    "description": "最后登录时间",
+                    "type": "string"
+                },
+                "nick_name": {
+                    "description": "昵称",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "密码（哈希）",
+                    "type": "string"
+                },
+                "pinyin_code": {
+                    "description": "全拼",
+                    "type": "string"
+                },
+                "salt": {
+                    "description": "盐",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "description": "用户名/员工工号",
+                    "type": "string"
+                },
+                "wechat_id": {
+                    "description": "微信号",
+                    "type": "string"
+                }
+            }
+        },
+        "common.Option": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "game.bindCtrlReq": {
+            "type": "object",
+            "required": [
+                "ctrl_id",
+                "house_gid"
+            ],
+            "properties": {
+                "ctrl_id": {
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "默认1",
+                    "type": "integer"
+                }
+            }
+        },
+        "game.createCtrlAccountOnlyReq": {
+            "type": "object",
+            "required": [
+                "identifier",
+                "login_mode",
+                "pwd_md5"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "兼容旧接口：如果传 house_gid，则等同“创建+绑定”",
+                    "type": "integer"
+                },
+                "identifier": {
+                    "description": "账号或手机号",
+                    "type": "string"
+                },
+                "login_mode": {
+                    "description": "account|mobile",
+                    "type": "string"
+                },
+                "pwd_md5": {
+                    "description": "大写32",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "可选，默认1",
+                    "type": "integer"
+                }
+            }
+        },
+        "game.unbindCtrlReq": {
+            "type": "object",
+            "required": [
+                "ctrl_id",
+                "house_gid"
+            ],
+            "properties": {
+                "ctrl_id": {
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.AddBasicMenuReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "sort"
+            ],
+            "properties": {
+                "component": {
+                    "description": "对应前端文件路径",
+                    "type": "string",
+                    "title": "对应前端文件路径"
+                },
+                "hidden": {
+                    "description": "是否隐藏",
+                    "type": "boolean",
+                    "title": "是否隐藏",
+                    "default": false
+                },
+                "name": {
+                    "description": "路由name",
+                    "type": "string",
+                    "title": "路由名称"
+                },
+                "parent_id": {
+                    "description": "父级ID",
+                    "type": "integer",
+                    "title": "父级路由",
+                    "default": -1
+                },
+                "path": {
+                    "description": "路由path",
+                    "type": "string",
+                    "title": "路由路径"
+                },
+                "sort": {
+                    "description": "排序",
+                    "type": "integer",
+                    "title": "排序",
+                    "default": 10
+                }
+            }
+        },
+        "req.AddBasicUserReq": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "title": "用户密码"
+                },
+                "username": {
+                    "type": "string",
+                    "title": "用户名称"
+                }
+            }
+        },
+        "req.AssignShopAdminRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "user_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺(茶馆)号",
+                    "type": "integer"
+                },
+                "role": {
+                    "description": "仅 admin|operator，留空=admin",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "operator"
+                    ]
+                },
+                "user_id": {
+                    "description": "被授权的用户ID",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.BattleDetailRequest": {
+            "type": "object",
+            "required": [
+                "group_id",
+                "house_gid",
+                "period"
+            ],
+            "properties": {
+                "game_id": {
+                    "description": "过滤的用户 gameId（可选）",
+                    "type": "integer"
+                },
+                "group_id": {
+                    "description": "圈ID（GroupID）",
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                },
+                "period": {
+                    "description": "查询周期：today|yesterday|thisweek",
+                    "type": "string",
+                    "enum": [
+                        "today",
+                        "yesterday",
+                        "thisweek"
+                    ]
+                }
+            }
+        },
+        "req.BindMyAccountRequest": {
+            "type": "object",
+            "required": [
+                "account",
+                "mode",
+                "pwd_md5"
+            ],
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "account",
+                        "mobile"
+                    ]
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "pwd_md5": {
+                    "type": "string"
+                }
+            }
+        },
+        "req.CreditDepositRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "biz_no",
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "上分正数",
+                    "type": "integer"
+                },
+                "biz_no": {
+                    "description": "幂等键",
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "description": "备注",
+                    "type": "string"
+                }
+            }
+        },
+        "req.CreditForceWithdrawRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "biz_no",
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "biz_no": {
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "req.CreditWithdrawRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "biz_no",
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "下分正数",
+                    "type": "integer"
+                },
+                "biz_no": {
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "req.CtrlAccountListRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.DecideApplicationRequest": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "description": "申请消息ID",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.DismissTableRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "mapped_num"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                },
+                "kind_id": {
+                    "description": "游戏 KindID，可选；不传时从缓存推断",
+                    "type": "integer"
+                },
+                "mapped_num": {
+                    "description": "桌子映射号（MappedNum）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.GetWalletRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.GroupBaseRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.GroupBindRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "message_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "message_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.GroupForbidRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "key"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "member_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "req.KickMemberRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListAllCtrlAccountsRequest": {
+            "type": "object",
+            "properties": {
+                "keyword": {
+                    "description": "模糊匹配 identifier",
+                    "type": "string"
+                },
+                "login_mode": {
+                    "description": "account|mobile",
+                    "type": "string",
+                    "enum": [
+                        "account",
+                        "mobile"
+                    ]
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "size": {
+                    "type": "integer",
+                    "maximum": 200,
+                    "minimum": 1
+                },
+                "status": {
+                    "description": "0/1",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListApplicationsRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（HouseGID）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListLedgerRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "end_at": {
+                    "description": "同上",
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "start_at": {
+                    "description": "RFC3339 或 \"2006-01-02\"",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "1上分 2下分 3强制下分 4调整",
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        2,
+                        3,
+                        4
+                    ]
+                }
+            }
+        },
+        "req.ListShopAdminsRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "茶馆号",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListTablesRequest": {
+            "description": "列出当前在线会话的房间快照",
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListWalletsRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "has_custom_limit": {
+                    "description": "true: limit_min\u003e0; false: limit_min=0; nil: 不筛",
+                    "type": "boolean"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "max_balance": {
+                    "type": "integer"
+                },
+                "min_balance": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.MemberStatsRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                },
+                "member_id": {
+                    "description": "成员ID（平台 member_id）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.MenuInfo": {
+            "type": "object",
+            "properties": {
+                "active_path": {
+                    "type": "string"
+                },
+                "auths": {
+                    "type": "string"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/req.MenuInfo"
+                    }
+                },
+                "component": {
+                    "type": "string"
+                },
+                "enter_transition": {
+                    "type": "string"
+                },
+                "extra_icon": {
+                    "type": "string"
+                },
+                "fixed_tag": {
+                    "type": "boolean"
+                },
+                "frame_loading": {
+                    "type": "boolean"
+                },
+                "frame_src": {
+                    "type": "string"
+                },
+                "hidden_tag": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "keep_alive": {
+                    "type": "boolean"
+                },
+                "leave_transition": {
+                    "type": "string"
+                },
+                "menu_type": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer",
+                    "default": -1
+                },
+                "path": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "string"
+                },
+                "redirect": {
+                    "type": "string"
+                },
+                "show_link": {
+                    "type": "boolean"
+                },
+                "show_parent": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "req.QueryTableRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "mapped_num"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                },
+                "mapped_num": {
+                    "description": "桌子映射号（MappedNum）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "nick_name": {
+                    "type": "string"
+                },
+                "password": {
+                    "description": "前端走现在的 RSA 加密再传",
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "wechat_id": {
+                    "description": "微信号（人工填写）",
+                    "type": "string"
+                }
+            }
+        },
+        "req.ReqByIds": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "description": "唯一主键",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "req.RevokeShopAdminRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "user_id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "req.SaveMenuTree": {
+            "type": "object",
+            "properties": {
+                "menu_tree": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/req.MenuInfo"
+                    }
+                }
+            }
+        },
+        "req.StartSessionRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺(茶馆)号",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "game_ctrl_account 主键ID（int8）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.StatsBaseRequest": {
+            "type": "object",
+            "required": [
+                "house_gid"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号（圈ID/HouseGID）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.StopSessionRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "id"
+            ],
+            "properties": {
+                "house_gid": {
+                    "description": "店铺(茶馆)号",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "game_ctrl_account 主键ID",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.UpdateBasicMenuReq": {
+            "type": "object",
+            "required": [
+                "id",
+                "name",
+                "sort"
+            ],
+            "properties": {
+                "component": {
+                    "description": "对应前端文件路径",
+                    "type": "string",
+                    "title": "对应前端文件路径"
+                },
+                "hidden": {
+                    "description": "是否隐藏",
+                    "type": "boolean",
+                    "title": "是否隐藏",
+                    "default": false
+                },
+                "id": {
+                    "description": "主键",
+                    "type": "integer",
+                    "title": "主键"
+                },
+                "name": {
+                    "description": "路由name",
+                    "type": "string",
+                    "title": "路由名称"
+                },
+                "parent_id": {
+                    "description": "父级ID",
+                    "type": "integer",
+                    "title": "父级路由",
+                    "default": -1
+                },
+                "path": {
+                    "description": "路由path",
+                    "type": "string",
+                    "title": "路由路径"
+                },
+                "sort": {
+                    "description": "排序",
+                    "type": "integer",
+                    "title": "排序",
+                    "default": 10
+                }
+            }
+        },
+        "req.UpdateMemberLimitRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "member_id"
+            ],
+            "properties": {
+                "forbid": {
+                    "description": "true=禁，false=解",
+                    "type": "boolean"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "limit_min": {
+                    "description": "可选字段：部分更新",
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "req.UsernamePasswordLoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "description": "密码",
+                    "type": "string",
+                    "example": "123456"
+                },
+                "username": {
+                    "description": "用户名",
+                    "type": "string",
+                    "example": "testuser"
+                }
+            }
+        },
+        "req.VerifyAccountRequest": {
+            "type": "object",
+            "required": [
+                "account",
+                "mode",
+                "pwd_md5"
+            ],
+            "properties": {
+                "account": {
+                    "description": "账号或手机号",
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "登录方式",
+                    "type": "string",
+                    "enum": [
+                        "account",
+                        "mobile"
+                    ]
+                },
+                "pwd_md5": {
+                    "description": "32位大写MD5",
+                    "type": "string"
+                }
+            }
+        },
+        "resp.AccountVO": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "login_mode": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.AckVO": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.ApplicationItemVO": {
+            "type": "object",
+            "properties": {
+                "applier_gid": {
+                    "description": "申请者圈ID",
+                    "type": "integer"
+                },
+                "applier_id": {
+                    "description": "申请者用户ID（游戏用户）",
+                    "type": "integer"
+                },
+                "applier_name": {
+                    "description": "申请者昵称",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "申请时间（unix ms）",
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "description": "目标店铺号",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "申请消息ID",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "平台返回的消息状态码",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.ApplicationsVO": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.ApplicationItemVO"
+                    }
+                }
+            }
+        },
+        "resp.BaseUserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "identity_id": {
+                    "type": "string"
+                },
+                "identity_url": {
+                    "type": "string"
+                },
+                "introduction": {
+                    "type": "string"
+                },
+                "nick_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "real_name": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "resp.BattlePlayerVO": {
+            "description": "战绩玩家及分数",
+            "type": "object",
+            "properties": {
+                "game_id": {
+                    "description": "用户游戏ID（GameID）",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "玩家昵称（可选）",
+                    "type": "string"
+                },
+                "score": {
+                    "description": "本局分数（正负）",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.BattleRecordVO": {
+            "type": "object",
+            "properties": {
+                "base_score": {
+                    "description": "底分",
+                    "type": "integer"
+                },
+                "kind_id": {
+                    "description": "游戏KindID",
+                    "type": "integer"
+                },
+                "players": {
+                    "description": "参与玩家",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.BattlePlayerVO"
+                    }
+                },
+                "room_id": {
+                    "description": "房间号（RoomID）",
+                    "type": "integer"
+                },
+                "time": {
+                    "description": "创建时间（秒）",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.CtrlAccountAllVO": {
+            "type": "object",
+            "properties": {
+                "houses": {
+                    "description": "绑定的 house_gid 列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "identifier": {
+                    "type": "string"
+                },
+                "last_verify_at": {
+                    "type": "string"
+                },
+                "login_mode": {
+                    "description": "account|mobile",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.CtrlAccountVO": {
+            "type": "object",
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "identifier": {
+                    "type": "string"
+                },
+                "login_mode": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.DiamondQueryResponse": {
+            "type": "object",
+            "properties": {
+                "triggered": {
+                    "description": "是否已触发查询",
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.FundsBalanceResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "description": "余额（分）",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.FundsLimitResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "description": "余额（分）",
+                    "type": "integer"
+                },
+                "forbid": {
+                    "description": "是否禁用",
+                    "type": "boolean"
+                },
+                "limit_min": {
+                    "description": "个性额度下限（分）",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.HouseSettingsVO": {
+            "type": "object",
+            "properties": {
+                "fees_json": {
+                    "description": "运费配置（原始JSON）",
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "push_credit": {
+                    "description": "推送额度（分）",
+                    "type": "integer"
+                },
+                "share_fee": {
+                    "description": "分运开关",
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.LedgerListResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.LedgerVO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.LedgerVO": {
+            "type": "object",
+            "properties": {
+                "balance_after": {
+                    "type": "integer"
+                },
+                "balance_before": {
+                    "type": "integer"
+                },
+                "biz_no": {
+                    "type": "string"
+                },
+                "change_amount": {
+                    "description": "变动额（分），下分为负数",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "operator_user_id": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "1上分 2下分 3强制下分 4调整",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "description": "单位：秒",
+                    "type": "integer"
+                },
+                "perms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "user": {
+                    "$ref": "#/definitions/resp.BaseUserInfo"
+                }
+            }
+        },
+        "resp.Menu": {
+            "type": "object",
+            "properties": {
+                "active_path": {
+                    "type": "string"
+                },
+                "auths": {
+                    "type": "string"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.Menu"
+                    }
+                },
+                "component": {
+                    "type": "string"
+                },
+                "enter_transition": {
+                    "type": "string"
+                },
+                "extra_icon": {
+                    "type": "string"
+                },
+                "fixed_tag": {
+                    "type": "boolean"
+                },
+                "frame_loading": {
+                    "type": "boolean"
+                },
+                "frame_src": {
+                    "type": "string"
+                },
+                "hidden_tag": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "keep_alive": {
+                    "type": "boolean"
+                },
+                "leave_transition": {
+                    "type": "string"
+                },
+                "menu_type": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "string"
+                },
+                "redirect": {
+                    "type": "string"
+                },
+                "show_link": {
+                    "type": "boolean"
+                },
+                "show_parent": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "resp.SessionStateResponse": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "description": "会话状态字符串，如 online/offline/error",
+                    "type": "string"
+                }
+            }
+        },
+        "resp.ShopAdminVO": {
+            "type": "object",
+            "properties": {
+                "house_gid": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "role": {
+                    "description": "仅 admin|operator，留空=admin",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "operator"
+                    ]
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.ShopMemberListItem": {
+            "type": "object",
+            "properties": {
+                "game_id": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "member_type": {
+                    "type": "integer"
+                },
+                "nick_name": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "user_status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.ShopMemberListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "成员列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.ShopMemberListItem"
+                    }
+                }
+            }
+        },
+        "resp.ShopTableCheckResponse": {
+            "type": "object",
+            "properties": {
+                "exists_in_cache": {
+                    "description": "是否在缓存中存在",
+                    "type": "boolean"
+                },
+                "table": {
+                    "description": "桌信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/resp.TableInfoVO"
+                        }
+                    ]
+                },
+                "triggered": {
+                    "description": "是否触发了底层查询",
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.ShopTableDetailResponse": {
+            "type": "object",
+            "properties": {
+                "table": {
+                    "description": "桌信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/resp.TableInfoVO"
+                        }
+                    ]
+                },
+                "triggered": {
+                    "description": "是否触发刷新",
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.ShopTableListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "房间列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.TableInfoVO"
+                    }
+                }
+            }
+        },
+        "resp.StatsLedgerVO": {
+            "type": "object",
+            "properties": {
+                "adjust": {
+                    "description": "调整（可正可负）",
+                    "type": "integer"
+                },
+                "income": {
+                    "description": "上分总额（正数）",
+                    "type": "integer"
+                },
+                "members_involved": {
+                    "description": "参与流水成员数",
+                    "type": "integer"
+                },
+                "net": {
+                    "description": "净变动",
+                    "type": "integer"
+                },
+                "payout": {
+                    "description": "下分总额（正数）",
+                    "type": "integer"
+                },
+                "records": {
+                    "description": "流水条数",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.StatsSessVO": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "description": "当前在线会话数",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.StatsVO": {
+            "description": "统计时间范围为 [range_start, range_end)",
+            "type": "object",
+            "properties": {
+                "house_gid": {
+                    "description": "店铺号",
+                    "type": "integer"
+                },
+                "ledger": {
+                    "$ref": "#/definitions/resp.StatsLedgerVO"
+                },
+                "range_end": {
+                    "description": "结束时间（不含）",
+                    "type": "string"
+                },
+                "range_start": {
+                    "description": "起始时间（含）",
+                    "type": "string"
+                },
+                "session": {
+                    "$ref": "#/definitions/resp.StatsSessVO"
+                },
+                "wallet": {
+                    "$ref": "#/definitions/resp.StatsWalletVO"
+                }
+            }
+        },
+        "resp.StatsWalletVO": {
+            "type": "object",
+            "properties": {
+                "balance_total": {
+                    "type": "integer"
+                },
+                "low_balance_members": {
+                    "type": "integer"
+                },
+                "members": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.TableInfoVO": {
+            "type": "object",
+            "properties": {
+                "base_score": {
+                    "description": "底分",
+                    "type": "integer"
+                },
+                "group_id": {
+                    "description": "圈ID",
+                    "type": "integer"
+                },
+                "kind_id": {
+                    "description": "KindID",
+                    "type": "integer"
+                },
+                "mapped_num": {
+                    "description": "映射号",
+                    "type": "integer"
+                },
+                "table_id": {
+                    "description": "桌ID",
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.VerifyAccountResponse": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "description": "探活是否成功",
+                    "type": "boolean"
+                }
+            }
+        },
+        "resp.WalletListResponse": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/resp.WalletVO"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "resp.WalletVO": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "description": "余额（分）",
+                    "type": "integer"
+                },
+                "forbid": {
+                    "description": "是否冻结",
+                    "type": "boolean"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "limit_min": {
+                    "description": "个性额度下限（分）",
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "integer"
+                }
+            }
+        },
+        "response.Body": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "msg": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.housesByLoginReq": {
+            "type": "object",
+            "required": [
+                "identifier",
+                "pwd_md5"
+            ],
+            "properties": {
+                "identifier": {
+                    "type": "string"
+                },
+                "login_mode": {
+                    "type": "string",
+                    "enum": [
+                        "account",
+                        "mobile"
+                    ]
+                },
+                "pwd_md5": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.PageResult": {
+            "type": "object",
+            "required": [
+                "page_size"
+            ],
+            "properties": {
+                "extended_field1": {
+                    "description": "扩展1"
+                },
+                "extended_field2": {
+                    "description": "扩展2"
+                },
+                "header": {
+                    "description": "头部信息"
+                },
+                "list": {
+                    "description": "结果"
+                },
+                "not_page": {
+                    "description": "是否不分页",
+                    "type": "boolean",
+                    "default": false
+                },
+                "page_no": {
+                    "description": "页页码",
+                    "type": "integer",
+                    "title": "页码",
+                    "default": 1,
+                    "example": 1
+                },
+                "page_size": {
+                    "description": "每页大小",
+                    "type": "integer",
+                    "title": "每页大小",
+                    "default": 20,
+                    "maximum": 1000,
+                    "minimum": 1,
+                    "example": 10
+                },
+                "total": {
+                    "description": "总条数",
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,80 @@
+syntax = "proto3";
+package kratos.api;
+
+option go_package = "battle-tiles/internal/conf;conf";
+
+import "google/protobuf/duration.proto";
+
+/* 顶层 */
+message Bootstrap {
+  Server server = 1;
+  Data data = 2;
+  Global global = 3;
+}
+
+/* ============== Server ============== */
+message Server {
+  message HTTP {
+    string addr = 1;
+    google.protobuf.Duration timeout = 2; // 对应 YAML: server.http.timeout: "1s"
+  }
+
+  message Asynq {
+    string addr = 1;
+    string password = 2;
+    int32 db = 3;
+    repeated Subscriber subscriber = 4; // YAML: server.asynq.subscriber
+    message Subscriber {
+      string name = 1;
+      string schedule = 2;
+    }
+  }
+
+  HTTP http = 1;
+  Asynq asynq = 2;
+}
+
+/* ============== Data ============== */
+message Data {
+  message Database {
+    string driver = 1;
+    string source = 2;
+    string alias = 3; // 仅在 database_list 里使用
+  }
+
+  message Redis {
+    string addr = 1;
+    string password = 2;
+    int32 db = 3;
+    int32 nq_db = 4; // YAML: data.redis.nq_db
+    string alias = 5; // 仅在 redis_list 里使用
+  }
+
+
+  Database database = 1;
+  Redis redis = 2;
+  repeated Database database_list = 3; // YAML: data.databaseList
+  repeated Redis redis_list = 4;       // YAML: data.redisList
+}
+
+/* ============== Global ============== */
+message Global {
+
+  message RSA {
+    string public = 1;
+    string private = 2;
+  }
+
+  message Game {
+    message Plaza {
+      string server82 = 1;           // YAML: global.game.plaza.server82
+      string server87_host = 2;      // YAML: global.game.plaza.server87Host
+      int32 keepalive_seconds = 3;   // YAML: global.game.plaza.keepalive_seconds
+      bool auto_reconnect = 4;       // YAML: global.game.plaza.auto_reconnect
+    }
+    Plaza plaza = 1;
+  }
+
+  RSA rsa = 1;   // YAML: global.rsa
+  Game game = 2; // YAML: global.game
+}
