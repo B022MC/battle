@@ -5,7 +5,7 @@
       "android": { "buildType": "apk" },
       "node": "20.11.1",
       "env": {
-        "EXPO_PUBLIC_API_HOST": "www.b022mc.cn"
+        "EXPO_PUBLIC_DEV_API_URL": "http://118.24.135.171:8000"
       }
     }
   }
