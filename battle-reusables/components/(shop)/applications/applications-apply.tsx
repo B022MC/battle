@@ -108,7 +108,7 @@ export const ApplicationsApply = () => {
           <Input className="w-64" placeholder="备注（可选）" value={value} onChangeText={onChange} />
         )} />
         <Button disabled={!f1.isValid || la} onPress={h1(onSubmitAdmin)}>
-          提交管理员申请
+          <Text>提交管理员申请</Text>
         </Button>
       </View>
       <Text className="font-medium mt-2">申请加入圈子</Text>
@@ -144,7 +144,7 @@ export const ApplicationsApply = () => {
           <Input className="w-64" placeholder="备注（可选）" value={value} onChangeText={onChange} />
         )} />
         <Button disabled={!f2.isValid || lj} onPress={h2(onSubmitJoin)}>
-          提交入圈申请
+          <Text>提交入圈申请</Text>
         </Button>
       </View>
       <Text className="font-medium mt-4">我的申请记录</Text>
