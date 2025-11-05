@@ -25,12 +25,12 @@ export const request = async <T>(
 
   const hostFromEnv = process.env.EXPO_PUBLIC_API_HOST;
   const nativeApiUrl = hostFromEnv
-    ? `https://${hostFromEnv}:8000`
+    ? `http://${hostFromEnv}:8000`
     : process.env.EXPO_PUBLIC_DEV_API_URL ||
       (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://127.0.0.1:8000');
 
   const apiUrl = isWeb
-    ? (hostFromEnv ? `https://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB)
+    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB)
     : nativeApiUrl;
 
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';
