@@ -1,4 +1,4 @@
-import { get, post } from '@/utils/request';
+import { get, post, del } from '@/utils/request';
 
 export function gameAccountVerify(data: API.GameAccountVerifyParams) {
   return post<API.GameAccountVerifyResult>('/game/accounts/verify', data);
@@ -12,13 +12,7 @@ export function gameAccountMe() {
   return get<API.GameAccountItem | null>('/game/accounts/me');
 }
 
-export async function gameAccountDelete() {
-  const response = await fetch('/game/accounts/me', {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  return response.json();
+export function gameAccountDelete() {
+  return del<null>('/game/accounts/me');
 }
 

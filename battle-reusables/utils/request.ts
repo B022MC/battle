@@ -1,4 +1,5 @@
 import { isWeb } from './platform';
+import { Platform } from 'react-native';
 import { alert } from './alert';
 import { useAuthStore } from '@/hooks/use-auth-store';
 
@@ -22,9 +23,16 @@ export const request = async <T>(
 ): Promise<ResponseStructure<T>> => {
   const { headers, params, data, showError = true, ...rest } = options;
 
+  const hostFromEnv = process.env.EXPO_PUBLIC_API_HOST;
+  const nativeApiUrl = hostFromEnv
+    ? `https://${hostFromEnv}:8000`
+    : process.env.EXPO_PUBLIC_DEV_API_URL ||
+      (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://127.0.0.1:8000');
+
   const apiUrl = isWeb
-    ? process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB
-    : process.env.EXPO_PUBLIC_DEV_API_URL;
+    ? (hostFromEnv ? `https://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB)
+    : nativeApiUrl;
+
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';
   const url = `${apiUrl}${path}${query}`;
 

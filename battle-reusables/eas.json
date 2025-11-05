@@ -1,7 +1,12 @@
 {
+  "cli": { "appVersionSource": "remote" },
   "build": {
     "preview": {
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "node": "20.11.1",
+      "env": {
+        "EXPO_PUBLIC_API_HOST": "battle.b022mc.cn"
+      }
     }
   }
 }

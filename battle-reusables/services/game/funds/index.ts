@@ -1,4 +1,4 @@
-import { post } from '@/utils/request';
+import { post, patch } from '@/utils/request';
 
 export function membersCreditDeposit(data: API.MembersCreditDepositParams) {
   return post<API.MembersFundsBalanceResult>('/members/credit/deposit', data);
@@ -12,14 +12,7 @@ export function membersCreditForceWithdraw(data: API.MembersCreditForceWithdrawP
   return post<API.MembersFundsBalanceResult>('/members/credit/force_withdraw', data);
 }
 
-export async function membersLimitUpdate(data: API.MembersLimitUpdateParams) {
-  const response = await fetch('/members/limit', {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-  return response.json();
+export function membersLimitUpdate(data: API.MembersLimitUpdateParams) {
+  return patch<unknown>('/members/limit', data);
 }
 
