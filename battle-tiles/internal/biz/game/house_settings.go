@@ -43,3 +43,7 @@ func (uc *HouseSettingsUseCase) InsertFeeSettle(ctx context.Context, houseGID in
 func (uc *HouseSettingsUseCase) SumFeeSettle(ctx context.Context, houseGID int32, group string, start, end time.Time) (int64, error) {
 	return uc.feeRepo.Sum(ctx, houseGID, group, start, end)
 }
+
+func (uc *HouseSettingsUseCase) ListGroupSums(ctx context.Context, houseGID int32, start, end time.Time) ([]repo.GroupSum, error) {
+	return uc.feeRepo.ListGroupSums(ctx, houseGID, start, end)
+}

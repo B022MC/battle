@@ -3,6 +3,9 @@ package game
 
 import (
 	biz "battle-tiles/internal/biz/game"
+	gameModel "battle-tiles/internal/dal/model/game"
+	basicRepo "battle-tiles/internal/dal/repo/basic"
+	gameRepo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/dal/req"
 	resp "battle-tiles/internal/dal/resp"
 	"battle-tiles/internal/infra/plaza"
@@ -16,12 +19,16 @@ import (
 )
 
 type GameShopMemberService struct {
-	mgr  plaza.Manager
-	rule *biz.MemberRuleUseCase
+	mgr   plaza.Manager
+	rule  *biz.MemberRuleUseCase
+	sAdm  gameRepo.GameShopAdminRepo
+	users basicRepo.BasicUserRepo
+	apps  gameRepo.UserApplicationRepo
+	grp   gameRepo.GameShopGroupAdminRepo
 }
 
-func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase) *GameShopMemberService {
-	return &GameShopMemberService{mgr: mgr, rule: rule}
+func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, grp gameRepo.GameShopGroupAdminRepo) *GameShopMemberService {
+	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, grp: grp}
 }
 
 func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
@@ -31,10 +38,125 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/logout", middleware.RequirePerm("shop:member:logout"), s.Logout)
 	g.POST("/diamond/query", middleware.RequirePerm("shop:member:view"), s.QueryDiamond)
 	g.POST("/members/pull", middleware.RequirePerm("shop:member:view"), s.PullMembers)
+	// 平台侧：按圈主返回“我圈子的成员”（基于已通过的入圈申请）
+	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
+	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
+	g.POST("/members/remove_platform", middleware.RequirePerm("shop:member:kick"), s.RemovePlatformMember)
 	// 成员规则
 	g.POST("/members/rules/vip", middleware.RequirePerm("shop:member:update"), s.SetVIP)
 	g.POST("/members/rules/multi", middleware.RequirePerm("shop:member:update"), s.SetMulti)
 	g.POST("/members/rules/temp_release", middleware.RequirePerm("shop:member:update"), s.SetTempRelease)
+}
+
+// RemovePlatformMember 将指定成员从指定圈移除（平台：更新入圈申请为 status=3）
+func (s *GameShopMemberService) RemovePlatformMember(c *gin.Context) {
+	var in struct {
+		HouseGID     int32  `json:"house_gid" binding:"required"`
+		GroupID      *int32 `json:"group_id"` // 非超管必填（=圈主ID）
+		MemberUserID int32  `json:"member_user_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.HouseGID <= 0 || in.MemberUserID <= 0 {
+		response.Fail(c, ecode.ParamsFailed, "invalid params")
+		return
+	}
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	caller := int32(claims.BaseClaims.UserID)
+	// 计算圈主（admin）
+	var admin int32
+	if in.GroupID != nil && *in.GroupID > 0 {
+		admin = *in.GroupID
+	} else if caller != 1 { // 非超管默认自己的圈
+		admin = caller
+	} else {
+		response.Fail(c, ecode.ParamsFailed, "group_id required for super admin")
+		return
+	}
+	if s.apps == nil {
+		response.Fail(c, ecode.Failed, "repo not ready")
+		return
+	}
+	if _, err := s.apps.RemoveApprovedJoin(c.Request.Context(), in.HouseGID, admin, in.MemberUserID); err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	response.SuccessWithOK(c)
+}
+
+// ListPlatformMembers 基于平台库的入圈申请（type=2, status=1）返回圈成员列表
+// 超级管理员可指定 admin_user_id；店铺管理员默认使用当前用户为 admin_user_id
+func (s *GameShopMemberService) ListPlatformMembers(c *gin.Context) {
+	var in struct {
+		HouseGID int32  `json:"house_gid" binding:"required"`
+		GroupID  *int32 `json:"group_id"`      // 非超管必填：我的圈ID（= 我的 user_id）
+		AdminUID *int32 `json:"admin_user_id"` // 可选：兼容旧参数
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.HouseGID <= 0 {
+		response.Fail(c, ecode.ParamsFailed, "invalid house_gid")
+		return
+	}
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	caller := int32(claims.BaseClaims.UserID)
+	var admin int32
+	if in.GroupID != nil && *in.GroupID > 0 {
+		admin = *in.GroupID
+	} else if in.AdminUID != nil && *in.AdminUID > 0 {
+		admin = *in.AdminUID
+	} else if caller != 1 { // 非超管默认查自己的圈
+		admin = caller
+	} else {
+		admin = 0 // 超管且未指定 -> 全量
+	}
+	if s.apps == nil {
+		response.Success(c, resp.ShopMemberListResponse{Items: []resp.ShopMemberListItem{}})
+		return
+	}
+	var list []*gameModel.UserApplication
+	if admin > 0 {
+		list, err = s.apps.ListApprovedJoinsByAdmin(c.Request.Context(), in.HouseGID, admin)
+	} else {
+		list, err = s.apps.ListApprovedJoins(c.Request.Context(), in.HouseGID)
+	}
+	if err != nil || len(list) == 0 {
+		response.Success(c, resp.ShopMemberListResponse{Items: []resp.ShopMemberListItem{}})
+		return
+	}
+	// 平台圈ID规则：group_id = admin_user_id（若全量则为 0）
+	gid := int(admin)
+	// 批量昵称
+	nameMap := map[int32]string{}
+	if s.users != nil {
+		ids := make([]int32, 0, len(list))
+		for _, a := range list {
+			ids = append(ids, a.Applicant)
+		}
+		rows, _ := s.users.SelectByPK(c.Request.Context(), ids)
+		for _, u := range rows {
+			if u != nil {
+				nameMap[u.Id] = u.NickName
+			}
+		}
+	}
+	out := make([]resp.ShopMemberListItem, 0, len(list))
+	for _, a := range list {
+		out = append(out, resp.ShopMemberListItem{
+			UserID:     uint32(a.Applicant),
+			UserStatus: 0,
+			GameID:     0,
+			MemberID:   0,
+			MemberType: 0, // 普通成员
+			NickName:   nameMap[a.Applicant],
+			GroupID:    gid,
+		})
+	}
+	response.Success(c, resp.ShopMemberListResponse{Items: out})
 }
 
 // Kick
@@ -99,6 +221,44 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 		if shared, ok2 := s.mgr.GetAnyByHouse(in.HouseGID); ok2 && shared != nil {
 			sess = shared
 		} else {
+			// 平台侧兜底：返回店铺管理员作为成员（member_type=管理员）
+			if s.sAdm != nil {
+				admins, err := s.sAdm.ListByHouse(c.Request.Context(), int32(in.HouseGID))
+				if err == nil && len(admins) > 0 {
+					nameMap := map[int32]string{}
+					if s.users != nil {
+						uidSet := make(map[int32]struct{}, len(admins))
+						for _, a := range admins {
+							uidSet[a.UserID] = struct{}{}
+						}
+						uids := make([]int32, 0, len(uidSet))
+						for uid := range uidSet {
+							uids = append(uids, uid)
+						}
+						if rows, err2 := s.users.SelectByPK(c.Request.Context(), uids); err2 == nil {
+							for _, u := range rows {
+								if u != nil {
+									nameMap[u.Id] = u.NickName
+								}
+							}
+						}
+					}
+					out := make([]resp.ShopMemberListItem, 0, len(admins))
+					for _, a := range admins {
+						out = append(out, resp.ShopMemberListItem{
+							UserID:     uint32(a.UserID),
+							UserStatus: 0,
+							GameID:     0,
+							MemberID:   0,
+							MemberType: 2, // 管理员
+							NickName:   nameMap[a.UserID],
+							GroupID:    0,
+						})
+					}
+					response.Success(c, resp.ShopMemberListResponse{Items: out})
+					return
+				}
+			}
 			response.Success(c, resp.ShopMemberListResponse{Items: []resp.ShopMemberListItem{}})
 			return
 		}
@@ -117,6 +277,7 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 			MemberID:   m.MemberID,
 			MemberType: m.MemberType,
 			NickName:   m.NickName,
+			GroupID:    0,
 		})
 	}
 	response.Success(c, resp.ShopMemberListResponse{Items: out})

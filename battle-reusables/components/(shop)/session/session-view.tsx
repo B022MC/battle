@@ -11,8 +11,10 @@ import { shopsHousesOptions } from '@/services/shops/houses';
 import { Icon } from '@/components/ui/icon';
 import { ChevronDown } from 'lucide-react-native';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const SessionView = () => {
+  const { getLoginModeLabel } = usePlazaConsts();
   const [houseGid, setHouseGid] = useState('');
   const { data: accounts, loading, run: getAccounts } = useRequest(shopsCtrlAccountsListAll, { manual: true });
   const { run: startSession, loading: startLoading } = useRequest(gameSessionStart, { manual: true });
@@ -106,7 +108,7 @@ export const SessionView = () => {
             </InfoCardHeader>
             <InfoCardContent>
               <InfoCardRow label="账号" value={account.identifier} />
-              <InfoCardRow label="登录方式" value={account.login_mode} />
+              <InfoCardRow label="登录方式" value={getLoginModeLabel(account.login_mode as any)} />
               <InfoCardRow label="状态" value={account.status === 1 ? '启用' : '禁用'} />
             </InfoCardContent>
             <InfoCardFooter>

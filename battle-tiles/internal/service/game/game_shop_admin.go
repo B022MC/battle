@@ -4,6 +4,7 @@ package game
 import (
 	gameBiz "battle-tiles/internal/biz/game"
 	basicRepo "battle-tiles/internal/dal/repo/basic"
+	gameRepo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/dal/req"
 	"battle-tiles/internal/dal/resp"
 	"battle-tiles/pkg/plugin/middleware"
@@ -18,12 +19,13 @@ import (
 )
 
 type ShopAdminService struct {
-	uc    *gameBiz.ShopAdminUseCase
-	users basicRepo.BasicUserRepo
+	uc      *gameBiz.ShopAdminUseCase
+	users   basicRepo.BasicUserRepo
+	grpRepo gameRepo.GameShopGroupAdminRepo
 }
 
-func NewShopAdminService(uc *gameBiz.ShopAdminUseCase, users basicRepo.BasicUserRepo) *ShopAdminService {
-	return &ShopAdminService{uc: uc, users: users}
+func NewShopAdminService(uc *gameBiz.ShopAdminUseCase, users basicRepo.BasicUserRepo, grpRepo gameRepo.GameShopGroupAdminRepo) *ShopAdminService {
+	return &ShopAdminService{uc: uc, users: users, grpRepo: grpRepo}
 }
 
 func (s *ShopAdminService) RegisterRouter(r *gin.RouterGroup) {
@@ -52,6 +54,7 @@ func (s *HouseSettingsService) RegisterRouter(r *gin.RouterGroup) {
 	// 费用结算（基础）
 	g.POST("/fees/settle/insert", middleware.RequirePerm("shop:fees:write"), s.InsertFeeSettle)
 	g.POST("/fees/settle/sum", middleware.RequirePerm("shop:fees:view"), s.SumFeeSettle)
+	g.POST("/fees/settle/payoffs", middleware.RequirePerm("shop:fees:view"), s.ListGroupPayoffs)
 }
 
 // Get
@@ -171,6 +174,76 @@ func (s *HouseSettingsService) SumFeeSettle(c *gin.Context) {
 	response.Success(c, gin.H{"sum": sum})
 }
 
+// ListGroupPayoffs 汇总时间范围内各圈费用并计算圈间结转（正数组出借给负数组）
+func (s *HouseSettingsService) ListGroupPayoffs(c *gin.Context) {
+	var in req.ListGroupPayoffsRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+	start, err := time.Parse(time.RFC3339, in.StartAt)
+	if err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+	end, err := time.Parse(time.RFC3339, in.EndAt)
+	if err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+	sums, err := s.uc.ListGroupSums(c.Request.Context(), in.HouseGID, start, end)
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	type item struct {
+		Group string
+		Value int64
+	}
+	var positives []item
+	var negatives []item
+	for _, gs := range sums {
+		if gs.Sum > 0 {
+			positives = append(positives, item{Group: gs.PlayGroup, Value: gs.Sum})
+		} else if gs.Sum < 0 {
+			negatives = append(negatives, item{Group: gs.PlayGroup, Value: gs.Sum})
+		}
+	}
+	// 结转
+	type payoff struct {
+		From  string `json:"from_group"`
+		To    string `json:"to_group"`
+		Value int64  `json:"value"`
+	}
+	var payoffs []payoff
+	pi, ni := 0, 0
+	for pi < len(positives) && ni < len(negatives) {
+		p := &positives[pi]
+		n := &negatives[ni]
+		need := p.Value
+		have := -n.Value
+		v := need
+		if have < v {
+			v = have
+		}
+		if v > 0 {
+			payoffs = append(payoffs, payoff{From: n.Group, To: p.Group, Value: v})
+			p.Value -= v
+			n.Value += int64(v) // n.Value 是负数，+v 使其趋近 0
+		}
+		if p.Value == 0 {
+			pi++
+		}
+		if n.Value == 0 {
+			ni++
+		}
+		if v == 0 {
+			break
+		}
+	}
+	response.Success(c, gin.H{"group_sums": sums, "payoffs": payoffs})
+}
+
 // --- fees_json 校验 ---
 type feeRule struct {
 	Threshold int    `json:"threshold"`
@@ -284,40 +357,96 @@ func (s *ShopAdminService) List(c *gin.Context) {
 		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
-	list, err := s.uc.List(c.Request.Context(), in.HouseGID)
+	// 优先使用平台侧圈管理员映射表（game_shop_group_admin）作为“店铺管理员”来源；若未配置则回退到旧表
+	// 输出构建辅助
+	buildOut := func(ids []struct {
+		ID, HouseGID, UserID int32
+		Role                 string
+	}) []resp.ShopAdminVO {
+		// 批量查询昵称
+		uidSet := make(map[int32]struct{}, len(ids))
+		for _, m := range ids {
+			uidSet[m.UserID] = struct{}{}
+		}
+		uids := make([]int32, 0, len(uidSet))
+		for uid := range uidSet {
+			uids = append(uids, uid)
+		}
+		nameMap := map[int32]string{}
+		if len(uids) > 0 && s.users != nil {
+			if users, e := s.users.SelectByPK(c.Request.Context(), uids); e == nil {
+				for _, u := range users {
+					if u != nil {
+						nameMap[u.Id] = u.NickName
+					}
+				}
+			}
+		}
+		out := make([]resp.ShopAdminVO, 0, len(ids))
+		for _, m := range ids {
+			// 过滤平台超级管理员（约定 user_id=1）
+			if m.UserID == 1 {
+				continue
+			}
+			out = append(out, resp.ShopAdminVO{
+				ID:       m.ID,
+				HouseGID: m.HouseGID,
+				UserID:   m.UserID,
+				Role:     m.Role,
+				NickName: nameMap[m.UserID],
+			})
+		}
+		return out
+	}
+
+	// 读取圈管理员表
+	if s.grpRepo != nil {
+		if grps, e := s.grpRepo.ListByHouse(c.Request.Context(), in.HouseGID); e == nil && len(grps) > 0 {
+			ids := make([]struct {
+				ID, HouseGID, UserID int32
+				Role                 string
+			}, 0, len(grps))
+			seen := map[int32]struct{}{}
+			for _, g := range grps {
+				if g == nil {
+					continue
+				}
+				// 对同一用户去重（按 uq_shop_group_admin: house_gid + user_id）
+				if _, ok := seen[g.UserID]; ok {
+					continue
+				}
+				seen[g.UserID] = struct{}{}
+				ids = append(ids, struct {
+					ID, HouseGID, UserID int32
+					Role                 string
+				}{ID: g.Id, HouseGID: g.HouseGID, UserID: g.UserID, Role: g.Role})
+			}
+			out := buildOut(ids)
+			response.Success(c, out)
+			return
+		}
+		// 若表空，则继续走旧逻辑
+	}
+
+	// 回退到旧的 game_shop_admin 表
+	oldList, err := s.uc.List(c.Request.Context(), in.HouseGID)
 	if err != nil {
 		response.Fail(c, ecode.Failed, err)
 		return
 	}
-
-	out := make([]resp.ShopAdminVO, 0, len(list))
-	// 批量查询昵称
-	uidSet := make(map[int32]struct{}, len(list))
-	for _, m := range list {
-		uidSet[m.UserID] = struct{}{}
-	}
-	uids := make([]int32, 0, len(uidSet))
-	for uid := range uidSet {
-		uids = append(uids, uid)
-	}
-	nameMap := map[int32]string{}
-	if len(uids) > 0 && s.users != nil {
-		if users, err := s.users.SelectByPK(c.Request.Context(), uids); err == nil {
-			for _, u := range users {
-				if u != nil {
-					nameMap[u.Id] = u.NickName
-				}
-			}
+	ids := make([]struct {
+		ID, HouseGID, UserID int32
+		Role                 string
+	}, 0, len(oldList))
+	for _, m := range oldList {
+		if m == nil {
+			continue
 		}
+		ids = append(ids, struct {
+			ID, HouseGID, UserID int32
+			Role                 string
+		}{ID: m.Id, HouseGID: m.HouseGID, UserID: m.UserID, Role: m.Role})
 	}
-	for _, m := range list {
-		out = append(out, resp.ShopAdminVO{
-			ID:       m.Id,
-			HouseGID: m.HouseGID,
-			UserID:   m.UserID,
-			Role:     m.Role,
-			NickName: nameMap[m.UserID],
-		})
-	}
+	out := buildOut(ids)
 	response.Success(c, out)
 }

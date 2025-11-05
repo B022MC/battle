@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { useRequest } from '@/hooks/use-request';
+import { alert } from '@/utils/alert';
 import { applicationsApprove, applicationsReject } from '@/services/applications';
 import {
   InfoCard,
@@ -15,9 +16,11 @@ import {
 
 type ApplicationsItemProps = {
   data?: API.ShopsApplicationsItem;
+  readOnly?: boolean;
+  onChanged?: () => void;
 };
 
-export const ApplicationsItem = ({ data }: ApplicationsItemProps) => {
+export const ApplicationsItem = ({ data, readOnly, onChanged }: ApplicationsItemProps) => {
   const { id, status, applier_id, applier_gid, applier_name, house_gid, created_at, type, admin_user_id } = data ?? {};
 
   const { run: approveRun, loading: approveLoading } = useRequest(applicationsApprove, { manual: true });
@@ -25,12 +28,16 @@ export const ApplicationsItem = ({ data }: ApplicationsItemProps) => {
 
   if (typeof id !== 'number') return <Text>参数错误</Text>;
 
-  const handleApprove = () => {
-    approveRun({ id });
+  const handleApprove = async () => {
+    await approveRun({ id });
+    alert.show({ title: '已通过', duration: 800 });
+    onChanged?.();
   };
 
-  const handleReject = () => {
-    rejectRun({ id });
+  const handleReject = async () => {
+    await rejectRun({ id });
+    alert.show({ title: '已拒绝', duration: 800 });
+    onChanged?.();
   };
 
   const getStatusText = (status?: number) => {
@@ -60,14 +67,16 @@ export const ApplicationsItem = ({ data }: ApplicationsItemProps) => {
         <InfoCardRow label="状态" value={getStatusText(status)} />
         <InfoCardRow label="申请时间" value={created_at ? new Date(created_at * 1000).toLocaleString() : '-'} />
       </InfoCardContent>
-      <InfoCardFooter>
-        <Button disabled={approveLoading || status !== 0} onPress={handleApprove}>
-          通过
-        </Button>
-        <Button disabled={rejectLoading || status !== 0} onPress={handleReject}>
-          拒绝
-        </Button>
-      </InfoCardFooter>
+      {!readOnly && (
+        <InfoCardFooter>
+          <Button disabled={approveLoading || status !== 0} onPress={handleApprove}>
+            通过
+          </Button>
+          <Button disabled={rejectLoading || status !== 0} onPress={handleReject}>
+            拒绝
+          </Button>
+        </InfoCardFooter>
+      )}
     </InfoCard>
   );
 };

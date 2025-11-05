@@ -15,6 +15,7 @@ import {
   InfoCardFooter,
   InfoCardContent,
 } from '@/components/shared/info-card';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 type TablesItemProps = {
   houseId?: number;
@@ -24,6 +25,7 @@ type TablesItemProps = {
 
 export const TablesItem = ({ houseId, data, onChanged }: TablesItemProps) => {
   const { table_id, group_id, mapped_num, kind_id, base_score } = data ?? {};
+  const { getLabel } = usePlazaConsts();
 
   const { run: dismiss, loading: dismissLoading } = useRequest(shopsTablesDismiss, {
     manual: true,
@@ -50,7 +52,7 @@ export const TablesItem = ({ houseId, data, onChanged }: TablesItemProps) => {
         <InfoCardTitle>圈 {group_id}</InfoCardTitle>
       </InfoCardHeader>
       <InfoCardContent>
-        <InfoCardRow label="玩法" value={kind_id} />
+        <InfoCardRow label="玩法" value={typeof kind_id === 'number' ? getLabel('game_kinds', kind_id) : kind_id} />
         <InfoCardRow label="底分" value={base_score} />
         {expanded && (
           <View className="mt-2 rounded-md border border-border p-3">
@@ -63,7 +65,7 @@ export const TablesItem = ({ houseId, data, onChanged }: TablesItemProps) => {
                   <InfoCardRow label="触发下发" value={triggered ? '是' : '否'} />
                   <InfoCardRow label="桌台ID" value={snap?.table_id ?? '-'} />
                   <InfoCardRow label="映射号" value={snap?.mapped_num ?? '-'} />
-                  <InfoCardRow label="玩法" value={snap?.kind_id ?? '-'} />
+                  <InfoCardRow label="玩法" value={typeof snap?.kind_id === 'number' ? getLabel('game_kinds', snap?.kind_id) : (snap?.kind_id ?? '-')} />
                   <InfoCardRow label="底分" value={snap?.base_score ?? '-'} />
                 </>
               );

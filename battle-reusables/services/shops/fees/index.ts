@@ -28,3 +28,7 @@ export function shopsFeesSettleSum(data: API.ShopsFeesSettleSumParams) {
   return post<API.ShopsFeesSettleSumResult>('/shops/fees/settle/sum', data);
 }
 
+export function shopsFeesSettlePayoffs(data: API.ShopsFeesSettlePayoffsParams) {
+  return post<API.ShopsFeesSettlePayoffsResult>('/shops/fees/settle/payoffs', data);
+}
+

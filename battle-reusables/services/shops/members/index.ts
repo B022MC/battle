@@ -16,6 +16,14 @@ export function shopsMembersLogout(data: API.ShopsMembersItemParams) {
   return post<null>('/shops/members/logout', data);
 }
 
+export function shopsMembersListPlatform(data: { house_gid: number; group_id?: number; admin_user_id?: number }) {
+  return post<API.ShopsMembersList>('/shops/members/list_platform', data);
+}
+
+export function shopsMembersRemovePlatform(data: { house_gid: number; group_id?: number; member_user_id: number }) {
+  return post<null>('/shops/members/remove_platform', data);
+}
+
 export function shopsMembersDiamondQuery(data: API.ShopsMembersListParams) {
   return post<API.ShopsMembersDiamond>('/shops/diamond/query', data);
 }

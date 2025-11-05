@@ -662,6 +662,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/basic/menu/me/buttons": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "我的菜单按钮",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "菜单ID",
+                        "name": "menu_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/menu/me/tree": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理/菜单管理"
+                ],
+                "summary": "我的菜单树",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
         "/basic/role/all": {
             "get": {
                 "security": [
@@ -762,6 +819,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/basic/user/changePassword": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "修改密码",
+                "parameters": [
+                    {
+                        "description": "旧密码/新密码(明文)",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/basic.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
         "/basic/user/delMany": {
             "post": {
                 "description": "删除多条记录 Del Many Model",
@@ -779,7 +874,8 @@ const docTemplate = `{
                     {
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "integer",
+                            "format": "int32"
                         },
                         "collectionFormat": "multi",
                         "description": "主键ID（多值：?id=1\u0026id=2\u0026id=3）",
@@ -1090,6 +1186,30 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/basic/user/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "基础管理/用户"
+                ],
+                "summary": "我的平台账号",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     }
                 }
@@ -2142,6 +2262,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/members/wallet/list_by_group": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资金/钱包"
+                ],
+                "summary": "按圈筛余额（小于等于阈值）",
+                "parameters": [
+                    {
+                        "description": "house_gid, 可选group_id, max_balance, page",
+                        "name": "in",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/req.ListGroupWalletsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/resp.WalletListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/ops/plaza/health": {
             "get": {
                 "security": [
@@ -2250,6 +2415,26 @@ const docTemplate = `{
                     "Public"
                 ],
                 "summary": "平台列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/platforms/plaza/consts": {
+            "get": {
+                "description": "Return plaza/game constants and labels for frontend",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Plaza constants",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2976,6 +3161,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/shops/houses/options": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "游戏/中控"
+                ],
+                "summary": "店铺号下拉选项（基于 game_account_house）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "integer",
+                                                "format": "int32"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/shops/members/kick": {
             "post": {
                 "consumes": [
@@ -3519,6 +3747,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/stats/sessions/activeByHouse": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "统计"
+                ],
+                "summary": "按店铺列出在线会话数",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Body"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/resp.ActiveByHouseVO"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/stats/today": {
             "post": {
                 "consumes": [
@@ -3789,6 +4051,21 @@ const docTemplate = `{
                 },
                 "wechat_id": {
                     "description": "微信号",
+                    "type": "string"
+                }
+            }
+        },
+        "basic.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "old_password": {
                     "type": "string"
                 }
             }
@@ -4244,8 +4521,41 @@ const docTemplate = `{
                 "house_gid"
             ],
             "properties": {
+                "admin_user_id": {
+                    "description": "可选：过滤指定圈主/管理员",
+                    "type": "integer"
+                },
                 "house_gid": {
                     "description": "店铺号（HouseGID）",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "可选：过滤类型（admin/join 的枚举码）",
+                    "type": "integer"
+                }
+            }
+        },
+        "req.ListGroupWalletsRequest": {
+            "type": "object",
+            "required": [
+                "house_gid",
+                "max_balance"
+            ],
+            "properties": {
+                "group_id": {
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "type": "integer"
+                },
+                "max_balance": {
+                    "description": "小于等于该余额",
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
                     "type": "integer"
                 }
             }
@@ -4539,6 +4849,10 @@ const docTemplate = `{
                 "house_gid"
             ],
             "properties": {
+                "group_id": {
+                    "description": "圈ID（GroupID，可选；不传则表示按店铺汇总）",
+                    "type": "integer"
+                },
                 "house_gid": {
                     "description": "店铺号（圈ID/HouseGID）",
                     "type": "integer"
@@ -4712,9 +5026,24 @@ const docTemplate = `{
                 }
             }
         },
+        "resp.ActiveByHouseVO": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "house_gid": {
+                    "type": "integer"
+                }
+            }
+        },
         "resp.ApplicationItemVO": {
             "type": "object",
             "properties": {
+                "admin_user_id": {
+                    "description": "圈主/馆主用户ID",
+                    "type": "integer"
+                },
                 "applier_gid": {
                     "description": "申请者圈ID",
                     "type": "integer"
@@ -4741,6 +5070,10 @@ const docTemplate = `{
                 },
                 "status": {
                     "description": "平台返回的消息状态码",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "申请类型（解析自 applyType）",
                     "type": "integer"
                 }
             }
@@ -5125,6 +5458,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "nick_name": {
+                    "type": "string"
+                },
                 "role": {
                     "description": "仅 admin|operator，留空=admin",
                     "type": "string",
@@ -5142,6 +5478,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "game_id": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "description": "GroupID 若协议侧提供则填充；当前为 0（未知/未分组）",
                     "type": "integer"
                 },
                 "member_id": {

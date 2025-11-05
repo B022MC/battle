@@ -1,5 +1,5 @@
-import { FeesView } from '@/components/(shop)/fees/fees-view';
+import { MembersView } from '@/components/(tabs)/members/members-view';
 
 export default function MembersScreen() {
-  return <FeesView />;
+  return <MembersView />;
 }

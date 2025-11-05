@@ -93,6 +93,16 @@ definitions:
         description: 微信号
         type: string
     type: object
+  basic.ChangePasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
   common.Option:
     properties:
       label:
@@ -409,11 +419,34 @@ definitions:
     type: object
   req.ListApplicationsRequest:
     properties:
+      admin_user_id:
+        description: 可选：过滤指定圈主/管理员
+        type: integer
       house_gid:
         description: 店铺号（HouseGID）
         type: integer
+      type:
+        description: 可选：过滤类型（admin/join 的枚举码）
+        type: integer
     required:
     - house_gid
+    type: object
+  req.ListGroupWalletsRequest:
+    properties:
+      group_id:
+        type: integer
+      house_gid:
+        type: integer
+      max_balance:
+        description: 小于等于该余额
+        type: integer
+      page:
+        type: integer
+      page_size:
+        type: integer
+    required:
+    - house_gid
+    - max_balance
     type: object
   req.ListLedgerRequest:
     properties:
@@ -610,6 +643,9 @@ definitions:
     type: object
   req.StatsBaseRequest:
     properties:
+      group_id:
+        description: 圈ID（GroupID，可选；不传则表示按店铺汇总）
+        type: integer
       house_gid:
         description: 店铺号（圈ID/HouseGID）
         type: integer
@@ -737,8 +773,18 @@ definitions:
       ok:
         type: boolean
     type: object
+  resp.ActiveByHouseVO:
+    properties:
+      active:
+        type: integer
+      house_gid:
+        type: integer
+    type: object
   resp.ApplicationItemVO:
     properties:
+      admin_user_id:
+        description: 圈主/馆主用户ID
+        type: integer
       applier_gid:
         description: 申请者圈ID
         type: integer
@@ -759,6 +805,9 @@ definitions:
         type: integer
       status:
         description: 平台返回的消息状态码
+        type: integer
+      type:
+        description: 申请类型（解析自 applyType）
         type: integer
     type: object
   resp.ApplicationsVO:
@@ -1017,6 +1066,8 @@ definitions:
         type: integer
       id:
         type: integer
+      nick_name:
+        type: string
       role:
         description: 仅 admin|operator，留空=admin
         enum:
@@ -1029,6 +1080,9 @@ definitions:
   resp.ShopMemberListItem:
     properties:
       game_id:
+        type: integer
+      group_id:
+        description: GroupID 若协议侧提供则填充；当前为 0（未知/未分组）
         type: integer
       member_id:
         type: integer
@@ -1643,6 +1697,40 @@ paths:
       summary: BaseMenu 更新单条
       tags:
       - 系统管理/菜单管理
+  /basic/menu/me/buttons:
+    get:
+      parameters:
+      - description: 菜单ID
+        in: query
+        name: menu_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 我的菜单按钮
+      tags:
+      - 系统管理/菜单管理
+  /basic/menu/me/tree:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 我的菜单树
+      tags:
+      - 系统管理/菜单管理
   /basic/role/all:
     get:
       produces:
@@ -1702,6 +1790,29 @@ paths:
       summary: 新增单条记录
       tags:
       - 基础管理/用户
+  /basic/user/changePassword:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 旧密码/新密码(明文)
+        in: body
+        name: in
+        required: true
+        schema:
+          $ref: '#/definitions/basic.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - 基础管理/用户
   /basic/user/delMany:
     post:
       consumes:
@@ -1712,6 +1823,7 @@ paths:
         description: 主键ID（多值：?id=1&id=2&id=3）
         in: query
         items:
+          format: int32
           type: integer
         name: id
         required: true
@@ -1907,6 +2019,20 @@ paths:
                   type: string
               type: object
       summary: 查询N条记录
+      tags:
+      - 基础管理/用户
+  /basic/user/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 我的平台账号
       tags:
       - 基础管理/用户
   /basic/user/me/perms:
@@ -2525,6 +2651,32 @@ paths:
       summary: 钱包列表（支持余额区间/是否个性额度过滤）
       tags:
       - 资金/钱包
+  /members/wallet/list_by_group:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: house_gid, 可选group_id, max_balance, page
+        in: body
+        name: in
+        required: true
+        schema:
+          $ref: '#/definitions/req.ListGroupWalletsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/resp.WalletListResponse'
+              type: object
+      summary: 按圈筛余额（小于等于阈值）
+      tags:
+      - 资金/钱包
   /ops/plaza/health:
     get:
       description: 返回 plaza.Manager 的健康状态
@@ -2594,6 +2746,19 @@ paths:
           schema:
             $ref: '#/definitions/response.Body'
       summary: 平台列表
+      tags:
+      - Public
+  /platforms/plaza/consts:
+    get:
+      description: Return plaza/game constants and labels for frontend
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Plaza constants
       tags:
       - Public
   /shops/admins:
@@ -3037,6 +3202,30 @@ paths:
       summary: 解圈
       tags:
       - 圈/群
+  /shops/houses/options:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    format: int32
+                    type: integer
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 店铺号下拉选项（基于 game_account_house）
+      tags:
+      - 游戏/中控
   /shops/members/kick:
     post:
       consumes:
@@ -3370,6 +3559,25 @@ paths:
                   $ref: '#/definitions/resp.StatsVO'
               type: object
       summary: 成员-今日统计
+      tags:
+      - 统计
+  /stats/sessions/activeByHouse:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/resp.ActiveByHouseVO'
+                  type: array
+              type: object
+      summary: 按店铺列出在线会话数
       tags:
       - 统计
   /stats/today:

@@ -49,6 +49,15 @@ type ListWalletsRequest struct {
 	PageSize       int32  `json:"page_size" binding:"omitempty"`
 }
 
+// 按圈（或近似当前在线成员集合）筛余额
+type ListGroupWalletsRequest struct {
+	HouseGID   int32  `json:"house_gid" binding:"required"`
+	GroupID    *int32 `json:"group_id" binding:"omitempty"`
+	MaxBalance *int32 `json:"max_balance" binding:"required"` // 小于等于该余额
+	Page       int32  `json:"page" binding:"omitempty"`
+	PageSize   int32  `json:"page_size" binding:"omitempty"`
+}
+
 // 流水列表（时间范围 / 类型 / 成员 / 分页）
 type ListLedgerRequest struct {
 	HouseGID int32   `json:"house_gid" binding:"required"`

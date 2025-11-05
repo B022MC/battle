@@ -12,3 +12,7 @@ export function shopsApplicationsApplyJoin(data: API.ShopsApplicationsApplyJoinP
   return post<API.ShopsApplicationsApplyResult>('/shops/applications/applyJoin', data);
 }
 
+export function shopsApplicationsHistory(data: API.ShopsApplicationsHistoryParams) {
+  return post<API.ShopsApplicationsListResult>('/shops/applications/history', data);
+}
+

@@ -10,6 +10,7 @@ declare namespace API {
     nick_name?: string;
     member_type?: number;
     user_status?: number;
+    group_id?: number;
   };
 
   type ShopsMembersList = { items?: ShopsMemberItem[] };

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "battle-Reusables",
-    "slug": "battle-Reusables",
+    "name": "battle-reusables",
+    "slug": "battle-reusables",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "battle-Reusables",
+    "scheme": "battle-reusables",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -20,6 +20,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.b022mc.battle",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -36,6 +38,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0da3c283-fb7a-4a3c-8995-6dd5f04a7e64"
+      }
     }
   }
 }

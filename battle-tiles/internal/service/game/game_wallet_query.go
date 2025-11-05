@@ -26,9 +26,10 @@ func NewWalletQueryService(uc *gameBiz.FundsUseCase) *WalletQueryService {
 
 func (s *WalletQueryService) RegisterRouter(r *gin.RouterGroup) {
 	g := r.Group("/members").Use(middleware.JWTAuth())
-	g.POST("/wallet/get", middleware.RequirePerm("fund:wallet:view"), s.Get)     // 单人余额
-	g.POST("/wallet/list", middleware.RequirePerm("fund:wallet:view"), s.List)   // 批量筛选
-	g.POST("/ledger/list", middleware.RequirePerm("fund:ledger:view"), s.Ledger) // 流水
+	g.POST("/wallet/get", middleware.RequirePerm("fund:wallet:view"), s.Get)                   // 单人余额
+	g.POST("/wallet/list", middleware.RequirePerm("fund:wallet:view"), s.List)                 // 批量筛选
+	g.POST("/wallet/list_by_group", middleware.RequirePerm("fund:wallet:view"), s.ListByGroup) // 按圈或在线集合筛选
+	g.POST("/ledger/list", middleware.RequirePerm("fund:ledger:view"), s.Ledger)               // 流水
 	// 用户战绩明细（基于外部HTTP数据源）
 	g.POST("/battle/details", middleware.RequirePerm("battle:detail:view"), s.BattleDetails)
 	// 本地战绩（已落库）
@@ -82,6 +83,30 @@ func (s *WalletQueryService) List(c *gin.Context) {
 		Page:     normPage(in.Page),
 		PageSize: normSize(in.PageSize),
 	})
+}
+
+// ListByGroup 按圈（或近似）筛余额（当前实现按店铺阈值筛选；后续可接入在线会话成员集合做更精细过滤）
+// @Summary      按圈筛余额（小于等于阈值）
+// @Tags         资金/钱包
+// @Accept       json
+// @Produce      json
+// @Param        in body req.ListGroupWalletsRequest true "house_gid, 可选group_id, max_balance, page"
+// @Success      200 {object} response.Body{data=resp.WalletListResponse}
+// @Router       /members/wallet/list_by_group [post]
+func (s *WalletQueryService) ListByGroup(c *gin.Context) {
+	var in req.ListGroupWalletsRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+	// 先用店铺级阈值筛选（<= max_balance）
+	max := in.MaxBalance
+	list, total, err := s.uc.ListWallets(c.Request.Context(), in.HouseGID, nil, max, nil, in.Page, in.PageSize)
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	response.Success(c, resp.WalletListResponse{List: list, Total: total, Page: normPage(in.Page), PageSize: normSize(in.PageSize)})
 }
 
 // Ledger

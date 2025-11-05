@@ -237,6 +237,26 @@ func (uc *FundsUseCase) ListWallets(ctx context.Context, houseGID int32, min, ma
 	return out, total, nil
 }
 
+// 按成员集合过滤的钱包列表
+func (uc *FundsUseCase) ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]resp.WalletVO, int64, error) {
+	list, total, err := uc.walletRead.ListWalletsByMembers(ctx, houseGID, memberIDs, min, max, page, size)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]resp.WalletVO, 0, len(list))
+	for _, m := range list {
+		out = append(out, resp.WalletVO{
+			HouseGID:  m.HouseGID,
+			MemberID:  m.MemberID,
+			Balance:   m.Balance,
+			Forbid:    m.Forbid,
+			LimitMin:  m.LimitMin,
+			UpdatedAt: m.UpdatedAt,
+		})
+	}
+	return out, total, nil
+}
+
 // —— 流水列表 ——
 // start/end 为空时默认近7天；CreatedAt 已是 time.Time，直接赋值
 func (uc *FundsUseCase) ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end *time.Time, page, size int32) ([]resp.LedgerVO, int64, error) {

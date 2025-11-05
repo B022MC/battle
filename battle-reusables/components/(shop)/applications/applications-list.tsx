@@ -7,9 +7,11 @@ import { Loading } from '@/components/shared/loading';
 type ApplicationsListProps = {
   loading?: boolean;
   data?: API.ShopsApplicationsItem[];
+  readOnly?: boolean;
+  onChanged?: () => void;
 };
 
-export const ApplicationsList = ({ loading, data }: ApplicationsListProps) => {
+export const ApplicationsList = ({ loading, data, readOnly, onChanged }: ApplicationsListProps) => {
   if (loading) return <Loading text="加载中..." />;
 
   if (!data || data.length === 0) {
@@ -23,7 +25,7 @@ export const ApplicationsList = ({ loading, data }: ApplicationsListProps) => {
   return (
     <FlatList
       data={data}
-      renderItem={({ item }) => <ApplicationsItem data={item} />}
+      renderItem={({ item }) => <ApplicationsItem data={item} readOnly={readOnly} onChanged={onChanged} />}
       keyExtractor={(item) => `${item.id}`}
     />
   );

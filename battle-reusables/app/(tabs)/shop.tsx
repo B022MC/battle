@@ -13,8 +13,11 @@ export default function ShopHubScreen() {
       <View className="gap-4">
         <Text className="text-xl font-bold">店铺</Text>
         <View className="gap-2">
-        <PermissionGate anyOf={["shop:table:view"]}>
-          <Button onPress={() => router.push('/(shop)/rooms')}><Text>房间管理</Text></Button>
+        <PermissionGate anyOf={["shop:fees:view"]}>
+          <Button onPress={() => router.push('/(shop)/fees')}><Text>费用设置</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["fund:wallet:view"]}>
+          <Button onPress={() => router.push('/(shop)/balances')}><Text>余额筛查</Text></Button>
         </PermissionGate>
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/members')}><Text>成员管理</Text></Button>

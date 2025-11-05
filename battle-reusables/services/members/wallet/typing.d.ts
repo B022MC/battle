@@ -13,6 +13,14 @@ declare namespace API {
     page_size?: number;
   };
 
+  type MembersWalletListByGroupParams = {
+    house_gid: number;
+    group_id?: number;
+    max_balance: number;
+    page?: number;
+    page_size?: number;
+  };
+
   type MembersWalletItem = {
     member_id?: number;
     house_gid?: number;

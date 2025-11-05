@@ -1,6 +1,8 @@
 declare namespace API {
   type ShopsApplicationsListParams = {
     house_gid: number;
+    type?: number; // 1=管理员,2=入圈
+    admin_user_id?: number; // 圈主ID（仅对入圈申请有意义）
   };
 
   type ShopsApplicationsItem = {
@@ -10,6 +12,8 @@ declare namespace API {
     applier_gid?: number;
     applier_name?: string;
     house_gid?: number;
+    type?: number;
+    admin_user_id?: number;
     created_at?: number;
   };
 
@@ -30,6 +34,14 @@ declare namespace API {
 
   type ShopsApplicationsApplyResult = {
     ok?: boolean;
+  };
+
+  type ShopsApplicationsHistoryParams = {
+    house_gid: number;
+    type?: number;   // 1=管理员,2=入圈
+    status?: number; // 0待审,1通过,2拒绝
+    start_at?: string; // RFC3339
+    end_at?: string;   // RFC3339
   };
 }
 

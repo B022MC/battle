@@ -47,6 +47,12 @@ func (s *BasicUserService) RegisterRouter(rootRouter *gin.RouterGroup) {
 	privateRouter.POST("/changePassword", s.ChangePassword)
 }
 
+// ChangePasswordRequest 修改密码请求体
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
 // MeRoles 返回当前用户的角色ID（从 JWT claims）
 // @Summary      我的角色ID
 // @Tags         基础管理/用户
@@ -115,14 +121,11 @@ func (s *BasicUserService) Me(c *gin.Context) {
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
-// @Param        in body struct{OldPassword string `json:"old_password" binding:"required"`; NewPassword string `json:"new_password" binding:"required"`} true "旧密码/新密码(明文)"
+// @Param        in body ChangePasswordRequest true "旧密码/新密码(明文)"
 // @Success      200 {object} response.Body
 // @Router       /basic/user/changePassword [post]
 func (s *BasicUserService) ChangePassword(c *gin.Context) {
-	var in struct {
-		OldPassword string `json:"old_password" binding:"required"`
-		NewPassword string `json:"new_password" binding:"required"`
-	}
+	var in ChangePasswordRequest
 	if err := c.ShouldBindJSON(&in); err != nil {
 		response.Fail(c, ecode.ParamsFailed, err)
 		return

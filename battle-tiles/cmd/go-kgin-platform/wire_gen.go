@@ -22,10 +22,11 @@ import (
 	"battle-tiles/internal/service"
 	basic3 "battle-tiles/internal/service/basic"
 	game3 "battle-tiles/internal/service/game"
-
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -77,25 +78,25 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logg
 	ctrlAccountService := game3.NewCtrlAccountService(ctrlAccountUseCase)
 	gameShopAdminRepo := game.NewShopAdminRepo(infraData, logger)
 	shopAdminUseCase := game2.NewShopAdminUseCase(gameShopAdminRepo, logger)
-	shopAdminService := game3.NewShopAdminService(shopAdminUseCase, basicUserRepo)
+	gameShopGroupAdminRepo := game.NewShopGroupAdminRepo(infraData, logger)
+	shopAdminService := game3.NewShopAdminService(shopAdminUseCase, basicUserRepo, gameShopGroupAdminRepo)
 	shopTableService := game3.NewShopTableService(manager)
 	memberRuleRepo := game.NewMemberRuleRepo(infraData, logger)
 	memberRuleUseCase := game2.NewMemberRuleUseCase(memberRuleRepo, logger)
-	gameShopMemberService := game3.NewGameShopMemberService(manager, memberRuleUseCase)
+	userApplicationRepo := game.NewUserApplicationRepo(infraData, logger)
+	gameShopMemberService := game3.NewGameShopMemberService(manager, memberRuleUseCase, gameShopAdminRepo, basicUserRepo, userApplicationRepo, gameShopGroupAdminRepo)
 	gameStatsRepo := game.NewStatsRepo(infraData, logger)
 	gameStatsUseCase := game2.NewGameStatsUseCase(gameStatsRepo, logger)
-	gameShopGroupAdminRepo := game.NewShopGroupAdminRepo(infraData, logger)
 	shopGroupAdminUseCase := game2.NewShopGroupAdminUseCase(gameShopGroupAdminRepo, logger)
 	gameStatsService := game3.NewGameStatsService(gameStatsUseCase, shopAdminUseCase, shopGroupAdminUseCase, manager)
 	walletQueryService := game3.NewWalletQueryService(fundsUseCase)
-	userApplicationRepo := game.NewUserApplicationRepo(infraData, logger)
-	shopApplicationService := game3.NewShopApplicationService(manager, userApplicationRepo)
+	shopApplicationService := game3.NewShopApplicationService(manager, userApplicationRepo, basicUserRepo, authRepo, gameShopAdminRepo, gameShopGroupAdminRepo)
 	gameGroupService := game3.NewGameGroupService(manager)
 	houseSettingsRepo := game.NewHouseSettingsRepo(infraData, logger)
 	feeSettleRepo := game.NewFeeSettleRepo(infraData, logger)
 	houseSettingsUseCase := game2.NewHouseSettingsUseCase(houseSettingsRepo, feeSettleRepo, logger)
 	houseSettingsService := game3.NewHouseSettingsService(houseSettingsUseCase)
-	shopGroupAdminService := game3.NewShopGroupAdminService(shopGroupAdminUseCase, manager)
+	shopGroupAdminService := game3.NewShopGroupAdminService(shopGroupAdminUseCase, manager, gameShopAdminRepo, gameShopGroupAdminRepo)
 	gameRouter := router.NewGameRouter(accountService, sessionService, fundsService, ctrlAccountService, shopAdminService, shopTableService, gameShopMemberService, gameStatsService, walletQueryService, shopApplicationService, gameGroupService, houseSettingsService, shopGroupAdminService)
 	opsService := service.NewOpsService(manager)
 	opsRouter := router.NewOpsRouter(opsService)

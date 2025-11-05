@@ -12,8 +12,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { TriggerRef } from '@rn-primitives/select';
 import { useRef } from 'react';
 import { isWeb } from '@/utils/platform';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const ProfileGameAccount = () => {
+  const { getLoginModeLabel } = usePlazaConsts();
   const { data: me, run: runMe, loading: loadingMe } = useRequest(gameAccountMe, { manual: true });
   const { run: runVerify, loading: verifying } = useRequest(gameAccountVerify, { manual: true });
   const { run: runBind, loading: binding } = useRequest(gameAccountBind, {
@@ -77,7 +79,7 @@ export const ProfileGameAccount = () => {
         {isBound ? (
           <View className="gap-3">
             <InfoCardRow label="账号" value={me.account ?? '-'} />
-            <InfoCardRow label="登录方式" value={me.login_mode ?? '-'} />
+            <InfoCardRow label="登录方式" value={getLoginModeLabel(me.login_mode as any)} />
             <InfoCardRow label="状态" value={String(me.status ?? '-') } />
           </View>
         ) : (

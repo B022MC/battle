@@ -21,3 +21,11 @@ type SumFeeSettleRequest struct {
 	StartAt   string `json:"start_at"   binding:"required"`
 	EndAt     string `json:"end_at"     binding:"required"`
 }
+
+// ListGroupPayoffsRequest 汇总时间范围内各圈费用并计算圈间结转
+// @example {"house_gid":20001, "start_at":"2025-10-01T00:00:00Z", "end_at":"2025-10-08T00:00:00Z"}
+type ListGroupPayoffsRequest struct {
+	HouseGID int32  `json:"house_gid"  binding:"required"`
+	StartAt  string `json:"start_at"   binding:"required"`
+	EndAt    string `json:"end_at"     binding:"required"`
+}

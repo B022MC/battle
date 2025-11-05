@@ -15,9 +15,11 @@ import { router } from 'expo-router';
 import { usePermission } from '@/hooks/use-permission';
 import { shopsCtrlAccountsListAll, shopsCtrlAccountsBind } from '@/services/shops/ctrlAccounts';
 import { useRecentHouseIds } from '@/hooks/use-recent-house-ids';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const ProfileView = () => {
   const { user, roles, perms, platform, clearAuth, updateAuth } = useAuthStore();
+  const { getLoginModeLabel } = usePlazaConsts();
   const { isSuperAdmin, hasAny } = usePermission();
   const isAdmin = hasAny([
     'shop:admin:assign', 'shop:admin:view',
@@ -137,9 +139,9 @@ export const ProfileView = () => {
                     {allCtrls!.map((it) => (
                       <View key={it!.id} className="rounded-md border border-border p-3 gap-2">
                         <InfoCardRow label="ID" value={String(it!.id ?? '-')}/>
-                        <InfoCardRow label="登录方式" value={it!.login_mode ?? '-'}/>
-                        <InfoCardRow label="账号" value={it!.identifier ?? '-'}/>
-                        <InfoCardRow label="状态" value={(it!.status === 1) ? '启用' : '禁用'}/>
+                        <InfoCardRow label="登录方式" value={getLoginModeLabel((it as any)!.login_mode)} />
+                        <InfoCardRow label="账号" value={it!.identifier ?? '-'} />
+                        <InfoCardRow label="状态" value={(it!.status === 1) ? '启用' : '禁用'} />
                         <View className="gap-1">
                           <Text variant="muted">已绑定店铺号</Text>
                           <View className="flex-row flex-wrap gap-2">
@@ -159,14 +161,16 @@ export const ProfileView = () => {
                         </View>
                         <View className="gap-1">
                           <Text variant="muted">绑定新店铺号</Text>
-                          <View className="flex-row items-center gap-2">
+                          <View className="flex-row flex-wrap items-center gap-2">
                             <Input
                               placeholder="house_gid"
                               keyboardType="numeric"
                               value={bindGids[it!.id!] ?? ''}
                               onChangeText={(v) => setBindGids((s) => ({ ...s, [it!.id!]: v }))}
+                              className="flex-1 w-auto"
                             />
                             <Button
+                              className="shrink-0"
                               disabled={bindingHouse}
                               onPress={() => {
                                 const raw = bindGids[it!.id!] ?? '';

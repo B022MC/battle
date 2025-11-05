@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useRequest } from '@/hooks/use-request';
 import { shopsMembersKick, shopsMembersLogout } from '@/services/shops/members';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import {
   InfoCard,
   InfoCardHeader,
@@ -21,6 +22,7 @@ type MembersItemProps = {
 
 export const MembersItem = ({ houseId, data }: MembersItemProps) => {
   const { user_id, member_id, game_id, nick_name, member_type, user_status } = data ?? {};
+  const { getLabel } = usePlazaConsts();
 
   const { run: kickRun, loading: kickLoading } = useRequest(shopsMembersKick, { manual: true });
   const { run: logoutRun, loading: logoutLoading } = useRequest(shopsMembersLogout, {
@@ -46,8 +48,8 @@ export const MembersItem = ({ houseId, data }: MembersItemProps) => {
       </InfoCardHeader>
       <InfoCardContent>
         <InfoCardRow label="游戏ID" value={game_id} />
-        <InfoCardRow label="成员类型" value={member_type} />
-        <InfoCardRow label="用户状态" value={user_status} />
+        <InfoCardRow label="成员类型" value={typeof member_type === 'number' ? getLabel('member_types', member_type) : member_type} />
+        <InfoCardRow label="用户状态" value={typeof user_status === 'number' ? getLabel('user_status', user_status) : user_status} />
       </InfoCardContent>
       <InfoCardFooter>
         <PermissionGate anyOf={["shop:member:kick"]}>

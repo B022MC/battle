@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { useRequest } from '@/hooks/use-request';
 import { shopsCtrlAccountsUnbind } from '@/services/shops/ctrlAccounts';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import {
   InfoCard,
   InfoCardHeader,
@@ -20,6 +21,7 @@ type CtrlAccountsItemProps = {
 
 export const CtrlAccountsItem = ({ houseId, data }: CtrlAccountsItemProps) => {
   const { id, identifier, login_mode, status } = data ?? {};
+  const { getLoginModeLabel } = usePlazaConsts();
 
   const { run: unbindRun, loading: unbindLoading } = useRequest(shopsCtrlAccountsUnbind, { manual: true });
 
@@ -36,7 +38,7 @@ export const CtrlAccountsItem = ({ houseId, data }: CtrlAccountsItemProps) => {
       </InfoCardHeader>
       <InfoCardContent>
         <InfoCardRow label="账号" value={identifier} />
-        <InfoCardRow label="登录方式" value={login_mode} />
+        <InfoCardRow label="登录方式" value={getLoginModeLabel(login_mode as any)} />
         <InfoCardRow label="状态" value={status === 1 ? '启用' : '禁用'} />
       </InfoCardContent>
       <InfoCardFooter>

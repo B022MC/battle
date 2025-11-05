@@ -18,6 +18,8 @@ type WalletReadRepo interface {
 	ListWallets(ctx context.Context, houseGID int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error)
 	// 流水列表 + 计数（可按成员/类型/时间范围筛选，分页）
 	ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end time.Time, page, size int32) ([]*model.GameWalletLedger, int64, error)
+	// 按成员集合过滤的钱包列表
+	ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]*model.GameMemberWallet, int64, error)
 }
 
 type walletReadRepo struct {
@@ -113,6 +115,38 @@ func (r *walletReadRepo) ListLedger(ctx context.Context, houseGID int32, memberI
 		Order("created_at DESC"). // 更直观
 		Limit(int(size)).Offset(int(offset)).
 		Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+func (r *walletReadRepo) ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]*model.GameMemberWallet, int64, error) {
+	if len(memberIDs) == 0 {
+		return []*model.GameMemberWallet{}, 0, nil
+	}
+	db := r.db(ctx).Model(&model.GameMemberWallet{}).
+		Where("house_gid = ? AND member_id IN ?", houseGID, memberIDs)
+
+	if min != nil {
+		db = db.Where("balance >= ?", *min)
+	}
+	if max != nil {
+		db = db.Where("balance <= ?", *max)
+	}
+
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 || size > 200 {
+		size = 20
+	}
+	offset := (page - 1) * size
+	var list []*model.GameMemberWallet
+	if err := db.Order("updated_at DESC").Limit(int(size)).Offset(int(offset)).Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
 	return list, total, nil

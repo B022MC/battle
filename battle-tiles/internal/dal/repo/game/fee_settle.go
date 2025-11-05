@@ -13,6 +13,7 @@ import (
 type FeeSettleRepo interface {
 	Insert(ctx context.Context, in *model.GameFeeSettle) error
 	Sum(ctx context.Context, houseGID int32, group string, start, end time.Time) (int64, error)
+	ListGroupSums(ctx context.Context, houseGID int32, start, end time.Time) ([]GroupSum, error)
 }
 
 type feeSettleRepo struct {
@@ -37,4 +38,19 @@ func (r *feeSettleRepo) Sum(ctx context.Context, houseGID int32, group string, s
 		Select("COALESCE(SUM(amount),0)").
 		Scan(&amt).Error
 	return amt, err
+}
+
+type GroupSum struct {
+	PlayGroup string `gorm:"column:play_group" json:"play_group"`
+	Sum       int64  `gorm:"column:sum" json:"sum"`
+}
+
+func (r *feeSettleRepo) ListGroupSums(ctx context.Context, houseGID int32, start, end time.Time) ([]GroupSum, error) {
+	var rows []GroupSum
+	err := r.db(ctx).Model(&model.GameFeeSettle{}).
+		Where("house_gid=? AND feed_at>=? AND feed_at<?", houseGID, start, end).
+		Select("play_group, COALESCE(SUM(amount),0) as sum").
+		Group("play_group").
+		Scan(&rows).Error
+	return rows, err
 }

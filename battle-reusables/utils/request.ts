@@ -14,11 +14,13 @@ export type ResponseStructure<T> = {
   msg?: string;
 };
 
+let lastAuthErrorAt = 0;
+
 export const request = async <T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<ResponseStructure<T>> => {
-  const { headers, params, data, showError = false, ...rest } = options;
+  const { headers, params, data, showError = true, ...rest } = options;
 
   const apiUrl = isWeb
     ? process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB
@@ -53,7 +55,19 @@ export const request = async <T>(
 
   if (!response.ok || res.code !== 0) {
     const msg = res.msg ?? response.statusText ?? `Request Failed with status ${response.status}`;
-    if (showError) alert.show({ title: '请求失败', description: msg });
+    // 401 统一处理：清除会话，触发布局跳转到登录页（避免在登录页重复弹窗）
+    if (response.status === 401 || res.code === 401) {
+      const now = Date.now();
+      const { clearAuth } = useAuthStore.getState();
+      clearAuth();
+      // 防抖：1.5s 内不重复弹错误
+      if (showError && now - lastAuthErrorAt > 1500) {
+        alert.show({ title: '登录已过期', description: '请重新登录' });
+        lastAuthErrorAt = now;
+      }
+    } else if (showError) {
+      alert.show({ title: '请求失败', description: msg });
+    }
     throw new Error(msg);
   }
 

@@ -58,6 +58,8 @@ type ShopMemberListItem struct {
 	MemberID   uint32 `json:"member_id"`
 	MemberType int    `json:"member_type"`
 	NickName   string `json:"nick_name"`
+	// GroupID 若协议侧提供则填充；当前为 0（未知/未分组）
+	GroupID int `json:"group_id"`
 }
 
 type ShopMemberListResponse struct {

@@ -17,6 +17,8 @@ type GameShopAdminRepo interface {
 	Revoke(ctx context.Context, houseGID int32, userID int32) error
 	Exists(ctx context.Context, houseGID int32, userID int32) (bool, error)
 	ListByHouse(ctx context.Context, houseGID int32) ([]*model.GameShopAdmin, error)
+	ListByUser(ctx context.Context, userID int32) ([]*model.GameShopAdmin, error)
+	ListAll(ctx context.Context) ([]*model.GameShopAdmin, error)
 }
 
 type gameShopAdminRepo struct {
@@ -65,6 +67,24 @@ func (r *gameShopAdminRepo) ListByHouse(ctx context.Context, houseGID int32) ([]
 	err := r.db(ctx).
 		Where("house_gid = ?", houseGID).
 		Order("id DESC").
+		Find(&out).Error
+	return out, err
+}
+
+func (r *gameShopAdminRepo) ListByUser(ctx context.Context, userID int32) ([]*model.GameShopAdmin, error) {
+	var out []*model.GameShopAdmin
+	err := r.db(ctx).
+		Where("user_id = ?", userID).
+		Order("id DESC").
+		Find(&out).Error
+	return out, err
+}
+
+func (r *gameShopAdminRepo) ListAll(ctx context.Context) ([]*model.GameShopAdmin, error) {
+	var out []*model.GameShopAdmin
+	err := r.db(ctx).
+		Where("deleted_at IS NULL").
+		Order("id ASC").
 		Find(&out).Error
 	return out, err
 }

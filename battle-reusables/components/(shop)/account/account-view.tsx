@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { useRequest } from '@/hooks/use-request';
 import { gameAccountMe, gameAccountBind, gameAccountDelete } from '@/services/game/account';
 import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, InfoCardContent } from '@/components/shared/info-card';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const AccountView = () => {
+  const { getLoginModeLabel } = usePlazaConsts();
   const [account, setAccount] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [nickname, setNickname] = React.useState('');
@@ -42,7 +44,7 @@ export const AccountView = () => {
           <InfoCardContent>
             <InfoCardRow label="账号" value={myAccount.account} />
             <InfoCardRow label="昵称" value={myAccount.nickname} />
-            <InfoCardRow label="登录方式" value={myAccount.login_mode} />
+            <InfoCardRow label="登录方式" value={getLoginModeLabel(myAccount.login_mode as any)} />
             <InfoCardRow label="状态" value={myAccount.status === 1 ? '正常' : '禁用'} />
           </InfoCardContent>
           <InfoCardFooter>
