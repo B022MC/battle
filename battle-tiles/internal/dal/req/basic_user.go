@@ -36,4 +36,8 @@ type RegisterRequest struct {
 	NickName string `json:"nick_name"`
 	Avatar   string `json:"avatar"`
 	WechatID string `json:"wechat_id"` //  微信号（人工填写）
+	// 游戏账号绑定字段（可选）
+	GameAccountMode string `json:"game_account_mode"` // "account" 或 "mobile"
+	GameAccount     string `json:"game_account"`      // 游戏账号或手机号
+	GamePassword    string `json:"game_password"`     // 游戏密码（MD5）
 }

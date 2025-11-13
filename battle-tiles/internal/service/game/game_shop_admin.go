@@ -4,7 +4,6 @@ package game
 import (
 	gameBiz "battle-tiles/internal/biz/game"
 	basicRepo "battle-tiles/internal/dal/repo/basic"
-	gameRepo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/dal/req"
 	"battle-tiles/internal/dal/resp"
 	"battle-tiles/pkg/plugin/middleware"
@@ -19,13 +18,12 @@ import (
 )
 
 type ShopAdminService struct {
-	uc      *gameBiz.ShopAdminUseCase
-	users   basicRepo.BasicUserRepo
-	grpRepo gameRepo.GameShopGroupAdminRepo
+	uc    *gameBiz.ShopAdminUseCase
+	users basicRepo.BasicUserRepo
 }
 
-func NewShopAdminService(uc *gameBiz.ShopAdminUseCase, users basicRepo.BasicUserRepo, grpRepo gameRepo.GameShopGroupAdminRepo) *ShopAdminService {
-	return &ShopAdminService{uc: uc, users: users, grpRepo: grpRepo}
+func NewShopAdminService(uc *gameBiz.ShopAdminUseCase, users basicRepo.BasicUserRepo) *ShopAdminService {
+	return &ShopAdminService{uc: uc, users: users}
 }
 
 func (s *ShopAdminService) RegisterRouter(r *gin.RouterGroup) {
@@ -34,6 +32,7 @@ func (s *ShopAdminService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/admins", middleware.RequirePerm("shop:admin:assign"), s.Assign)
 	g.DELETE("/admins", middleware.RequirePerm("shop:admin:revoke"), s.Revoke)
 	g.POST("/admins/list", middleware.RequirePerm("shop:admin:view"), s.List)
+	g.GET("/admins/me", s.GetMyAdminInfo) // 获取当前用户的店铺管理员信息
 }
 
 // 提供店铺设置相关的 HTTP 处理
@@ -399,36 +398,7 @@ func (s *ShopAdminService) List(c *gin.Context) {
 		return out
 	}
 
-	// 读取圈管理员表
-	if s.grpRepo != nil {
-		if grps, e := s.grpRepo.ListByHouse(c.Request.Context(), in.HouseGID); e == nil && len(grps) > 0 {
-			ids := make([]struct {
-				ID, HouseGID, UserID int32
-				Role                 string
-			}, 0, len(grps))
-			seen := map[int32]struct{}{}
-			for _, g := range grps {
-				if g == nil {
-					continue
-				}
-				// 对同一用户去重（按 uq_shop_group_admin: house_gid + user_id）
-				if _, ok := seen[g.UserID]; ok {
-					continue
-				}
-				seen[g.UserID] = struct{}{}
-				ids = append(ids, struct {
-					ID, HouseGID, UserID int32
-					Role                 string
-				}{ID: g.Id, HouseGID: g.HouseGID, UserID: g.UserID, Role: g.Role})
-			}
-			out := buildOut(ids)
-			response.Success(c, out)
-			return
-		}
-		// 若表空，则继续走旧逻辑
-	}
-
-	// 回退到旧的 game_shop_admin 表
+	// 使用 game_shop_admin 表
 	oldList, err := s.uc.List(c.Request.Context(), in.HouseGID)
 	if err != nil {
 		response.Fail(c, ecode.Failed, err)
@@ -449,4 +419,53 @@ func (s *ShopAdminService) List(c *gin.Context) {
 	}
 	out := buildOut(ids)
 	response.Success(c, out)
+}
+
+// GetMyAdminInfo
+// @Summary      获取当前用户的店铺管理员信息
+// @Tags         店铺/管理员
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} response.Body{data=resp.ShopAdminVO}
+// @Failure      401 {object} response.Body
+// @Failure      404 {object} response.Body
+// @Router       /shops/admins/me [get]
+func (s *ShopAdminService) GetMyAdminInfo(c *gin.Context) {
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+
+	// 查询当前用户的店铺管理员记录
+	admins, err := s.uc.ListByUser(c.Request.Context(), claims.UserID)
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+
+	if len(admins) == 0 {
+		// 不是店铺管理员，返回 null
+		response.Success(c, nil)
+		return
+	}
+
+	// 返回第一个管理员记录（假设一个用户只能是一个店铺的管理员）
+	admin := admins[0]
+
+	// 获取用户昵称
+	nickName := ""
+	if s.users != nil {
+		if user, e := s.users.SelectOneByPK(c.Request.Context(), admin.UserID); e == nil && user != nil {
+			nickName = user.NickName
+		}
+	}
+
+	response.Success(c, resp.ShopAdminVO{
+		ID:       admin.Id,
+		HouseGID: admin.HouseGID,
+		UserID:   admin.UserID,
+		Role:     admin.Role,
+		NickName: nickName,
+	})
 }

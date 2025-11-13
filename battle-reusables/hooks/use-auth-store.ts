@@ -10,6 +10,7 @@ type AuthState = {
   refreshToken?: string;
   expiresAt?: number; // 绝对过期时间
   platform?: string;
+  role?: string; // 用户角色：super_admin, store_admin, user
   roles?: number[];
   perms?: string[];
   user?: {
@@ -27,6 +28,7 @@ type AuthActions = {
     refreshToken?: string;
     expiresIn?: number;
     platform?: string;
+    role?: string;
     roles?: number[];
     perms?: string[];
     user?: {
@@ -56,14 +58,14 @@ const getIsAuthenticated = (state: Partial<AuthState>) => {
          set({ isLoading: false, isAuthenticated: getIsAuthenticated(get()) });
        },
 
-      updateAuth: ({ accessToken, refreshToken, expiresIn, platform, roles, perms, user }) => {
+      updateAuth: ({ accessToken, refreshToken, expiresIn, platform, role, roles, perms, user }) => {
          set((state) => {
            const newState = {
              accessToken: accessToken ?? state.accessToken,
              refreshToken: refreshToken ?? state.refreshToken,
              expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : state.expiresAt,
              platform: platform ?? state.platform,
-
+             role: role ?? state.role,
              roles: roles ?? state.roles,
              perms: perms ?? state.perms,
             user: user ?? state.user,
@@ -82,6 +84,7 @@ const getIsAuthenticated = (state: Partial<AuthState>) => {
            refreshToken: undefined,
            expiresAt: undefined,
            platform: undefined,
+           role: undefined,
            roles: undefined,
            perms: undefined,
            isAuthenticated: false,
@@ -104,6 +107,7 @@ const getIsAuthenticated = (state: Partial<AuthState>) => {
          refreshToken: state.refreshToken,
          expiresAt: state.expiresAt,
          platform: state.platform,
+         role: state.role,
          roles: state.roles,
          perms: state.perms,
           user: state.user,

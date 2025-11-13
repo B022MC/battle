@@ -10,8 +10,8 @@ type AssignShopAdminRequest struct {
 
 // 撤销管理员
 type RevokeShopAdminRequest struct {
-	HouseGID int32 `json:"house_gid" binding:"required"`
-	UserID   int32 `json:"user_id"   binding:"required"`
+	HouseGID int32 `json:"house_gid"` // 可选，如果不提供则通过 user_id 查找
+	UserID   int32 `json:"user_id" binding:"required"`
 }
 type ListShopAdminsRequest struct {
 	HouseGID int32 `json:"house_gid" binding:"required"` // 茶馆号

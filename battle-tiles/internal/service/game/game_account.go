@@ -21,34 +21,32 @@ func NewAccountService(uc *gameBiz.GameAccountUseCase) *AccountService {
 }
 
 func (s *AccountService) RegisterRouter(r *gin.RouterGroup) {
-	g := r.Group("/game").Use(middleware.JWTAuth())
+	g := r.Group("/game")
+	// 验证账号不需要 JWT（用于注册前验证）
 	g.POST("/accounts/verify", s.VerifyAccount) // 探活 82
-	g.POST("/accounts", s.BindMyAccount)        // 仅 1 条（只建 game_account）
-	g.GET("/accounts/me", s.GetMyAccount)       // 查询我的账号
-	g.DELETE("/accounts/me", s.DeleteMyAccount) // 解绑我的账号
+
+	// 以下接口需要 JWT 认证
+	auth := g.Use(middleware.JWTAuth())
+	auth.POST("/accounts", s.BindMyAccount)        // 仅 1 条（只建 game_account）
+	auth.GET("/accounts/me", s.GetMyAccount)       // 查询我的账号
+	auth.DELETE("/accounts/me", s.DeleteMyAccount) // 解绑我的账号
 }
 
 // VerifyAccount
 // @Summary     校验游戏账号是否可用（探活82）
-// @Description 只做登录探测，不写库、不建立会话
+// @Description 只做登录探测，不写库、不建立会话。此接口无需认证，用于注册前验证游戏账号。
 // @Tags        游戏/我的账号
 // @Accept      json
 // @Produce     json
-// @Security    BearerAuth
 // @Param       in  body     req.VerifyAccountRequest  true  "mode: account|mobile；account: 账号或手机号"
 // @Success     200 {object} response.Body{data=resp.VerifyAccountResponse} "data: { ok: true }"
 // @Failure     400 {object} response.Body
-// @Failure     401 {object} response.Body
 // @Failure     500 {object} response.Body
 // @Router      /game/accounts/verify [post]
 func (s *AccountService) VerifyAccount(c *gin.Context) {
 	var in req.VerifyAccountRequest
 	if err := c.ShouldBindJSON(&in); err != nil {
 		response.Fail(c, ecode.ParamsFailed, err)
-		return
-	}
-	if _, err := utils.GetClaims(c); err != nil {
-		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
 	var mode consts.GameLoginMode

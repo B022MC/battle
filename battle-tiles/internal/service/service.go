@@ -31,7 +31,8 @@ var ProviderSet = wire.NewSet(
 	game.NewWalletQueryService,
 	game.NewShopApplicationService,
 	game.NewGameGroupService,
-	game.NewShopGroupAdminService,
 	game.NewBattleRecordService,
+	game.NewShopGroupService,
+	game.NewMemberService,
 	NewSessionMonitor,
 )

@@ -26,7 +26,8 @@ var ProviderSet = wire.NewSet(
 	game.NewGameStatsUseCase,
 	game.NewCtrlSessionUseCase,
 	game.NewMemberRuleUseCase,
-	game.NewShopGroupAdminUseCase,
 	game.NewBattleRecordUseCase,
 	game.NewBattleSyncManager,
+	game.NewShopGroupUseCase,
+	game.NewMemberUseCase,
 )

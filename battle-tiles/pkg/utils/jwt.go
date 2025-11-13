@@ -61,16 +61,18 @@ func NewJWT() *JWT {
 
 func (j *JWT) CreateClaims(baseClaims request.BaseClaims) request.CustomClaims {
 	bf, _ := ParseDuration(HeaderSignTokenBufferTime)
+	now := time.Now()
 
 	claims := request.CustomClaims{
 		BaseClaims: baseClaims,
 		BufferTime: int64(bf / time.Second), // 缓冲时间1天 缓冲时间内会获得新的token刷新令牌 此时一个用户会存在两个有效令牌 但是前端只留一个 另一个会丢失
 
 		RegisteredClaims: jwt.RegisteredClaims{
-			Audience:  jwt.ClaimStrings{SigningKey},              // 受众
-			NotBefore: jwt.NewNumericDate(time.Now().Add(-1000)), // 签名生效时间
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(bf)),    // 过期时间 1天  配置文件
-			Issuer:    SigningKey,                                // 签名的发行者
+			Audience:  jwt.ClaimStrings{SigningKey},                  // 受众
+			NotBefore: jwt.NewNumericDate(now.Add(-1 * time.Minute)), // 签名生效时间（提前1分钟，避免时钟偏移问题）
+			IssuedAt:  jwt.NewNumericDate(now),                       // 签发时间
+			ExpiresAt: jwt.NewNumericDate(now.Add(bf)),               // 过期时间 1天  配置文件
+			Issuer:    SigningKey,                                    // 签名的发行者
 		},
 	}
 	return claims

@@ -19,8 +19,9 @@ type GameRouter struct {
 	shopApplicationService *game.ShopApplicationService
 	gameGroupService       *game.GameGroupService
 	houseSettingsService   *game.HouseSettingsService
-	shopGroupAdminService  *game.ShopGroupAdminService
 	battleRecordService    *game.BattleRecordService
+	shopGroupService       *game.ShopGroupService
+	memberService          *game.MemberService
 }
 
 func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
@@ -50,11 +51,14 @@ func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
 	// 店铺设置
 	r.houseSettingsService.RegisterRouter(root)
 
-	// 我的圈子/圈子列表
-	r.shopGroupAdminService.RegisterRouter(root)
-
 	// 战绩查询
 	r.battleRecordService.RegisterRouter(root)
+
+	// 圈子管理
+	r.shopGroupService.RegisterRouter(root)
+
+	// 成员管理
+	r.memberService.RegisterRouter(root)
 }
 
 func NewGameRouter(
@@ -70,8 +74,9 @@ func NewGameRouter(
 	shopApplicationService *game.ShopApplicationService,
 	gameGroupService *game.GameGroupService,
 	houseSettingsService *game.HouseSettingsService,
-	shopGroupAdminService *game.ShopGroupAdminService,
 	battleRecordService *game.BattleRecordService,
+	shopGroupService *game.ShopGroupService,
+	memberService *game.MemberService,
 ) *GameRouter {
 	return &GameRouter{
 		accountService:         accountService,
@@ -86,7 +91,8 @@ func NewGameRouter(
 		shopApplicationService: shopApplicationService,
 		gameGroupService:       gameGroupService,
 		houseSettingsService:   houseSettingsService,
-		shopGroupAdminService:  shopGroupAdminService,
 		battleRecordService:    battleRecordService,
+		shopGroupService:       shopGroupService,
+		memberService:          memberService,
 	}
 }
