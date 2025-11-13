@@ -1,5 +1,12 @@
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
-import { CircleDashedIcon, HomeIcon, UsersIcon } from 'lucide-react-native';
+import {
+  CircleDashedIcon,
+  HomeIcon,
+  UsersIcon,
+  WalletIcon,
+  UserCircleIcon,
+  StoreIcon
+} from 'lucide-react-native';
 import { TabIcon, TabLabel } from '@/components/shared/tab-item';
 import { useAuthStore } from '@/hooks/use-auth-store';
 import { usePermission } from '@/hooks/use-permission';
@@ -48,6 +55,30 @@ export default function TabLayout() {
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="成员" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={UsersIcon} />,
           href: canViewMembers ? undefined : null,
+        }}
+      />
+      <Tabs.Screen
+        name="funds"
+        options={{
+          title: '资金',
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="资金" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={WalletIcon} />,
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: '店铺',
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="店铺" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={StoreIcon} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: '我的',
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="我的" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={UserCircleIcon} />,
         }}
       />
     </Tabs>

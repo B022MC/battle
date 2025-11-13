@@ -439,6 +439,52 @@ COMMENT ON COLUMN game_house_settings.updated_by IS '操作人用户ID';
 
 CREATE UNIQUE INDEX uk_house ON game_house_settings(house_gid);
 
+-- 店铺圈子表
+CREATE TABLE IF NOT EXISTS game_shop_group (
+    id SERIAL PRIMARY KEY,
+    house_gid INTEGER NOT NULL,
+    group_name VARCHAR(64) NOT NULL,
+    admin_user_id INTEGER NOT NULL,
+    description TEXT DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE game_shop_group IS '店铺圈子表（每个店铺管理员对应一个圈子）';
+COMMENT ON COLUMN game_shop_group.id IS '圈子ID';
+COMMENT ON COLUMN game_shop_group.house_gid IS '店铺GID';
+COMMENT ON COLUMN game_shop_group.group_name IS '圈子名称';
+COMMENT ON COLUMN game_shop_group.admin_user_id IS '圈主用户ID（店铺管理员）';
+COMMENT ON COLUMN game_shop_group.description IS '圈子描述';
+COMMENT ON COLUMN game_shop_group.is_active IS '是否激活';
+COMMENT ON COLUMN game_shop_group.created_at IS '创建时间';
+COMMENT ON COLUMN game_shop_group.updated_at IS '更新时间';
+
+CREATE UNIQUE INDEX uk_shop_group_house_admin ON game_shop_group(house_gid, admin_user_id) WHERE is_active = TRUE;
+CREATE INDEX idx_shop_group_house ON game_shop_group(house_gid);
+CREATE INDEX idx_shop_group_admin ON game_shop_group(admin_user_id);
+
+-- 圈子成员关系表
+CREATE TABLE IF NOT EXISTS game_shop_group_member (
+    id SERIAL PRIMARY KEY,
+    group_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    joined_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE game_shop_group_member IS '圈子成员关系表（用户可以加入多个圈子）';
+COMMENT ON COLUMN game_shop_group_member.id IS '关系ID';
+COMMENT ON COLUMN game_shop_group_member.group_id IS '圈子ID';
+COMMENT ON COLUMN game_shop_group_member.user_id IS '用户ID';
+COMMENT ON COLUMN game_shop_group_member.joined_at IS '加入时间';
+COMMENT ON COLUMN game_shop_group_member.created_at IS '创建时间';
+
+CREATE UNIQUE INDEX uk_group_member_group_user ON game_shop_group_member(group_id, user_id);
+CREATE INDEX idx_group_member_group ON game_shop_group_member(group_id);
+CREATE INDEX idx_group_member_user ON game_shop_group_member(user_id);
+
 -- =====================================================
 -- 游戏成员模块 (Game Member Module)
 -- =====================================================
@@ -668,16 +714,6 @@ CREATE INDEX idx_fee_settle_feed_at ON game_fee_settle(feed_at);
 -- 其他辅助表 (Additional Tables)
 -- =====================================================
 
--- 店铺圈管理员表（如果需要）
--- CREATE TABLE IF NOT EXISTS game_shop_group_admin (
---     id SERIAL PRIMARY KEY,
---     house_gid INTEGER NOT NULL,
---     group_name VARCHAR(64) NOT NULL,
---     user_id INTEGER NOT NULL,
---     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
---     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
--- );
-
 -- 用户申请表（如果需要）
 -- CREATE TABLE IF NOT EXISTS user_application (
 --     id SERIAL PRIMARY KEY,
@@ -728,6 +764,9 @@ CREATE TRIGGER update_game_shop_admin_updated_at BEFORE UPDATE ON game_shop_admi
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_game_house_settings_updated_at BEFORE UPDATE ON game_house_settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_game_shop_group_updated_at BEFORE UPDATE ON game_shop_group
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_game_member_updated_at BEFORE UPDATE ON game_member
