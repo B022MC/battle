@@ -35,6 +35,7 @@ const (
 	WebSocketCreateConnFailed = 4030 // 创建websocket连接失败
 	ParamsAnalysisFailed      = 4031 // 参数解析错误
 	SameDataSaveFailed        = 4032 // 已存在相同数据，保存失败
+	Unauthorized              = 4033 // 未授权
 )
 
 func Text(code int) string {

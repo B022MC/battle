@@ -248,6 +248,7 @@ func (m *manager) StartUser(ctx context.Context, userID, houseGID int, mode cons
 		return err
 	}
 	m.sessions[key] = s
+
 	// 在线状态由 OnLoginDone 回调置位
 	return nil
 }

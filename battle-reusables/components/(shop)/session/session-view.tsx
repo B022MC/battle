@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,18 +9,22 @@ import { gameSessionStart, gameSessionStop } from '@/services/game/session';
 import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, InfoCardContent } from '@/components/shared/info-card';
 import { shopsHousesOptions } from '@/services/shops/houses';
 import { Icon } from '@/components/ui/icon';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, Activity, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react-native';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
+import { usePermission } from '@/hooks/use-permission';
 
 export const SessionView = () => {
   const { getLoginModeLabel } = usePlazaConsts();
+  const { isSuperAdmin, isStoreAdmin } = usePermission();
   const [houseGid, setHouseGid] = useState('');
-  const { data: accounts, loading, run: getAccounts } = useRequest(shopsCtrlAccountsListAll, { manual: true });
+  const { data: accounts, loading, run: getAccounts, refresh } = useRequest(shopsCtrlAccountsListAll, { manual: true });
   const { run: startSession, loading: startLoading } = useRequest(gameSessionStart, { manual: true });
   const { run: stopSession, loading: stopLoading } = useRequest(gameSessionStop, { manual: true });
   const { data: houseOptions } = useRequest(shopsHousesOptions);
   const [open, setOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const filtered = useMemo(() => {
     const list = (houseOptions ?? []).map((v) => String(v));
     const q = houseGid.trim();
@@ -28,25 +32,79 @@ export const SessionView = () => {
     return list.filter((v) => v.includes(q));
   }, [houseOptions, houseGid]);
 
+  // Auto-load for store admins (they typically manage one store)
+  useEffect(() => {
+    if (isStoreAdmin && houseOptions && houseOptions.length > 0 && !houseGid) {
+      const firstHouse = String(houseOptions[0]);
+      setHouseGid(firstHouse);
+      getAccounts({ house_gid: Number(firstHouse) });
+    }
+  }, [isStoreAdmin, houseOptions, houseGid, getAccounts]);
+
   const handleSearch = () => {
     if (!houseGid) return;
     setOpen(false);
     getAccounts({ house_gid: Number(houseGid) });
   };
 
+  const handleRefresh = async () => {
+    if (!houseGid) return;
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleStart = async (ctrlId: number) => {
     if (!houseGid) return;
     await startSession({ id: ctrlId, house_gid: Number(houseGid) });
+    // Refresh to get updated status
+    await handleRefresh();
   };
 
   const handleStop = async (ctrlId: number) => {
     if (!houseGid) return;
     await stopSession({ id: ctrlId, house_gid: Number(houseGid) });
+    // Refresh to get updated status
+    await handleRefresh();
+  };
+
+  // Helper to render session status badge
+  const renderStatusBadge = (status: number) => {
+    if (status === 1) {
+      return (
+        <View className="flex-row items-center gap-1">
+          <Icon as={CheckCircle} size={14} className="text-green-600" />
+          <Text className="text-sm text-green-600">启用</Text>
+        </View>
+      );
+    }
+    return (
+      <View className="flex-row items-center gap-1">
+        <Icon as={XCircle} size={14} className="text-red-600" />
+        <Text className="text-sm text-red-600">禁用</Text>
+      </View>
+    );
   };
 
   return (
-    <ScrollView className="flex-1 bg-secondary">
-      <View className="border-b border-b-border p-4">
+    <ScrollView
+      className="flex-1 bg-secondary"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
+      {/* Header Section */}
+      <View className="bg-card border-b border-b-border p-4">
+        <View className="mb-3">
+          <Text className="text-lg font-semibold">店铺会话管理</Text>
+          <Text className="text-sm text-muted-foreground mt-1">
+            {isStoreAdmin ? '查看和管理您的店铺会话状态' : '查询和管理店铺中控账号会话'}
+          </Text>
+        </View>
+
         <View className="flex flex-row gap-2">
           <View className="relative flex-1">
             <Input
@@ -99,33 +157,131 @@ export const SessionView = () => {
           </Button>
         </View>
       </View>
-      
+
+      {/* Store Info Card (for Store Admins) */}
+      {isStoreAdmin && houseGid && (
+        <InfoCard>
+          <InfoCardHeader>
+            <View className="flex-row items-center gap-2">
+              <Icon as={Activity} size={18} className="text-primary" />
+              <InfoCardTitle>店铺信息</InfoCardTitle>
+            </View>
+          </InfoCardHeader>
+          <InfoCardContent>
+            <InfoCardRow label="店铺号" value={houseGid} />
+            <InfoCardRow
+              label="会话数量"
+              value={accounts ? `${accounts.length} 个中控账号` : '加载中...'}
+            />
+            <InfoCardRow
+              label="活跃会话"
+              value={accounts ? `${accounts.filter(a => a.status === 1).length} 个` : '-'}
+            />
+          </InfoCardContent>
+        </InfoCard>
+      )}
+
+      {/* Account Cards */}
       {accounts && accounts.length > 0 ? (
         accounts.map((account) => (
           <InfoCard key={account.id}>
             <InfoCardHeader>
-              <InfoCardTitle>中控账号 #{account.id}</InfoCardTitle>
+              <View className="flex-row items-center justify-between">
+                <InfoCardTitle>中控账号 #{account.id}</InfoCardTitle>
+                {renderStatusBadge(account.status!)}
+              </View>
             </InfoCardHeader>
             <InfoCardContent>
-              <InfoCardRow label="账号" value={account.identifier} />
+              <InfoCardRow label="账号标识" value={account.identifier} />
               <InfoCardRow label="登录方式" value={getLoginModeLabel(account.login_mode as any)} />
-              <InfoCardRow label="状态" value={account.status === 1 ? '启用' : '禁用'} />
+
+              {/* Session Status Info */}
+              <View className="mt-3 pt-3 border-t border-border">
+                <Text className="text-sm font-medium mb-2">会话状态</Text>
+                <View className="flex-row items-center gap-2 mb-2">
+                  <Icon as={Activity} size={14} className="text-muted-foreground" />
+                  <Text className="text-sm text-muted-foreground">
+                    会话状态: <Text className="text-foreground">待查询</Text>
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <Icon as={Clock} size={14} className="text-muted-foreground" />
+                  <Text className="text-sm text-muted-foreground">
+                    最后同步: <Text className="text-foreground">-</Text>
+                  </Text>
+                </View>
+              </View>
+
+              {/* Sync Status Info */}
+              {account.status === 1 && (
+                <View className="mt-3 pt-3 border-t border-border">
+                  <Text className="text-sm font-medium mb-2">同步信息</Text>
+                  <View className="space-y-1">
+                    <View className="flex-row items-center gap-2">
+                      <Icon as={AlertCircle} size={12} className="text-blue-600" />
+                      <Text className="text-xs text-muted-foreground">
+                        对战记录: 每 5 秒同步
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <Icon as={AlertCircle} size={12} className="text-blue-600" />
+                      <Text className="text-xs text-muted-foreground">
+                        成员列表: 每 30 秒同步
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <Icon as={AlertCircle} size={12} className="text-blue-600" />
+                      <Text className="text-xs text-muted-foreground">
+                        钱包交易: 每 10 秒同步
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </InfoCardContent>
+
             <InfoCardFooter>
               <PermissionGate anyOf={["game:ctrl:create"]}>
-                <Button disabled={startLoading} onPress={() => handleStart(account.id!)}>
-                  启动会话
+                <Button
+                  disabled={startLoading || account.status !== 1}
+                  onPress={() => handleStart(account.id!)}
+                  variant="default"
+                >
+                  <Text>启动会话</Text>
                 </Button>
-                <Button disabled={stopLoading} onPress={() => handleStop(account.id!)}>
-                  停止会话
+                <Button
+                  disabled={stopLoading}
+                  onPress={() => handleStop(account.id!)}
+                  variant="outline"
+                >
+                  <Text>停止会话</Text>
                 </Button>
               </PermissionGate>
             </InfoCardFooter>
           </InfoCard>
         ))
+      ) : loading ? (
+        <View className="min-h-32 flex-row items-center justify-center p-4">
+          <Text className="text-muted-foreground">加载中...</Text>
+        </View>
+      ) : houseGid ? (
+        <View className="min-h-32 flex-row items-center justify-center p-4">
+          <View className="items-center">
+            <Icon as={AlertCircle} size={48} className="text-muted-foreground mb-2" />
+            <Text className="text-muted-foreground">该店铺暂无中控账号</Text>
+            {isSuperAdmin && (
+              <Text className="text-xs text-muted-foreground mt-1">
+                请在个人中心添加并绑定中控账号
+              </Text>
+            )}
+          </View>
+        </View>
       ) : (
-        <View className="min-h-16 flex-row items-center justify-center p-4">
-          <Text className="text-muted-foreground">请先查询中控账号</Text>
+        <View className="min-h-32 flex-row items-center justify-center p-4">
+          <View className="items-center">
+            <Icon as={Activity} size={48} className="text-muted-foreground mb-2" />
+            <Text className="text-muted-foreground">请输入店铺号查询会话信息</Text>
+          </View>
         </View>
       )}
     </ScrollView>

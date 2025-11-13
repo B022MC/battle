@@ -23,9 +23,10 @@ type CtrlSessionUseCase struct {
 	// 可选：houseRepo 若需要“先连再落库创建店铺”，放开注入后在回调里 Ensure
 	// houseRepo repo.GameHouseRepo
 
-	sessRepo repo.SessionRepo
-	mgr      plaza.Manager
-	log      *log.Helper
+	sessRepo  repo.SessionRepo
+	mgr       plaza.Manager
+	syncMgr   *BattleSyncManager // 战绩同步管理器
+	log       *log.Helper
 }
 
 func NewCtrlSessionUseCase(
@@ -33,6 +34,7 @@ func NewCtrlSessionUseCase(
 	link repo.GameCtrlAccountHouseRepo,
 	sess repo.SessionRepo,
 	mgr plaza.Manager,
+	syncMgr *BattleSyncManager,
 	logger log.Logger,
 ) *CtrlSessionUseCase {
 	return &CtrlSessionUseCase{
@@ -40,6 +42,7 @@ func NewCtrlSessionUseCase(
 		linkRepo: link,
 		sessRepo: sess,
 		mgr:      mgr,
+		syncMgr:  syncMgr,
 		log:      log.NewHelper(log.With(logger, "module", "usecase/ctrl_session")),
 	}
 }
@@ -89,6 +92,9 @@ func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ct
 		return errors.Wrap(err, "start session")
 	}
 
+	// 启动战绩同步
+	uc.syncMgr.StartSync(int(userID), int(houseGID))
+
 	// 7) 成功：若存在该店铺记录则更新最新一条为 online，否则插入
 	return uc.sessRepo.UpsertOnlineByHouse(ctx, ctrl.Id, userID, houseGID)
 }
@@ -99,6 +105,9 @@ func (uc *CtrlSessionUseCase) StopSession(ctx context.Context, userID int32, ctr
 	}
 
 	uc.mgr.StopUser(int(userID), int(houseGID))
+
+	// 停止战绩同步
+	uc.syncMgr.StopSync(int(userID), int(houseGID))
 
 	now := time.Now()
 	return uc.sessRepo.Insert(ctx, &model.GameSession{

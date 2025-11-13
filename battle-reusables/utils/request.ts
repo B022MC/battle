@@ -4,6 +4,7 @@ import { alert } from './alert';
 import { useAuthStore } from '@/hooks/use-auth-store';
 
 type RequestOptions = RequestInit & {
+  url?: string; // 支持传入 url 字段
   params?: Record<string, any>;
   data?: Record<string, any>;
   showError?: boolean; // 是否展示全局错误弹窗，默认 false
@@ -17,10 +18,28 @@ export type ResponseStructure<T> = {
 
 let lastAuthErrorAt = 0;
 
+// 支持两种调用方式：
+// 1. request(path, options) - 传统方式
+// 2. request({ url, method, data, ... }) - 对象方式
 export const request = async <T>(
-  path: string,
-  options: RequestOptions = {}
+  pathOrOptions: string | RequestOptions,
+  optionsParam?: RequestOptions
 ): Promise<ResponseStructure<T>> => {
+  // 判断调用方式并规范化参数
+  let path: string;
+  let options: RequestOptions;
+
+  if (typeof pathOrOptions === 'string') {
+    // 传统调用方式: request(path, options)
+    path = pathOrOptions;
+    options = optionsParam || {};
+  } else {
+    // 对象调用方式: request({ url, method, data, ... })
+    const { url, ...rest } = pathOrOptions;
+    path = url || '';
+    options = rest;
+  }
+
   const { headers, params, data, showError = true, ...rest } = options;
 
   const hostFromEnv = process.env.EXPO_PUBLIC_API_HOST;
@@ -29,8 +48,9 @@ export const request = async <T>(
     : process.env.EXPO_PUBLIC_DEV_API_URL ||
       (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://127.0.0.1:8000');
 
+  // Web 环境下，如果有自定义 host 则使用，否则使用开发环境的 API URL
   const apiUrl = isWeb
-    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB)
+    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_URL || 'http://127.0.0.1:8000')
     : nativeApiUrl;
 
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';

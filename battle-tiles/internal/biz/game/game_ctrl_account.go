@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 )
 
 type CtrlAccountUseCase struct {
@@ -114,7 +115,15 @@ func (uc *CtrlAccountUseCase) BindCtrlToHouse(ctx context.Context, ctrlID int32,
 		}
 	}
 	// 通过 ctrlID 选择其一个 game_account 进行绑定（优先默认账号）
-	return uc.linkRepo.BindByCtrl(ctx, ctrlID, houseGID, status)
+	err := uc.linkRepo.BindByCtrl(ctx, ctrlID, houseGID, status)
+	if err != nil {
+		// 如果是因为已绑定其他店铺导致的错误，返回更友好的错误信息
+		if errors.Is(err, gorm.ErrInvalidData) {
+			return errors.New("该中控账号已绑定其他店铺，每个中控账号只能绑定一个店铺")
+		}
+		return err
+	}
+	return nil
 }
 
 func (uc *CtrlAccountUseCase) UnbindCtrlFromHouse(ctx context.Context, ctrlID int32, houseGID int32) error {

@@ -9,17 +9,12 @@ import { useRequest } from '@/hooks/use-request';
 import { basicUserMe, basicUserMePerms, basicUserMeRoles, basicUserUpdateOne, basicUserChangePassword } from '@/services/basic/user';
 import { alert } from '@/utils/alert';
 import { ProfileGameAccount } from './profile-game-account';
-import { ProfileCtrlAccount } from './profile-ctrl-account';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { ProfileCtrlAccounts } from './profile-ctrl-accounts';
 import { router } from 'expo-router';
 import { usePermission } from '@/hooks/use-permission';
-import { shopsCtrlAccountsListAll, shopsCtrlAccountsBind } from '@/services/shops/ctrlAccounts';
-import { useRecentHouseIds } from '@/hooks/use-recent-house-ids';
-import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const ProfileView = () => {
   const { user, roles, perms, platform, clearAuth, updateAuth } = useAuthStore();
-  const { getLoginModeLabel } = usePlazaConsts();
   const { isSuperAdmin, hasAny } = usePermission();
   const isAdmin = hasAny([
     'shop:admin:assign', 'shop:admin:view',
@@ -77,15 +72,6 @@ export const ProfileView = () => {
     },
   });
 
-  const { data: allCtrls, run: runListAllCtrls } = useRequest(shopsCtrlAccountsListAll, { manual: true });
-  const { run: runBindCtrl, loading: bindingHouse } = useRequest(shopsCtrlAccountsBind, {
-    manual: true,
-    onSuccess: () => { alert.show({ title: '已绑定', description: '店铺已绑定到中控' }); runListAllCtrls({}); },
-  });
-  const { add: addRecentHouse } = useRecentHouseIds();
-  const [bindGids, setBindGids] = useState<Record<number, string>>({});
-  React.useEffect(() => { if (isSuperAdmin) runListAllCtrls({}); }, [isSuperAdmin]);
-
   const onSave = () => {
     const uid = me?.id ?? user?.id;
     const uname = me?.username ?? user?.username;
@@ -127,73 +113,8 @@ export const ProfileView = () => {
 
           {!(isSuperAdmin || isAdmin) && <ProfileGameAccount />}
 
-          {/* 中控账号区域仅对超级管理员可见；店铺管理员不显示绑定/创建入口 */}
-          {isSuperAdmin && (
-            (Array.isArray(allCtrls) && allCtrls!.length > 0) ? (
-              <InfoCard>
-                <InfoCardHeader>
-                  <InfoCardTitle>中控账号</InfoCardTitle>
-                </InfoCardHeader>
-                <InfoCardContent>
-                  <View className="gap-2">
-                    {allCtrls!.map((it) => (
-                      <View key={it!.id} className="rounded-md border border-border p-3 gap-2">
-                        <InfoCardRow label="ID" value={String(it!.id ?? '-')}/>
-                        <InfoCardRow label="登录方式" value={getLoginModeLabel((it as any)!.login_mode)} />
-                        <InfoCardRow label="账号" value={it!.identifier ?? '-'} />
-                        <InfoCardRow label="状态" value={(it!.status === 1) ? '启用' : '禁用'} />
-                        <View className="gap-1">
-                          <Text variant="muted">已绑定店铺号</Text>
-                          <View className="flex-row flex-wrap gap-2">
-                            {Array.isArray(it!.houses) && it!.houses!.length > 0 ? (
-                              it!.houses!.map((h: any) => {
-                                const gid = typeof h === 'number' ? h : (h?.house_gid ?? h);
-                                return (
-                                  <View key={String(gid)} className="rounded-md border border-border px-2 py-1">
-                                    <Text>#{gid}</Text>
-                                  </View>
-                                );
-                              })
-                            ) : (
-                              <Text className="text-muted-foreground">暂无</Text>
-                            )}
-                          </View>
-                        </View>
-                        <View className="gap-1">
-                          <Text variant="muted">绑定新店铺号</Text>
-                          <View className="flex-row flex-wrap items-center gap-2">
-                            <Input
-                              placeholder="house_gid"
-                              keyboardType="numeric"
-                              value={bindGids[it!.id!] ?? ''}
-                              onChangeText={(v) => setBindGids((s) => ({ ...s, [it!.id!]: v }))}
-                              className="flex-1 w-auto"
-                            />
-                            <Button
-                              className="shrink-0"
-                              disabled={bindingHouse}
-                              onPress={() => {
-                                const raw = bindGids[it!.id!] ?? '';
-                                const v = Number(String(raw).trim());
-                                if (v) {
-                                  addRecentHouse(v);
-                                  runBindCtrl({ ctrl_id: it!.id!, house_gid: v });
-                                  setBindGids((s) => ({ ...s, [it!.id!]: '' }));
-                                }
-                              }}>
-                              <Text>绑定店铺</Text>
-                            </Button>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </InfoCardContent>
-              </InfoCard>
-            ) : (
-              <ProfileCtrlAccount />
-            )
-          )}
+          {/* 中控账号区域仅对超级管理员可见 - 使用新的综合管理组件 */}
+          {isSuperAdmin && <ProfileCtrlAccounts />}
 
           <InfoCard>
             <InfoCardHeader>

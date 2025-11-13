@@ -20,6 +20,7 @@ type GameRouter struct {
 	gameGroupService       *game.GameGroupService
 	houseSettingsService   *game.HouseSettingsService
 	shopGroupAdminService  *game.ShopGroupAdminService
+	battleRecordService    *game.BattleRecordService
 }
 
 func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
@@ -51,6 +52,9 @@ func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
 
 	// 我的圈子/圈子列表
 	r.shopGroupAdminService.RegisterRouter(root)
+
+	// 战绩查询
+	r.battleRecordService.RegisterRouter(root)
 }
 
 func NewGameRouter(
@@ -67,6 +71,7 @@ func NewGameRouter(
 	gameGroupService *game.GameGroupService,
 	houseSettingsService *game.HouseSettingsService,
 	shopGroupAdminService *game.ShopGroupAdminService,
+	battleRecordService *game.BattleRecordService,
 ) *GameRouter {
 	return &GameRouter{
 		accountService:         accountService,
@@ -82,5 +87,6 @@ func NewGameRouter(
 		gameGroupService:       gameGroupService,
 		houseSettingsService:   houseSettingsService,
 		shopGroupAdminService:  shopGroupAdminService,
+		battleRecordService:    battleRecordService,
 	}
 }

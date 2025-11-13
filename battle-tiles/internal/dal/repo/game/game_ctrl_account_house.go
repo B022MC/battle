@@ -42,6 +42,24 @@ func (r *gameCtrlAccountHouseRepo) db(ctx context.Context) *gorm.DB {
 }
 
 func (r *gameCtrlAccountHouseRepo) BindByCtrl(ctx context.Context, ctrlID int32, houseGID int32, status int32) error {
+	// 业务规则：每个中控账号只能绑定一个店铺
+	// 先检查该中控账号是否已经绑定了其他店铺
+	var existingHouses []int32
+	err := r.db(ctx).
+		Table("game_account_house AS l").
+		Select("DISTINCT l.house_gid").
+		Joins("JOIN game_account AS ga ON ga.id = l.game_account_id").
+		Where("ga.ctrl_account_id = ? AND l.house_gid != ?", ctrlID, houseGID).
+		Pluck("house_gid", &existingHouses).Error
+
+	if err != nil {
+		return err
+	}
+
+	if len(existingHouses) > 0 {
+		return gorm.ErrInvalidData // 已经绑定了其他店铺，不允许再绑定
+	}
+
 	// 将 ctrlID 映射到某一个 game_account_id（优先 is_default=true，否则取最近一条）并做 UPSERT
 	// 使用原生 SQL 以便一次性完成选择与插入/更新
 	q := `

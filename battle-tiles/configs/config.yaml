@@ -14,18 +14,18 @@ server:
 data:
   database:
     driver: cloudsqlpostgres
-    source: "user=B022MC password=banishmentB022 host=118.24.135.171 port=26655 dbname=battle-tiles-dev sslmode=disable"
+    source: "user=B022MC password=banishmentB022 host=8.137.52.203 port=26655 dbname=battle-tiles-dev sslmode=disable"
   databaseList:
     - driver: cloudsqlpostgres
-      source: "user=B022MC password=banishmentB022 host=118.24.135.171 port=26655 sslmode=disable dbname=battle-cloud-dev"
+      source: "user=B022MC password=banishmentB022 host=8.137.52.203 port=26655 sslmode=disable dbname=battle-cloud-dev"
       alias: "cloud-cloud"
   redis:
-    addr: "118.24.135.171:6379"
+    addr: "8.137.52.203:6379"
     password: "banishmentB022"
     db: 15
     nq_db: 9
   redisList:
-    - addr: "118.24.135.171:6379"
+    - addr: "8.137.52.203:6379"
       password: "banishmentB022"
       db: 0
       # nq: 2

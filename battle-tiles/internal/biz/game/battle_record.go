@@ -6,6 +6,7 @@ import (
 	plazaHTTP "battle-tiles/internal/utils/plaza"
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	model "battle-tiles/internal/dal/model/game"
@@ -14,12 +15,24 @@ import (
 )
 
 type BattleRecordUseCase struct {
-	repo repo.BattleRecordRepo
-	log  *log.Helper
+	repo     repo.BattleRecordRepo
+	ctrlRepo repo.GameCtrlAccountRepo
+	linkRepo repo.GameCtrlAccountHouseRepo
+	log      *log.Helper
 }
 
-func NewBattleRecordUseCase(r repo.BattleRecordRepo, logger log.Logger) *BattleRecordUseCase {
-	return &BattleRecordUseCase{repo: r, log: log.NewHelper(log.With(logger, "module", "usecase/battle_record"))}
+func NewBattleRecordUseCase(
+	r repo.BattleRecordRepo,
+	ctrlRepo repo.GameCtrlAccountRepo,
+	linkRepo repo.GameCtrlAccountHouseRepo,
+	logger log.Logger,
+) *BattleRecordUseCase {
+	return &BattleRecordUseCase{
+		repo:     r,
+		ctrlRepo: ctrlRepo,
+		linkRepo: linkRepo,
+		log:      log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
+	}
 }
 
 // PullAndSave 拉取 foxuc 战绩并入库
@@ -62,4 +75,73 @@ func (uc *BattleRecordUseCase) List(ctx context.Context, houseGID int32, groupID
 		out = append(out, resp.BattleRecordVO{RoomID: int(r.RoomUID), KindID: int(r.KindID), BaseScore: int(r.BaseScore), Time: int(r.BattleAt.Unix())})
 	}
 	return out, total, nil
+}
+
+// ListMyBattleRecords 用户查看自己的战绩（通过绑定的游戏账号）
+func (uc *BattleRecordUseCase) ListMyBattleRecords(
+	ctx context.Context,
+	userID int32,
+	houseGID int32,
+	start, end *time.Time,
+	page, size int32,
+) ([]*model.GameBattleRecord, int64, error) {
+	// TODO: 实现完整的用户战绩查询逻辑
+	// 需要：
+	// 1. 查询用户的中控账号
+	// 2. 查询中控账号绑定的店铺
+	// 3. 获取 game_user_id
+	// 4. 查询战绩
+
+	// 暂时返回空列表
+	return []*model.GameBattleRecord{}, 0, nil
+}
+
+// GetMyBattleStats 获取用户的战绩统计
+func (uc *BattleRecordUseCase) GetMyBattleStats(
+	ctx context.Context,
+	userID int32,
+	houseGID int32,
+	start, end *time.Time,
+) (totalGames int64, totalScore int, totalFee int, err error) {
+	// TODO: 实现完整的用户统计查询逻辑
+	return 0, 0, 0, nil
+}
+
+// ListHouseBattleRecords 管理员查看店铺战绩
+func (uc *BattleRecordUseCase) ListHouseBattleRecords(
+	ctx context.Context,
+	houseGID int32,
+	groupID *int32,
+	gameID *int32,
+	start, end *time.Time,
+	page, size int32,
+) ([]*model.GameBattleRecord, int64, error) {
+	// TODO: 添加 groupID 和 gameID 过滤
+	// 目前 repo 层的 ListByPlayer 方法不支持这些过滤条件
+	// 可以在后续扩展 repo 层方法来支持
+
+	// 暂时返回所有店铺的战绩
+	// 需要在 repo 层添加 ListByHouse 方法
+	return nil, 0, fmt.Errorf("ListHouseBattleRecords not implemented yet")
+}
+
+// GetPlayerBattleStats 管理员查看玩家战绩统计
+func (uc *BattleRecordUseCase) GetPlayerBattleStats(
+	ctx context.Context,
+	houseGID int32,
+	playerGameID int32,
+	start, end *time.Time,
+) (totalGames int64, totalScore int, totalFee int, err error) {
+	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, start, end)
+}
+
+// parseGameUserID 解析 game_user_id 字符串为整数
+func parseGameUserID(gameUserIDStr string, out *int32) (bool, error) {
+	// game_user_id 已经是字符串形式的数字，直接转换
+	var id int
+	if n, err := fmt.Sscanf(gameUserIDStr, "%d", &id); err != nil || n != 1 {
+		return false, fmt.Errorf("invalid game_user_id format: %s", gameUserIDStr)
+	}
+	*out = int32(id)
+	return true, nil
 }
