@@ -38,5 +38,6 @@ var ProviderSet = wire.NewSet(
 	game.NewBattleRecordRepo,
 	game.NewShopGroupRepo,
 	game.NewShopGroupMemberRepo,
+	game.NewGameMemberRepo,
 	rbac.NewStore,
 )

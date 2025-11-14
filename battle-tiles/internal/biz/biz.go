@@ -30,4 +30,6 @@ var ProviderSet = wire.NewSet(
 	game.NewBattleSyncManager,
 	game.NewShopGroupUseCase,
 	game.NewMemberUseCase,
+	game.NewBattleQueryUseCase,
+	game.NewBalanceQueryUseCase,
 )

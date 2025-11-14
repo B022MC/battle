@@ -109,7 +109,7 @@ func (uc *BattleRecordUseCase) ListMyBattleRecords(
 	}
 
 	// 4. 查询战绩
-	return uc.repo.ListByPlayer(ctx, houseGID, playerGameID, start, end, page, size)
+	return uc.repo.ListByPlayer(ctx, houseGID, playerGameID, nil, start, end, page, size)
 }
 
 // GetMyBattleStats 获取用户的战绩统计
@@ -140,7 +140,7 @@ func (uc *BattleRecordUseCase) GetMyBattleStats(
 	}
 
 	// 4. 查询统计
-	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, start, end)
+	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, nil, start, end)
 }
 
 // ListHouseBattleRecords 管理员查看店铺战绩
@@ -168,7 +168,7 @@ func (uc *BattleRecordUseCase) GetPlayerBattleStats(
 	playerGameID int32,
 	start, end *time.Time,
 ) (totalGames int64, totalScore int, totalFee int, err error) {
-	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, start, end)
+	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, nil, start, end)
 }
 
 // parseGameUserID 解析 game_user_id 字符串为整数

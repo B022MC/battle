@@ -28,8 +28,20 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:apply:view"]}>
           <Button onPress={() => router.push('/(shop)/applications-list')}><Text>申请列表</Text></Button>
         </PermissionGate>
+
+        {/* 战绩查询功能 */}
+        <Text className="text-lg font-semibold mt-4">战绩查询</Text>
+        <Button onPress={() => router.push('/(shop)/my-battles')}><Text>我的战绩</Text></Button>
+        <Button onPress={() => router.push('/(shop)/my-balances')}><Text>我的余额</Text></Button>
+
+        <PermissionGate anyOf={["shop:member:view"]}>
+          <Button onPress={() => router.push('/(shop)/group-battles')}><Text>圈子战绩(管理员)</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["shop:member:view"]}>
+          <Button onPress={() => router.push('/(shop)/group-balances')}><Text>圈子余额(管理员)</Text></Button>
+        </PermissionGate>
       </View>
-        
+
       </View>
     </ScrollView>
   );
