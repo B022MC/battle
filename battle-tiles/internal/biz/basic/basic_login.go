@@ -1,7 +1,9 @@
 package basic
 
 import (
+	"battle-tiles/internal/biz/game"
 	"battle-tiles/internal/conf"
+	"battle-tiles/internal/consts"
 	basicModel "battle-tiles/internal/dal/model/basic"
 	basicRepo "battle-tiles/internal/dal/repo/basic"
 	"battle-tiles/internal/dal/req"
@@ -21,18 +23,20 @@ import (
 )
 
 type BasicLoginUseCase struct {
-	repo     basicRepo.BasicLoginRepo
-	authRepo basicRepo.AuthRepo
-	global   *conf.Global
-	log      *log.Helper
+	repo          basicRepo.BasicLoginRepo
+	authRepo      basicRepo.AuthRepo
+	gameAccountUC *game.GameAccountUseCase // 游戏账号用例（可选，用于注册时绑定游戏账号）
+	global        *conf.Global
+	log           *log.Helper
 }
 
-func NewBasicLoginUseCase(repo basicRepo.BasicLoginRepo, global *conf.Global, authRepo basicRepo.AuthRepo, logger log.Logger) *BasicLoginUseCase {
+func NewBasicLoginUseCase(repo basicRepo.BasicLoginRepo, global *conf.Global, authRepo basicRepo.AuthRepo, gameAccountUC *game.GameAccountUseCase, logger log.Logger) *BasicLoginUseCase {
 	return &BasicLoginUseCase{
-		repo:     repo,
-		authRepo: authRepo,
-		global:   global,
-		log:      log.NewHelper(log.With(logger, "module", "usecase/basic_login")),
+		repo:          repo,
+		authRepo:      authRepo,
+		gameAccountUC: gameAccountUC,
+		global:        global,
+		log:           log.NewHelper(log.With(logger, "module", "usecase/basic_login")),
 	}
 }
 
@@ -58,7 +62,7 @@ func (uc *BasicLoginUseCase) LoginByUsernamePassword(ctx context.Context, c *gin
 	return uc.buildLoginResponse(c, user) // 改为调用方法，便于取权限
 }
 
-// 用户注册（用户名 + 密码 + 可选微信号）
+// 用户注册（用户名 + 密码 + 可选微信号 + 可选游戏账号）
 func (uc *BasicLoginUseCase) Register(ctx context.Context, c *gin.Context, req *req.RegisterRequest) (*resp.LoginResponse, error) {
 	if existUser, _ := uc.repo.FindByUsername(ctx, req.Username); existUser != nil {
 		return nil, errors.New("用户名已存在")
@@ -114,6 +118,29 @@ func (uc *BasicLoginUseCase) Register(ctx context.Context, c *gin.Context, req *
 		}
 	}
 
+	// 如果提供了游戏账号信息，自动绑定游戏账号（忽略错误，不阻断注册）
+	if req.GameAccount != "" && req.GamePassword != "" && req.GameAccountMode != "" && uc.gameAccountUC != nil {
+		var mode consts.GameLoginMode
+		switch req.GameAccountMode {
+		case "account":
+			mode = consts.GameLoginModeAccount
+		case "mobile":
+			mode = consts.GameLoginModeMobile
+		default:
+			uc.log.Warnf("invalid game account mode: %s", req.GameAccountMode)
+			goto skipGameAccountBind
+		}
+
+		// 绑定游戏账号
+		if _, err := uc.gameAccountUC.BindSingle(ctx, user.Id, mode, req.GameAccount, req.GamePassword, nickName); err != nil {
+			uc.log.Errorf("bind game account failed: %v", err)
+			// 不阻断注册流程，只记录错误
+		} else {
+			uc.log.Infof("user %d successfully bound game account", user.Id)
+		}
+	}
+
+skipGameAccountBind:
 	return uc.buildLoginResponse(c, user) // 新用户注册后同样返回携带权限的 token
 }
 
@@ -169,6 +196,7 @@ func (uc *BasicLoginUseCase) buildLoginResponse(c *gin.Context, user *basicModel
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(time.Until(tokenClaims.ExpiresAt.Time).Seconds()),
 		Platform:     platform,
+		Role:         user.Role, // 添加用户角色
 		Roles:        roles,
 		Perms:        perms,
 	}, nil

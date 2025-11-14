@@ -1,0 +1,149 @@
+package game
+
+import (
+	"context"
+
+	basicModel "battle-tiles/internal/dal/model/basic"
+	model "battle-tiles/internal/dal/model/game"
+	"battle-tiles/internal/infra"
+
+	"github.com/go-kratos/kratos/v2/log"
+	"gorm.io/gorm"
+)
+
+type ShopGroupMemberRepo interface {
+	// AddMember 添加成员到圈子
+	AddMember(ctx context.Context, m *model.GameShopGroupMember) error
+	// RemoveMember 从圈子移除成员
+	RemoveMember(ctx context.Context, groupID int32, userID int32) error
+	// IsMember 检查用户是否是圈子成员
+	IsMember(ctx context.Context, groupID int32, userID int32) (bool, error)
+	// ListMembersByGroup 获取圈子的所有成员（返回用户信息）
+	ListMembersByGroup(ctx context.Context, groupID int32, page, size int32) ([]*basicModel.BasicUser, int64, error)
+	// ListGroupsByUser 获取用户加入的所有圈子
+	ListGroupsByUser(ctx context.Context, userID int32) ([]*model.GameShopGroup, error)
+	// ListGroupsByUserAndHouse 获取用户在指定店铺下加入的所有圈子
+	ListGroupsByUserAndHouse(ctx context.Context, userID int32, houseGID int32) ([]*model.GameShopGroup, error)
+	// CountMembers 统计圈子成员数量
+	CountMembers(ctx context.Context, groupID int32) (int64, error)
+	// BatchAddMembers 批量添加成员
+	BatchAddMembers(ctx context.Context, members []*model.GameShopGroupMember) error
+}
+
+type shopGroupMemberRepo struct {
+	data *infra.Data
+	log  *log.Helper
+}
+
+func NewShopGroupMemberRepo(data *infra.Data, logger log.Logger) ShopGroupMemberRepo {
+	return &shopGroupMemberRepo{
+		data: data,
+		log:  log.NewHelper(log.With(logger, "module", "repo/shop_group_member")),
+	}
+}
+
+func (r *shopGroupMemberRepo) db(ctx context.Context) *gorm.DB {
+	return r.data.GetDBWithContext(ctx)
+}
+
+func (r *shopGroupMemberRepo) AddMember(ctx context.Context, m *model.GameShopGroupMember) error {
+	// 使用 FirstOrCreate 实现幂等性
+	return r.db(ctx).
+		Where("group_id = ? AND user_id = ?", m.GroupID, m.UserID).
+		FirstOrCreate(m).Error
+}
+
+func (r *shopGroupMemberRepo) RemoveMember(ctx context.Context, groupID int32, userID int32) error {
+	return r.db(ctx).
+		Where("group_id = ? AND user_id = ?", groupID, userID).
+		Delete(&model.GameShopGroupMember{}).Error
+}
+
+func (r *shopGroupMemberRepo) IsMember(ctx context.Context, groupID int32, userID int32) (bool, error) {
+	var cnt int64
+	err := r.db(ctx).
+		Model(&model.GameShopGroupMember{}).
+		Where("group_id = ? AND user_id = ?", groupID, userID).
+		Count(&cnt).Error
+	if err != nil {
+		return false, err
+	}
+	return cnt > 0, nil
+}
+
+func (r *shopGroupMemberRepo) ListMembersByGroup(ctx context.Context, groupID int32, page, size int32) ([]*basicModel.BasicUser, int64, error) {
+	var total int64
+	var users []*basicModel.BasicUser
+
+	// 统计总数
+	if err := r.db(ctx).
+		Model(&model.GameShopGroupMember{}).
+		Where("group_id = ?", groupID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 查询成员列表
+	offset := (page - 1) * size
+	err := r.db(ctx).
+		Table("game_shop_group_member gm").
+		Select("u.*").
+		Joins("JOIN basic_user u ON u.id = gm.user_id").
+		Where("gm.group_id = ?", groupID).
+		Order("gm.joined_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Find(&users).Error
+
+	return users, total, err
+}
+
+func (r *shopGroupMemberRepo) ListGroupsByUser(ctx context.Context, userID int32) ([]*model.GameShopGroup, error) {
+	var groups []*model.GameShopGroup
+	err := r.db(ctx).
+		Table("game_shop_group_member gm").
+		Select("g.*").
+		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
+		Where("gm.user_id = ? AND g.is_active = ?", userID, true).
+		Order("gm.joined_at DESC").
+		Find(&groups).Error
+	return groups, err
+}
+
+func (r *shopGroupMemberRepo) ListGroupsByUserAndHouse(ctx context.Context, userID int32, houseGID int32) ([]*model.GameShopGroup, error) {
+	var groups []*model.GameShopGroup
+	err := r.db(ctx).
+		Table("game_shop_group_member gm").
+		Select("g.*").
+		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
+		Where("gm.user_id = ? AND g.house_gid = ? AND g.is_active = ?", userID, houseGID, true).
+		Order("gm.joined_at DESC").
+		Find(&groups).Error
+	return groups, err
+}
+
+func (r *shopGroupMemberRepo) CountMembers(ctx context.Context, groupID int32) (int64, error) {
+	var cnt int64
+	err := r.db(ctx).
+		Model(&model.GameShopGroupMember{}).
+		Where("group_id = ?", groupID).
+		Count(&cnt).Error
+	return cnt, err
+}
+
+func (r *shopGroupMemberRepo) BatchAddMembers(ctx context.Context, members []*model.GameShopGroupMember) error {
+	if len(members) == 0 {
+		return nil
+	}
+
+	// 使用事务批量插入，忽略重复
+	return r.db(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, m := range members {
+			if err := tx.Where("group_id = ? AND user_id = ?", m.GroupID, m.UserID).
+				FirstOrCreate(m).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

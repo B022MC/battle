@@ -173,15 +173,15 @@ func (r *statsRepo) GetWalletByMember(ctx context.Context, houseGID, memberID in
 }
 
 type ActiveByHouse struct {
-	HouseGID int   `json:"house_gid"`
-	Active   int64 `json:"active"`
+	HouseGID int   `gorm:"column:house_gid" json:"house_gid"`
+	Active   int64 `gorm:"column:active" json:"active"`
 }
 
 func (r *statsRepo) ListActiveSessionsByHouse(ctx context.Context) ([]ActiveByHouse, error) {
 	var rows []ActiveByHouse
 	err := r.db(ctx).
 		Table("game_session").
-		Select("house_gid AS house_gid, COUNT(*) AS active").
+		Select("house_gid, COUNT(*) AS active").
 		Where("end_at IS NULL").
 		Group("house_gid").
 		Order("house_gid").

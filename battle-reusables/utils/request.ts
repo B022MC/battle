@@ -107,6 +107,7 @@ export const request = async <T>(
       refreshToken: d.refresh_token,
       expiresIn: d.expires_in,
       platform: d.platform,
+      role: d.role, // 添加用户角色
       roles: d.roles,
       perms: d.perms,
       user: d.user,

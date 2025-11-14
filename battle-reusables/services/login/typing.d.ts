@@ -19,6 +19,7 @@ declare namespace API {
     access_token?: string;
     expires_in?: number;
     platform?: string;
+    role?: string; // 用户角色：super_admin, store_admin, user
     refresh_token?: string;
     user?: UserInfo;
   };

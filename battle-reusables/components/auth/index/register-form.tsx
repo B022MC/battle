@@ -101,7 +101,7 @@ export const RegisterForm = () => {
     isWeb && gameModeRef.current?.open();
   }
 
-  // Verify game account
+  // Verify game account (manual trigger only, no auto-verify)
   const { run: runVerifyAccount, loading: verifying } = useRequest(gameAccountVerify, {
     manual: true,
     onSuccess: () => {
@@ -112,30 +112,50 @@ export const RegisterForm = () => {
     },
   });
 
-  // Auto-verify when game account fields are filled
-  React.useEffect(() => {
-    if (gameAccount && gamePassword && gamePassword.length >= 6) {
-      const pwdMD5 = md5Upper(gamePassword);
-      runVerifyAccount({
-        mode: gameAccountMode,
-        account: gameAccount,
-        pwd_md5: pwdMD5,
-      });
-    } else {
-      setGameAccountVerified(null);
-    }
-  }, [gameAccount, gamePassword, gameAccountMode]);
-
-  const { run: runUserRegister, loading } = useRequest(loginRegister, {
+  const { run: runUserRegister, loading: registering } = useRequest(loginRegister, {
     manual: true,
     onSuccess: () => router.replace('/'),
   });
 
-  const onSubmit = (values: RegisterFormValues) => {
-    const { username, password, platform, nickname } = values;
-    const { updateAuth } = useAuthStore.getState();
-    updateAuth({ platform });
-    runUserRegister({ username, password: encrypt(password), nick_name: nickname });
+  const onSubmit = async (values: RegisterFormValues) => {
+    const { username, password, platform, nickname, gameAccountMode, gameAccount, gamePassword } =
+      values;
+
+    // 先验证游戏账号
+    if (gameAccount && gamePassword) {
+      setGameAccountVerified(null); // 重置验证状态
+      const pwdMD5 = md5Upper(gamePassword);
+
+      try {
+        // 调用验证接口
+        await runVerifyAccount({
+          mode: gameAccountMode,
+          account: gameAccount,
+          pwd_md5: pwdMD5,
+        });
+
+        // 验证成功，继续注册
+        const { updateAuth } = useAuthStore.getState();
+        updateAuth({ platform });
+        runUserRegister({
+          username,
+          password: encrypt(password),
+          nick_name: nickname,
+          game_account_mode: gameAccountMode,
+          game_account: gameAccount,
+          game_password: pwdMD5,
+        });
+      } catch (error) {
+        // 验证失败，不继续注册
+        setGameAccountVerified(false);
+        return;
+      }
+    } else {
+      // 没有填写游戏账号，直接注册
+      const { updateAuth } = useAuthStore.getState();
+      updateAuth({ platform });
+      runUserRegister({ username, password: encrypt(password), nick_name: nickname });
+    }
   };
 
   return (
@@ -294,31 +314,11 @@ export const RegisterForm = () => {
             control={control}
             name="gameAccount"
             render={({ field: { onChange, value } }) => (
-              <View className="relative flex-row items-center">
-                <Input
-                  className="flex-1 pr-10"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder={
-                    gameAccountMode === 'mobile' ? '请输入手机号' : '请输入游戏账号'
-                  }
-                />
-                {verifying && (
-                  <View className="absolute right-3">
-                    <ActivityIndicator size="small" />
-                  </View>
-                )}
-                {!verifying && gameAccountVerified === true && (
-                  <View className="absolute right-3">
-                    <Icon as={CheckCircle2} size={20} className="text-green-500" />
-                  </View>
-                )}
-                {!verifying && gameAccountVerified === false && (
-                  <View className="absolute right-3">
-                    <Icon as={XCircle} size={20} className="text-red-500" />
-                  </View>
-                )}
-              </View>
+              <Input
+                value={value}
+                onChangeText={onChange}
+                placeholder={gameAccountMode === 'mobile' ? '请输入手机号' : '请输入游戏账号'}
+              />
             )}
           />
           <ErrorMessage name="gameAccount" errors={errors} />
@@ -326,12 +326,6 @@ export const RegisterForm = () => {
             <View className="flex-row items-center gap-1">
               <Icon as={AlertCircle} size={14} className="text-red-500" />
               <Text className="text-xs text-red-500">游戏账号验证失败，请检查账号和密码</Text>
-            </View>
-          )}
-          {gameAccountVerified === true && (
-            <View className="flex-row items-center gap-1">
-              <Icon as={CheckCircle2} size={14} className="text-green-500" />
-              <Text className="text-xs text-green-500">游戏账号验证成功！</Text>
             </View>
           )}
         </View>
@@ -369,13 +363,15 @@ export const RegisterForm = () => {
         <Button
           className="mb-4 mt-4 w-full rounded-full"
           onPress={handleSubmit(onSubmit)}
-          disabled={!isValid || loading || gameAccountVerified !== true}>
-          {loading && (
+          disabled={!isValid || registering || verifying}>
+          {(registering || verifying) && (
             <View className="pointer-events-none animate-spin">
               <Icon as={Loader2} className="text-primary-foreground" />
             </View>
           )}
-          <Text className="font-medium">注册</Text>
+          <Text className="font-medium">
+            {verifying ? '验证中...' : registering ? '注册中...' : '注册'}
+          </Text>
         </Button>
       </View>
     </KeyboardAvoidingView>

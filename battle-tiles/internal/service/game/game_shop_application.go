@@ -23,11 +23,10 @@ type ShopApplicationService struct {
 	users    basicRepo.BasicUserRepo
 	auth     basicRepo.AuthRepo
 	sAdm     gameRepo.GameShopAdminRepo
-	grpAdmin gameRepo.GameShopGroupAdminRepo
 }
 
-func NewShopApplicationService(mgr plaza.Manager, userRepo gameRepo.UserApplicationRepo, users basicRepo.BasicUserRepo, auth basicRepo.AuthRepo, sAdm gameRepo.GameShopAdminRepo, grpAdmin gameRepo.GameShopGroupAdminRepo) *ShopApplicationService {
-	return &ShopApplicationService{mgr: mgr, userRepo: userRepo, users: users, auth: auth, sAdm: sAdm, grpAdmin: grpAdmin}
+func NewShopApplicationService(mgr plaza.Manager, userRepo gameRepo.UserApplicationRepo, users basicRepo.BasicUserRepo, auth basicRepo.AuthRepo, sAdm gameRepo.GameShopAdminRepo) *ShopApplicationService {
+	return &ShopApplicationService{mgr: mgr, userRepo: userRepo, users: users, auth: auth, sAdm: sAdm}
 }
 
 func (s *ShopApplicationService) RegisterRouter(r *gin.RouterGroup) {
@@ -246,21 +245,10 @@ func (s *ShopApplicationService) Reject(c *gin.Context) {
 	s.respond(c, false)
 }
 
-// ensureGroupAdminMapping 在审批管理员通过后，为其创建/更新一个圈管理员映射
-// 策略：
-// - 若能获取到该店铺任意会话，则从桌台快照中取一个可见的 group_id；否则 group_id=0 占位
-// - 角色固定为 "admin"
+// ensureGroupAdminMapping 已废弃，使用新的圈子系统
+// 圈子会在店铺管理员首次访问时自动创建
 func (s *ShopApplicationService) ensureGroupAdminMapping(c *gin.Context, houseGID, userID int32) {
-	if s.grpAdmin == nil {
-		return
-	}
-	// 平台侧：每个店铺管理员就是一个圈（有且只有一个），圈ID=该管理员的 user_id
-	_ = s.grpAdmin.Upsert(c.Request.Context(), &gameModel.GameShopGroupAdmin{
-		HouseGID: houseGID,
-		GroupID:  userID,
-		UserID:   userID,
-		Role:     "admin",
-	})
+	// 不再需要手动创建圈子映射
 }
 
 // ensureShopAdmin 在管理员审批通过后，写入/更新 game_shop_admin（幂等）

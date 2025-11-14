@@ -19,8 +19,11 @@ declare namespace API {
     house_gid?: number;
     user_id?: number;
     role?: string;
+    nick_name?: string;
   };
 
   type ShopsAdminsListResult = ShopsAdminsItem[];
+
+  type ShopAdminInfo = ShopsAdminsItem;
 }
 

@@ -15,14 +15,13 @@ import (
 )
 
 type GameStatsService struct {
-	uc           *gameBiz.GameStatsUseCase
-	shopAdminUC  *gameBiz.ShopAdminUseCase
-	groupAdminUC *gameBiz.ShopGroupAdminUseCase
-	mgr          plaza.Manager
+	uc          *gameBiz.GameStatsUseCase
+	shopAdminUC *gameBiz.ShopAdminUseCase
+	mgr         plaza.Manager
 }
 
-func NewGameStatsService(uc *gameBiz.GameStatsUseCase, shopAdminUC *gameBiz.ShopAdminUseCase, groupAdminUC *gameBiz.ShopGroupAdminUseCase, mgr plaza.Manager) *GameStatsService {
-	return &GameStatsService{uc: uc, shopAdminUC: shopAdminUC, groupAdminUC: groupAdminUC, mgr: mgr}
+func NewGameStatsService(uc *gameBiz.GameStatsUseCase, shopAdminUC *gameBiz.ShopAdminUseCase, mgr plaza.Manager) *GameStatsService {
+	return &GameStatsService{uc: uc, shopAdminUC: shopAdminUC, mgr: mgr}
 }
 func (s *GameStatsService) RegisterRouter(r *gin.RouterGroup) {
 	g := r.Group("/stats").Use(middleware.JWTAuth())
@@ -151,13 +150,9 @@ func (s *GameStatsService) handleStats(c *gin.Context, in req.StatsBaseRequest) 
 					okHouse = true
 				}
 			}
-			okGroup := false
-			if s.groupAdminUC != nil {
-				if v, err := s.groupAdminUC.IsGroupAdmin(c.Request.Context(), int32(in.HouseGID), int32(*in.GroupID), claims.BaseClaims.UserID); err == nil && v {
-					okGroup = true
-				}
-			}
-			if !(okGroup || okHouse) {
+			// 圈子权限检查已移除，使用新的圈子系统
+			// 暂时只检查店铺管理员权限
+			if !okHouse {
 				return nil, fmt.Errorf("permission denied for group")
 			}
 		}

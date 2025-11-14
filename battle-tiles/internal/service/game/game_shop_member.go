@@ -24,11 +24,10 @@ type GameShopMemberService struct {
 	sAdm  gameRepo.GameShopAdminRepo
 	users basicRepo.BasicUserRepo
 	apps  gameRepo.UserApplicationRepo
-	grp   gameRepo.GameShopGroupAdminRepo
 }
 
-func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, grp gameRepo.GameShopGroupAdminRepo) *GameShopMemberService {
-	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, grp: grp}
+func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo) *GameShopMemberService {
+	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps}
 }
 
 func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
