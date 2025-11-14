@@ -17,6 +17,7 @@ type GameCtrlAccountRepo interface {
 	Upsert(ctx context.Context, in *model.GameCtrlAccount) (*model.GameCtrlAccount, error) // by (login_mode, identifier)
 	Update(ctx context.Context, in *model.GameCtrlAccount) error
 	UpdateGameUserID(ctx context.Context, id int32, gameUserID int32) error
+	UpdateStatus(ctx context.Context, id int32, status int32) error // 更新状态
 	Delete(ctx context.Context, id int32) error
 	List(ctx context.Context, cond game.CtrlAccountListCond) ([]*model.GameCtrlAccount, int64, error)
 }
@@ -73,6 +74,10 @@ func (r *gameCtrlAccountRepo) Update(ctx context.Context, in *model.GameCtrlAcco
 
 func (r *gameCtrlAccountRepo) UpdateGameUserID(ctx context.Context, id int32, gameUserID int32) error {
 	return r.db(ctx).Model(&model.GameCtrlAccount{}).Where("id = ?", id).Update("game_user_id", gameUserID).Error
+}
+
+func (r *gameCtrlAccountRepo) UpdateStatus(ctx context.Context, id int32, status int32) error {
+	return r.db(ctx).Model(&model.GameCtrlAccount{}).Where("id = ?", id).Update("status", status).Error
 }
 
 func (r *gameCtrlAccountRepo) Delete(ctx context.Context, id int32) error {

@@ -130,6 +130,22 @@ func (uc *CtrlAccountUseCase) UnbindCtrlFromHouse(ctx context.Context, ctrlID in
 	return uc.linkRepo.UnbindByCtrl(ctx, ctrlID, houseGID)
 }
 
+// UpdateStatus 更新中控账号状态
+func (uc *CtrlAccountUseCase) UpdateStatus(ctx context.Context, ctrlID int32, status int32) error {
+	// 验证状态值
+	if status != 0 && status != 1 {
+		return errors.New("invalid status, must be 0 or 1")
+	}
+
+	// 更新数据库状态
+	if err := uc.ctrlRepo.UpdateStatus(ctx, ctrlID, status); err != nil {
+		return errors.Wrap(err, "update ctrl account status failed")
+	}
+
+	uc.log.Infof("中控账号 %d 状态已更新为 %d", ctrlID, status)
+	return nil
+}
+
 // 查询：按店铺列出所有中控
 func (uc *CtrlAccountUseCase) ListCtrlByHouse(ctx context.Context, houseGID int32) ([]*model.GameCtrlAccount, error) {
 	return uc.linkRepo.ListByHouse(ctx, houseGID)
@@ -179,4 +195,40 @@ func (uc *CtrlAccountUseCase) ListAll(ctx context.Context, f req.CtrlListFilter,
 // 列出所有出现过的店铺号（去重），基于 game_account_house
 func (uc *CtrlAccountUseCase) ListDistinctHouses(ctx context.Context) ([]int32, error) {
 	return uc.linkRepo.ListDistinctHouses(ctx)
+}
+
+// Delete 删除中控账号
+func (uc *CtrlAccountUseCase) Delete(ctx context.Context, ctrlID int32) error {
+	// 先检查是否存在
+	ctrl, err := uc.ctrlRepo.Get(ctx, ctrlID)
+	if err != nil {
+		return errors.Wrap(err, "get ctrl account failed")
+	}
+
+	// 获取所有绑定的店铺
+	houses, err := uc.linkRepo.ListByCtrlID(ctx, ctrlID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return errors.Wrap(err, "list houses failed")
+	}
+
+	// 停止所有会话
+	for _, house := range houses {
+		if _, ok := uc.mgr.GetAnyByHouse(int(house.HouseGID)); ok {
+			uc.log.Infof("停止中控账号 %d 的会话 house=%d", ctrlID, house.HouseGID)
+			uc.mgr.StopUser(1, int(house.HouseGID))
+		}
+	}
+
+	// 删除所有绑定关系
+	if err := uc.linkRepo.DeleteByCtrlID(ctx, ctrlID); err != nil {
+		return errors.Wrap(err, "delete bindings failed")
+	}
+
+	// 删除中控账号
+	if err := uc.ctrlRepo.Delete(ctx, ctrlID); err != nil {
+		return errors.Wrap(err, "delete ctrl account failed")
+	}
+
+	uc.log.Infof("已删除中控账号 %d (identifier=%s)", ctrl.Id, ctrl.Identifier)
+	return nil
 }

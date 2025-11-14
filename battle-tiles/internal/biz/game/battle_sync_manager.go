@@ -106,7 +106,7 @@ func newBattleSyncer(ctx context.Context, userID int, houseGID int, battleRepo r
 		data:         data,
 		logger:       logger,
 		stopChan:     make(chan struct{}),
-		syncInterval: 3 * time.Second,
+		syncInterval: 10 * time.Second, // 改为10秒一次
 		isFirstSync:  true,
 	}
 }

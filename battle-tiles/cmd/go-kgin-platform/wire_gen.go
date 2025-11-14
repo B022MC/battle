@@ -116,7 +116,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logg
 	platformService := service.NewPlatformService(platformUsecase)
 	rootRouter := router.NewRootRouter(basicRouter, gameRouter, opsRouter, platformService)
 	ginServer := server.NewHTTPServer(confServer, logger, rootRouter, infraData)
-	sessionMonitor := service.NewSessionMonitor(logger, manager, basePlatformRepo, gameCtrlAccountHouseRepo, sessionRepo, ctrlSessionUseCase)
+	sessionMonitor := service.NewSessionMonitor(logger, manager, basePlatformRepo, gameCtrlAccountHouseRepo, sessionRepo, gameCtrlAccountRepo, battleSyncManager, ctrlSessionUseCase)
 	transportServer := server.NewMonitorServer(sessionMonitor)
 	app := newApp(logger, ginServer, transportServer)
 	return app, func() {

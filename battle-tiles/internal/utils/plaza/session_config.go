@@ -55,6 +55,7 @@ type IPlazaHandler interface {
 	OnTableRenew(item *TableRenew)
 	OnDismissTable(table int)
 	OnAppliesForHouse(applyInfos []*ApplyInfo)
+	OnReconnectFailed(houseGID int, retryCount int) // 新增：重连失败回调
 }
 
 /* =========================
@@ -83,6 +84,10 @@ type Session struct {
 	shutdown   atomic.Bool
 	restarting atomic.Bool
 	restarted  atomic.Bool
+
+	// 被踢下线计数器
+	kickedOfflineCount int
+	lastKickedTime     time.Time
 
 	_87connection            net.Conn
 	_87encoder               *Encoder
@@ -510,8 +515,41 @@ func (that *Session) _87handlePacket(data []byte) {
 		case consts.SUB_GA_SYSTEM_MESSAGE:
 			msg := ParseSystemMessage(packer.Data())
 			logger.Infof("[%d]接收到系统消息:%s", that.houseGID, msg.Text)
-			if strings.Contains(msg.Text, "您的账号在其他地方登录，您被迫下线") ||
-				strings.Contains(msg.Text, "茶馆服务不可用。请稍后再次重试") {
+			if strings.Contains(msg.Text, "您的账号在其他地方登录，您被迫下线") {
+				// 检查是否频繁被踢下线
+				now := time.Now()
+				if now.Sub(that.lastKickedTime) < 2*time.Minute {
+					that.kickedOfflineCount++
+				} else {
+					// 超过2分钟,重置计数器
+					that.kickedOfflineCount = 1
+				}
+				that.lastKickedTime = now
+
+				// 如果2分钟内被踢下线超过5次,停止自动重连
+				if that.kickedOfflineCount > 5 {
+					logger.Errorf("[%d]账号频繁被踢下线(2分钟内%d次),停止自动重连", that.houseGID, that.kickedOfflineCount)
+					that.autoReconnect = false
+					that.Shutdown()
+					// 通知上层需要停用中控账号
+					if that.handler != nil {
+						that.handler.OnReconnectFailed(that.houseGID, that.kickedOfflineCount)
+					}
+					return
+				}
+
+				if that.autoReconnect {
+					that.dontReportApplicatons = true
+					// 添加延迟,避免疯狂重试导致内存占满
+					// 延迟时间随着重试次数增加: 5秒, 10秒, 15秒, 20秒, 25秒
+					delaySeconds := that.kickedOfflineCount * 5
+					logger.Infof("[%d]账号被踢下线,将在%d秒后重连(第%d次)", that.houseGID, delaySeconds, that.kickedOfflineCount)
+					go func() {
+						time.Sleep(time.Duration(delaySeconds) * time.Second)
+						that.Restart()
+					}()
+				}
+			} else if strings.Contains(msg.Text, "茶馆服务不可用。请稍后再次重试") {
 				if that.autoReconnect {
 					that.dontReportApplicatons = true
 					that.Restart()
@@ -834,8 +872,12 @@ func (that *Session) createNewSession() bool {
 
 	retry := 1
 LOOP:
-	if retry > 3 {
-		logger.Errorf("重复连接house%d失败超过3次,不再尝试", that.houseGID)
+	if retry > 30 {
+		logger.Errorf("重复连接house%d失败超过30次,不再尝试", that.houseGID)
+		// 通知上层重连失败,需要自动停用中控账号
+		if that.handler != nil {
+			that.handler.OnReconnectFailed(that.houseGID, retry-1)
+		}
 		return false
 	}
 	retry++
@@ -843,8 +885,8 @@ LOOP:
 	// 重新用 cfg 构建
 	s, err := NewSessionWithConfig(that.cfg)
 	if err != nil {
-		logger.Error(">>>重启失败")
-		time.Sleep(1 * time.Second)
+		logger.Errorf(">>>重启失败 (第%d次尝试)", retry-1)
+		time.Sleep(5 * time.Second) // 改为5秒间隔
 		goto LOOP
 	} else {
 		logger.Infof("========== 重启耗时：%d", time.Since(start).Milliseconds())

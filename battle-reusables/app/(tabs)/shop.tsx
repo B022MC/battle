@@ -28,9 +28,6 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:apply:view"]}>
           <Button onPress={() => router.push('/(shop)/applications-list')}><Text>申请列表</Text></Button>
         </PermissionGate>
-        <PermissionGate anyOf={["game:ctrl:view","game:ctrl:update","game:ctrl:create"]}>
-          <Button onPress={() => router.push('/(shop)/session')}><Text>会话控制</Text></Button>
-        </PermissionGate>
       </View>
         
       </View>

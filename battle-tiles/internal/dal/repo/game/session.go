@@ -18,6 +18,8 @@ type SessionRepo interface {
 	SetOfflineByHouse(ctx context.Context, houseGID int32) error
 	// UpsertOnlineByHouse: 若存在任意该店铺记录，则更新其最新一条为 online；否则插入一条
 	UpsertOnlineByHouse(ctx context.Context, ctrlAccountID int32, userID int32, houseGID int32) error
+	// UpsertErrorByHouse: 若存在任意该店铺记录，则更新其最新一条为 error；否则插入一条
+	UpsertErrorByHouse(ctx context.Context, ctrlAccountID int32, userID int32, houseGID int32, errorMsg string) error
 }
 
 type sessionRepo struct{ data *infra.Data }
@@ -106,7 +108,7 @@ func (r *sessionRepo) UpsertOnlineByHouse(ctx context.Context, ctrlAccountID int
 	return db.Exec(`
         WITH updated AS (
             UPDATE game_session
-               SET game_ctrl_account_id = ?, user_id = ?, state = 'online', end_at = NULL, updated_at = now()
+               SET game_ctrl_account_id = ?, user_id = ?, state = 'online', end_at = NULL, error_msg = '', updated_at = now()
              WHERE id = (
                  SELECT id FROM game_session WHERE house_gid = ? ORDER BY created_at DESC LIMIT 1
              )
@@ -116,4 +118,22 @@ func (r *sessionRepo) UpsertOnlineByHouse(ctx context.Context, ctrlAccountID int
         SELECT ?, ?, ?, 'online', '', '', now(), now()
          WHERE NOT EXISTS (SELECT 1 FROM updated);
     `, ctrlAccountID, userID, houseGID, ctrlAccountID, userID, houseGID).Error
+}
+
+// UpsertErrorByHouse 将该店铺最新一条记录更新为 error；若不存在任何记录则插入新记录
+func (r *sessionRepo) UpsertErrorByHouse(ctx context.Context, ctrlAccountID int32, userID int32, houseGID int32, errorMsg string) error {
+	db := r.data.GetDBWithContext(ctx)
+	return db.Exec(`
+        WITH updated AS (
+            UPDATE game_session
+               SET game_ctrl_account_id = ?, user_id = ?, state = 'error', error_msg = ?, end_at = NULL, updated_at = now()
+             WHERE id = (
+                 SELECT id FROM game_session WHERE house_gid = ? ORDER BY created_at DESC LIMIT 1
+             )
+            RETURNING id
+        )
+        INSERT INTO game_session (game_ctrl_account_id, user_id, house_gid, state, device_ip, error_msg, created_at, updated_at)
+        SELECT ?, ?, ?, 'error', '', ?, now(), now()
+         WHERE NOT EXISTS (SELECT 1 FROM updated);
+    `, ctrlAccountID, userID, errorMsg, houseGID, ctrlAccountID, userID, houseGID, errorMsg).Error
 }
