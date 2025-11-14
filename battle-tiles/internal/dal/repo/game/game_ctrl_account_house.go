@@ -161,7 +161,14 @@ func (r *gameCtrlAccountHouseRepo) DeleteByCtrlID(ctx context.Context, ctrlID in
 
 func (r *gameCtrlAccountHouseRepo) ListDistinctHouses(ctx context.Context) ([]int32, error) {
 	var rows []int32
-	if err := r.db(ctx).Table("game_account_house").Distinct("house_gid").Pluck("house_gid", &rows).Error; err != nil {
+	// 只返回启用账号(status=1)关联的店铺
+	err := r.db(ctx).
+		Table("game_account_house gah").
+		Select("DISTINCT gah.house_gid").
+		Joins("JOIN game_account ga ON ga.id = gah.game_account_id").
+		Where("ga.status = 1").
+		Pluck("gah.house_gid", &rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil

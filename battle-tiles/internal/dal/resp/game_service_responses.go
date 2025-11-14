@@ -52,14 +52,36 @@ type VerifyAccountResponse struct {
 }
 
 type ShopMemberListItem struct {
-	UserID     uint32 `json:"user_id"`
-	UserStatus int    `json:"user_status"`
-	GameID     uint32 `json:"game_id"`
-	MemberID   uint32 `json:"member_id"`
-	MemberType int    `json:"member_type"`
-	NickName   string `json:"nick_name"`
+	UserID     uint32  `json:"user_id"`
+	UserStatus int     `json:"user_status"`
+	GameID     uint32  `json:"game_id"`
+	MemberID   uint32  `json:"member_id"`
+	MemberType int     `json:"member_type"`
+	NickName   string  `json:"nick_name"`
 	// GroupID 若协议侧提供则填充；当前为 0（未知/未分组）
-	GroupID int `json:"group_id"`
+	GroupID    int     `json:"group_id"`
+	// GroupName 圈子名称（圈主昵称）
+	GroupName  *string `json:"group_name,omitempty"`
+}
+
+// UserInfo 用户信息响应（过滤敏感字段）
+type UserInfo struct {
+	ID           int32  `json:"id"`
+	Username     string `json:"username"`
+	NickName     string `json:"nick_name"`
+	Avatar       string `json:"avatar"`
+	Role         string `json:"role"`
+	Introduction string `json:"introduction"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+// UserListResponse 用户列表响应
+type UserListResponse struct {
+	Items []UserInfo `json:"items"`
+	Total int64      `json:"total"`
+	Page  int32      `json:"page"`
+	Size  int32      `json:"size"`
 }
 
 type ShopMemberListResponse struct {

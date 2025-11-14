@@ -295,7 +295,8 @@ func (that *Session) doLogonServer82() error {
 	con, err := net.DialTimeout("tcp", that.cfg.Server82, 5*time.Second)
 	if err != nil {
 		logger.Errorf("连接82服务器失败:%v", err)
-		that.Restart()
+		// 不在这里调用 Restart(),避免在 createNewSession 中造成指数级增长
+		// that.Restart()
 		return err
 	}
 
@@ -708,9 +709,18 @@ func (that *Session) Shutdown() {
    ========================= */
 
 func (that *Session) Restart() {
-	if !that.shutdown.Load() && !that.restarting.Load() {
-		go that.createNewSession()
+	// 使用 CompareAndSwap 确保只有一个重启过程在运行
+	// 如果已经在重启中,直接返回,避免启动多个 goroutine
+	if that.shutdown.Load() {
+		return
 	}
+	if !that.restarting.CompareAndSwap(false, true) {
+		// 已经有重启过程在运行,直接返回
+		logger.Warnf("[%d]重启已在进行中,跳过本次重启请求", that.houseGID)
+		return
+	}
+	// 重置 restarting 标志将在 createNewSession 的 defer 中完成
+	go that.createNewSession()
 }
 func (that *Session) setTables(arr []*TableInfo) {
 	that.tables.Set("tables", cloneTables(arr), cache.DefaultExpiration)
@@ -861,13 +871,14 @@ func (that *Session) FindApplicationByID(msgID int) (*ApplyInfo, bool) {
 }
 
 func (that *Session) createNewSession() bool {
-	that.restarting.Store(true)
+	// restarting 标志已经在 Restart() 中设置为 true
 	defer that.restarting.Store(false)
 
 	logger.Infof("========== 重启茶馆 %d", that.houseGID)
 	start := time.Now()
 
-	that.Shutdown()
+	// 关闭旧连接(只关闭连接,不设置 shutdown 标志)
+	that.close()
 	time.Sleep(50 * time.Millisecond)
 
 	retry := 1
@@ -880,6 +891,7 @@ LOOP:
 		}
 		return false
 	}
+
 	retry++
 
 	// 重新用 cfg 构建

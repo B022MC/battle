@@ -41,10 +41,78 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
 	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
 	g.POST("/members/remove_platform", middleware.RequirePerm("shop:member:kick"), s.RemovePlatformMember)
+	// 平台侧：直接将用户拉入圈子（创建已批准的入圈记录）
+	g.POST("/members/add_platform", middleware.RequirePerm("shop:member:update"), s.AddToPlatformGroup)
 	// 成员规则
 	g.POST("/members/rules/vip", middleware.RequirePerm("shop:member:update"), s.SetVIP)
 	g.POST("/members/rules/multi", middleware.RequirePerm("shop:member:update"), s.SetMulti)
 	g.POST("/members/rules/temp_release", middleware.RequirePerm("shop:member:update"), s.SetTempRelease)
+}
+
+// AddToPlatformGroup 直接将用户拉入圈子（平台：创建已批准的入圈记录）
+func (s *GameShopMemberService) AddToPlatformGroup(c *gin.Context) {
+	var in struct {
+		HouseGID     int32  `json:"house_gid" binding:"required"`
+		GroupID      *int32 `json:"group_id"` // 非超管必填（=圈主ID）
+		MemberUserID int32  `json:"member_user_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.HouseGID <= 0 || in.MemberUserID <= 0 {
+		response.Fail(c, ecode.ParamsFailed, "invalid params")
+		return
+	}
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	caller := int32(claims.BaseClaims.UserID)
+	// 计算圈主（admin）
+	var admin int32
+	if in.GroupID != nil && *in.GroupID > 0 {
+		admin = *in.GroupID
+	} else if caller != 1 { // 非超管默认自己的圈
+		admin = caller
+	} else {
+		response.Fail(c, ecode.ParamsFailed, "group_id required for super admin")
+		return
+	}
+	if s.apps == nil {
+		response.Fail(c, ecode.Failed, "repo not ready")
+		return
+	}
+
+	// 验证: 检查目标用户是否已经在某个圈子中
+	existingJoin, err := s.apps.GetUserApprovedJoin(c.Request.Context(), in.HouseGID, in.MemberUserID)
+	if err == nil && existingJoin != nil {
+		response.Fail(c, ecode.Failed, "用户已经在圈子中")
+		return
+	}
+
+	// 验证: 检查目标用户的角色
+	if s.users == nil {
+		response.Fail(c, ecode.Failed, "repo not ready")
+		return
+	}
+	targetUser, err := s.users.SelectOneByPK(c.Request.Context(), in.MemberUserID)
+	if err != nil {
+		response.Fail(c, ecode.Failed, "用户不存在")
+		return
+	}
+	// 不能拉入店铺管理员或超级管理员
+	if targetUser.IsSuperAdmin() {
+		response.Fail(c, ecode.Failed, "不能拉入超级管理员")
+		return
+	}
+	if targetUser.IsStoreAdmin() {
+		response.Fail(c, ecode.Failed, "不能拉入店铺管理员")
+		return
+	}
+
+	if err := s.apps.AddApprovedJoin(c.Request.Context(), in.HouseGID, admin, in.MemberUserID); err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	response.SuccessWithOK(c)
 }
 
 // RemovePlatformMember 将指定成员从指定圈移除（平台：更新入圈申请为 status=3）
@@ -129,23 +197,31 @@ func (s *GameShopMemberService) ListPlatformMembers(c *gin.Context) {
 	}
 	// 平台圈ID规则：group_id = admin_user_id（若全量则为 0）
 	gid := int(admin)
-	// 批量昵称
+	// 批量昵称（包括成员和圈主）
 	nameMap := map[int32]string{}
+	groupNameMap := map[int32]string{} // 圈主ID -> 圈主昵称
 	if s.users != nil {
-		ids := make([]int32, 0, len(list))
+		// 收集所有需要查询的用户ID（成员 + 圈主）
+		userIDSet := make(map[int32]struct{})
 		for _, a := range list {
-			ids = append(ids, a.Applicant)
+			userIDSet[a.Applicant] = struct{}{}
+			userIDSet[a.AdminUID] = struct{}{}
+		}
+		ids := make([]int32, 0, len(userIDSet))
+		for uid := range userIDSet {
+			ids = append(ids, uid)
 		}
 		rows, _ := s.users.SelectByPK(c.Request.Context(), ids)
 		for _, u := range rows {
 			if u != nil {
 				nameMap[u.Id] = u.NickName
+				groupNameMap[u.Id] = u.NickName
 			}
 		}
 	}
 	out := make([]resp.ShopMemberListItem, 0, len(list))
 	for _, a := range list {
-		out = append(out, resp.ShopMemberListItem{
+		item := resp.ShopMemberListItem{
 			UserID:     uint32(a.Applicant),
 			UserStatus: 0,
 			GameID:     0,
@@ -153,7 +229,12 @@ func (s *GameShopMemberService) ListPlatformMembers(c *gin.Context) {
 			MemberType: 0, // 普通成员
 			NickName:   nameMap[a.Applicant],
 			GroupID:    gid,
-		})
+		}
+		// 添加圈子名称（圈主昵称）
+		if groupName, ok := groupNameMap[a.AdminUID]; ok {
+			item.GroupName = &groupName
+		}
+		out = append(out, item)
 	}
 	response.Success(c, resp.ShopMemberListResponse{Items: out})
 }

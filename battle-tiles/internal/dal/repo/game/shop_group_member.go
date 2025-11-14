@@ -89,10 +89,11 @@ func (r *shopGroupMemberRepo) ListMembersByGroup(ctx context.Context, groupID in
 		Table("game_shop_group_member gm").
 		Select("u.*").
 		Joins("JOIN basic_user u ON u.id = gm.user_id").
-		Where("gm.group_id = ?", groupID).
+		Where("gm.group_id = ? AND u.is_del = 0", groupID).
 		Order("gm.joined_at DESC").
 		Limit(int(size)).
 		Offset(int(offset)).
+		Unscoped(). // 禁用自动软删除过滤,避免 GORM 在 gm 表上添加 is_del 条件
 		Find(&users).Error
 
 	return users, total, err
@@ -106,6 +107,7 @@ func (r *shopGroupMemberRepo) ListGroupsByUser(ctx context.Context, userID int32
 		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
 		Where("gm.user_id = ? AND g.is_active = ?", userID, true).
 		Order("gm.joined_at DESC").
+		Unscoped(). // 禁用自动软删除过滤
 		Find(&groups).Error
 	return groups, err
 }
@@ -118,6 +120,7 @@ func (r *shopGroupMemberRepo) ListGroupsByUserAndHouse(ctx context.Context, user
 		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
 		Where("gm.user_id = ? AND g.house_gid = ? AND g.is_active = ?", userID, houseGID, true).
 		Order("gm.joined_at DESC").
+		Unscoped(). // 禁用自动软删除过滤
 		Find(&groups).Error
 	return groups, err
 }

@@ -3,6 +3,7 @@ package game
 import (
 	"battle-tiles/internal/biz/game"
 	"battle-tiles/pkg/plugin/middleware"
+	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
 
@@ -51,13 +52,14 @@ func (s *ShopGroupService) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	group, err := s.groupUC.CreateGroup(c.Request.Context(), req.HouseGID, userID.(int32), req.GroupName, req.Description)
+	group, err := s.groupUC.CreateGroup(c.Request.Context(), req.HouseGID, userID, req.GroupName, req.Description)
 	if err != nil {
 		s.log.Errorf("create group failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -81,13 +83,14 @@ func (s *ShopGroupService) GetMyGroup(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	group, err := s.groupUC.GetMyGroup(c.Request.Context(), req.HouseGID, userID.(int32))
+	group, err := s.groupUC.GetMyGroup(c.Request.Context(), req.HouseGID, userID)
 	if err != nil {
 		s.log.Errorf("get my group failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -167,13 +170,14 @@ func (s *ShopGroupService) AddMembers(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	err := s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID.(int32), req.UserIDs)
+	err = s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID, req.UserIDs)
 	if err != nil {
 		s.log.Errorf("add members failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -198,13 +202,14 @@ func (s *ShopGroupService) RemoveMember(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	err := s.groupUC.RemoveMemberFromGroup(c.Request.Context(), req.GroupID, userID.(int32), req.UserID)
+	err = s.groupUC.RemoveMemberFromGroup(c.Request.Context(), req.GroupID, userID, req.UserID)
 	if err != nil {
 		s.log.Errorf("remove member failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -255,13 +260,14 @@ func (s *ShopGroupService) ListMembers(c *gin.Context) {
 // ListMyGroups 获取我加入的所有圈子
 // POST /api/groups/my/list
 func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	groups, err := s.groupUC.ListMyGroups(c.Request.Context(), userID.(int32))
+	groups, err := s.groupUC.ListMyGroups(c.Request.Context(), userID)
 	if err != nil {
 		s.log.Errorf("list my groups failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())

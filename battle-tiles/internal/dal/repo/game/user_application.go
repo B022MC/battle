@@ -23,6 +23,10 @@ type UserApplicationRepo interface {
 	ListApprovedJoins(ctx context.Context, houseGID int32) ([]*model.UserApplication, error)
 	// RemoveApprovedJoin 将指定用户在指定圈的已通过入圈记录标记为移除（status=3）
 	RemoveApprovedJoin(ctx context.Context, houseGID int32, adminUID int32, applicant int32) (int64, error)
+	// AddApprovedJoin 直接创建已批准的入圈记录（如果已存在则更新为已批准状态）
+	AddApprovedJoin(ctx context.Context, houseGID int32, adminUID int32, applicant int32) error
+	// GetUserApprovedJoin 获取用户在指定店铺下的已批准入圈记录
+	GetUserApprovedJoin(ctx context.Context, houseGID int32, applicant int32) (*model.UserApplication, error)
 }
 
 type userApplicationRepo struct {
@@ -121,4 +125,46 @@ func (r *userApplicationRepo) RemoveApprovedJoin(ctx context.Context, houseGID i
 		Where("house_gid = ? AND type = 2 AND status = 1 AND admin_user_id = ? AND applicant = ?", houseGID, adminUID, applicant).
 		Update("status", 3)
 	return tx.RowsAffected, tx.Error
+}
+
+func (r *userApplicationRepo) AddApprovedJoin(ctx context.Context, houseGID int32, adminUID int32, applicant int32) error {
+	// 先检查是否已存在记录
+	var existing model.UserApplication
+	err := r.db(ctx).Where("house_gid = ? AND type = 2 AND admin_user_id = ? AND applicant = ?", houseGID, adminUID, applicant).
+		First(&existing).Error
+
+	if err == nil {
+		// 记录已存在,更新状态为已批准
+		if existing.Status != 1 {
+			return r.db(ctx).Model(&model.UserApplication{}).
+				Where("id = ?", existing.Id).
+				Update("status", 1).Error
+		}
+		return nil // 已经是批准状态,无需更新
+	}
+
+	if err != gorm.ErrRecordNotFound {
+		return err // 其他错误
+	}
+
+	// 记录不存在,创建新的已批准记录
+	newApp := &model.UserApplication{
+		HouseGID:  houseGID,
+		Applicant: applicant,
+		Type:      2, // 入圈申请
+		AdminUID:  adminUID,
+		Status:    1, // 已批准
+		Note:      "管理员直接添加",
+	}
+	return r.db(ctx).Create(newApp).Error
+}
+
+func (r *userApplicationRepo) GetUserApprovedJoin(ctx context.Context, houseGID int32, applicant int32) (*model.UserApplication, error) {
+	var app model.UserApplication
+	err := r.db(ctx).Where("house_gid = ? AND type = 2 AND status = 1 AND applicant = ?", houseGID, applicant).
+		First(&app).Error
+	if err != nil {
+		return nil, err
+	}
+	return &app, nil
 }
