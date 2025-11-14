@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/text';
 import z from 'zod';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { omitResponderProps } from '@/lib/utils';
 import { useRecentHouseIds } from '@/hooks/use-recent-house-ids';
 
 const searchFormSchema = z.lazy(() =>

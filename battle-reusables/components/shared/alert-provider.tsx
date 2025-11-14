@@ -8,6 +8,7 @@ import { FadeIn, FadeOut } from 'react-native-reanimated';
 import { bindAlert, unbindAlert, type AlertOptions } from '@/utils/alert';
 import { InfoIcon, X } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
+import { omitResponderProps } from '@/lib/utils';
 
 type AlertContextValue = {
   show: (options: AlertOptions) => void;

@@ -33,7 +33,7 @@ func (s *BattleRecordService) RegisterRouter(r *gin.RouterGroup) {
 
 // ListMyBattlesRequest 查询我的战绩请求
 type ListMyBattlesRequest struct {
-	HouseGID  int32  `json:"house_gid" binding:"required"`
+	HouseGID  int32  `json:"house_gid"` // 可选，如果不传则查询所有店铺
 	StartTime *int64 `json:"start_time"` // Unix timestamp
 	EndTime   *int64 `json:"end_time"`   // Unix timestamp
 	Page      int32  `json:"page"`
@@ -106,7 +106,7 @@ func (s *BattleRecordService) ListMyBattles(c *gin.Context) {
 
 // GetMyStatsRequest 查询我的统计请求
 type GetMyStatsRequest struct {
-	HouseGID  int32  `json:"house_gid" binding:"required"`
+	HouseGID  int32  `json:"house_gid"` // 可选，如果不传则查询所有店铺
 	StartTime *int64 `json:"start_time"` // Unix timestamp
 	EndTime   *int64 `json:"end_time"`   // Unix timestamp
 }

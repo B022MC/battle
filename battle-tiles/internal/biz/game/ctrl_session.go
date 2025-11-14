@@ -92,8 +92,8 @@ func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ct
 		return errors.Wrap(err, "start session")
 	}
 
-	// 启动战绩同步
-	uc.syncMgr.StartSync(int(userID), int(houseGID))
+	// 启动战绩同步，传入带 platform 的 context
+	uc.syncMgr.StartSync(ctx, int(userID), int(houseGID))
 
 	// 7) 成功：若存在该店铺记录则更新最新一条为 online，否则插入
 	return uc.sessRepo.UpsertOnlineByHouse(ctx, ctrl.Id, userID, houseGID)

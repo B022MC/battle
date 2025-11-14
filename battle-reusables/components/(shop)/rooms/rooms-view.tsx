@@ -9,6 +9,7 @@ import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, I
 import { shopsHousesOptions } from '@/services/shops/houses';
 import { Icon } from '@/components/ui/icon';
 import { ChevronDown } from 'lucide-react-native';
+import { omitResponderProps } from '@/lib/utils';
 
 export const RoomsView = () => {
   const [houseGid, setHouseGid] = useState('');

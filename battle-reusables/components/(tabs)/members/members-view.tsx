@@ -45,18 +45,24 @@ export const MembersView = () => {
   const { run: runAssignAdmin, loading: assigningAdmin } = useRequest(shopsAdminsAssign, { manual: true });
   const { run: runRevokeAdmin, loading: revokingAdmin } = useRequest(shopsAdminsRevoke, { manual: true });
   const { data: shopAdmins, run: runListAdmins } = useRequest(shopsAdminsList, { manual: true });
-  const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: false }); // 自动加载
+  const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: true }); // 改为手动加载
 
   // 加载所有用户
   const handleLoadUsers = async () => {
     await runListUsers({ page, size: 20, keyword: keyword || undefined });
   };
 
-  // 店铺管理员自动加载圈子
+  // 店铺管理员自动加载管理员信息和圈子
   React.useEffect(() => {
-    if (isStoreAdmin && myAdminInfo && myAdminInfo.house_gid) {
-      // 自动加载店铺管理员的圈子
-      runGetMyGroup({ house_gid: myAdminInfo.house_gid })
+    // 只有当用户是店铺管理员时才加载
+    if (isStoreAdmin) {
+      runGetMyAdminInfo()
+        .then((adminInfo) => {
+          if (adminInfo && adminInfo.house_gid) {
+            // 加载店铺管理员的圈子
+            return runGetMyGroup({ house_gid: adminInfo.house_gid });
+          }
+        })
         .then((group) => {
           if (group) {
             // 加载圈子成员
@@ -67,7 +73,7 @@ export const MembersView = () => {
           console.error('自动加载圈子失败:', error);
         });
     }
-  }, [isStoreAdmin, myAdminInfo]);
+  }, [isStoreAdmin]); // 只依赖 isStoreAdmin，避免重复调用
 
   // 加载我的圈子（手动触发，用于超级管理员）
   const handleLoadMyGroup = async () => {

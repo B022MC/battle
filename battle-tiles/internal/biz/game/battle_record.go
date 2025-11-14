@@ -15,23 +15,26 @@ import (
 )
 
 type BattleRecordUseCase struct {
-	repo     repo.BattleRecordRepo
-	ctrlRepo repo.GameCtrlAccountRepo
-	linkRepo repo.GameCtrlAccountHouseRepo
-	log      *log.Helper
+	repo        repo.BattleRecordRepo
+	ctrlRepo    repo.GameCtrlAccountRepo
+	linkRepo    repo.GameCtrlAccountHouseRepo
+	accountRepo repo.GameAccountRepo
+	log         *log.Helper
 }
 
 func NewBattleRecordUseCase(
 	r repo.BattleRecordRepo,
 	ctrlRepo repo.GameCtrlAccountRepo,
 	linkRepo repo.GameCtrlAccountHouseRepo,
+	accountRepo repo.GameAccountRepo,
 	logger log.Logger,
 ) *BattleRecordUseCase {
 	return &BattleRecordUseCase{
-		repo:     r,
-		ctrlRepo: ctrlRepo,
-		linkRepo: linkRepo,
-		log:      log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
+		repo:        r,
+		ctrlRepo:    ctrlRepo,
+		linkRepo:    linkRepo,
+		accountRepo: accountRepo,
+		log:         log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
 	}
 }
 
@@ -85,15 +88,28 @@ func (uc *BattleRecordUseCase) ListMyBattleRecords(
 	start, end *time.Time,
 	page, size int32,
 ) ([]*model.GameBattleRecord, int64, error) {
-	// TODO: 实现完整的用户战绩查询逻辑
-	// 需要：
-	// 1. 查询用户的中控账号
-	// 2. 查询中控账号绑定的店铺
-	// 3. 获取 game_user_id
-	// 4. 查询战绩
+	// 1. 查询用户绑定的游戏账号
+	account, err := uc.accountRepo.GetOneByUser(ctx, userID)
+	if err != nil {
+		uc.log.Errorf("Failed to get game account for user %d: %v", userID, err)
+		return nil, 0, fmt.Errorf("未找到绑定的游戏账号")
+	}
 
-	// 暂时返回空列表
-	return []*model.GameBattleRecord{}, 0, nil
+	// 2. 检查是否有 game_user_id
+	if account.GameUserID == "" {
+		uc.log.Warnf("User %d has no game_user_id", userID)
+		return []*model.GameBattleRecord{}, 0, nil
+	}
+
+	// 3. 解析 game_user_id 为整数
+	var playerGameID int32
+	if ok, err := parseGameUserID(account.GameUserID, &playerGameID); !ok || err != nil {
+		uc.log.Errorf("Failed to parse game_user_id %s: %v", account.GameUserID, err)
+		return nil, 0, fmt.Errorf("游戏账号ID格式错误")
+	}
+
+	// 4. 查询战绩
+	return uc.repo.ListByPlayer(ctx, houseGID, playerGameID, start, end, page, size)
 }
 
 // GetMyBattleStats 获取用户的战绩统计
@@ -103,8 +119,28 @@ func (uc *BattleRecordUseCase) GetMyBattleStats(
 	houseGID int32,
 	start, end *time.Time,
 ) (totalGames int64, totalScore int, totalFee int, err error) {
-	// TODO: 实现完整的用户统计查询逻辑
-	return 0, 0, 0, nil
+	// 1. 查询用户绑定的游戏账号
+	account, err := uc.accountRepo.GetOneByUser(ctx, userID)
+	if err != nil {
+		uc.log.Errorf("Failed to get game account for user %d: %v", userID, err)
+		return 0, 0, 0, fmt.Errorf("未找到绑定的游戏账号")
+	}
+
+	// 2. 检查是否有 game_user_id
+	if account.GameUserID == "" {
+		uc.log.Warnf("User %d has no game_user_id", userID)
+		return 0, 0, 0, nil
+	}
+
+	// 3. 解析 game_user_id 为整数
+	var playerGameID int32
+	if ok, err := parseGameUserID(account.GameUserID, &playerGameID); !ok || err != nil {
+		uc.log.Errorf("Failed to parse game_user_id %s: %v", account.GameUserID, err)
+		return 0, 0, 0, fmt.Errorf("游戏账号ID格式错误")
+	}
+
+	// 4. 查询统计
+	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, start, end)
 }
 
 // ListHouseBattleRecords 管理员查看店铺战绩

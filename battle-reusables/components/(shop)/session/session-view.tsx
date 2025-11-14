@@ -10,6 +10,7 @@ import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, I
 import { shopsHousesOptions } from '@/services/shops/houses';
 import { Icon } from '@/components/ui/icon';
 import { ChevronDown, Activity, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react-native';
+import { omitResponderProps } from '@/lib/utils';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import { usePermission } from '@/hooks/use-permission';

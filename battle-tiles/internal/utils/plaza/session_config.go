@@ -170,6 +170,24 @@ func (that *Session) close() {
 	}
 
 	that._87forbidTagStack.Clear()
+
+	// 清理 cache：先 Flush 清空数据，再设置为 nil 让 GC 回收（触发 finalizer 停止 janitor）
+	if that.tables != nil {
+		that.tables.Flush()
+		that.tables = nil
+	}
+	if that.members != nil {
+		that.members.Flush()
+		that.members = nil
+	}
+	if that.applications != nil {
+		that.applications.Flush()
+		that.applications = nil
+	}
+	if that.houses != nil {
+		that.houses.Flush()
+		that.houses = nil
+	}
 }
 
 /* =========================
@@ -638,7 +656,7 @@ func (that *Session) QueryTable(tabMappedNum int) {
 
 func (that *Session) Shutdown() {
 	that.shutdown.Store(true)
-	that.close()
+	that.close() // close() 中已经清理了 cache
 
 	safeCloseBoolChan(that._87quitChan)
 	safeCloseBoolChan(that._82quitChan)

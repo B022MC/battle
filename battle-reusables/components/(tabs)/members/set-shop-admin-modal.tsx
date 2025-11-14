@@ -6,6 +6,7 @@ import { useRequest } from '@/hooks/use-request';
 import { shopsHousesOptions } from '@/services/shops/houses';
 import { X, ChevronDown } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
+import { omitResponderProps } from '@/lib/utils';
 
 interface SetShopAdminModalProps {
   visible: boolean;
