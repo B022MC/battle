@@ -88,6 +88,16 @@ func (uc *GameAccountUseCase) List(ctx context.Context, userID int32) ([]*model.
 	return uc.accRepo.ListByUser(ctx, userID)
 }
 
+func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) ([]*model.GameAccountHouse, error) {
+	// 先获取用户的游戏账号
+	acc, err := uc.accRepo.GetOneByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	// 获取该账号绑定的所有店铺
+	return uc.accHouseRepo.ListHousesByAccount(ctx, acc.Id)
+}
+
 func (uc *GameAccountUseCase) Verify(ctx context.Context, mode consts.GameLoginMode, identifier, pwdMD5 string) error {
 	return uc.mgr.ProbeLogin(ctx, mode, identifier, pwdMD5)
 }

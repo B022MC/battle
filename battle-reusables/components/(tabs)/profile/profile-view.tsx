@@ -21,6 +21,17 @@ export const ProfileView = () => {
     'shop:member:view', 'shop:table:view', 'shop:apply:view',
     'game:ctrl:view', 'game:ctrl:update', 'game:ctrl:create',
   ]);
+
+  // 调试信息：打印权限和角色
+  React.useEffect(() => {
+    console.log('=== Profile Debug Info ===');
+    console.log('isSuperAdmin:', isSuperAdmin);
+    console.log('isAdmin:', isAdmin);
+    console.log('roles:', roles);
+    console.log('perms:', perms);
+    console.log('Should show ProfileGameAccount:', !(isSuperAdmin || isAdmin));
+  }, [isSuperAdmin, isAdmin, roles, perms]);
+
   const { data: me, run: runMe } = useRequest(basicUserMe, { manual: true, onSuccess: (res) => {
     setNick(res?.nick_name ?? '');
     setAvatar(res?.avatar ?? '');
@@ -111,7 +122,8 @@ export const ProfileView = () => {
             </InfoCardFooter>
           </InfoCard>
 
-          {!(isSuperAdmin || isAdmin) && <ProfileGameAccount />}
+          {/* 所有非超级管理员用户都可以绑定游戏账号 */}
+          {!isSuperAdmin && <ProfileGameAccount />}
 
           {/* 中控账号区域仅对超级管理员可见 - 使用新的综合管理组件 */}
           {isSuperAdmin && <ProfileCtrlAccounts />}

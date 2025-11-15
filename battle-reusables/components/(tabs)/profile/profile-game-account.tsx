@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InfoCard, InfoCardContent, InfoCardFooter, InfoCardHeader, InfoCardRow, InfoCardTitle } from '@/components/shared/info-card';
 import { useRequest } from '@/hooks/use-request';
-import { gameAccountBind, gameAccountDelete, gameAccountMe, gameAccountVerify } from '@/services/game/account';
+import { gameAccountBind, gameAccountDelete, gameAccountMe, gameAccountMeHouses, gameAccountVerify } from '@/services/game/account';
 import { alert } from '@/utils/alert';
 import { md5Upper } from '@/utils/md5';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -17,12 +17,14 @@ import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 export const ProfileGameAccount = () => {
   const { getLoginModeLabel } = usePlazaConsts();
   const { data: me, run: runMe, loading: loadingMe } = useRequest(gameAccountMe, { manual: true });
+  const { data: houses, run: runHouses, loading: loadingHouses } = useRequest(gameAccountMeHouses, { manual: true });
   const { run: runVerify, loading: verifying } = useRequest(gameAccountVerify, { manual: true });
   const { run: runBind, loading: binding } = useRequest(gameAccountBind, {
     manual: true,
     onSuccess: () => {
       alert.show({ title: '已绑定', description: '游戏账号绑定成功' });
       runMe();
+      runHouses();
       setAccount('');
       setPassword('');
     },
@@ -32,6 +34,7 @@ export const ProfileGameAccount = () => {
     onSuccess: () => {
       alert.show({ title: '已解绑', description: '已解绑我的游戏账号' });
       runMe();
+      runHouses();
     },
   });
 
@@ -50,7 +53,18 @@ export const ProfileGameAccount = () => {
 
   useEffect(() => {
     runMe();
+    runHouses();
   }, []);
+
+  // 调试信息
+  useEffect(() => {
+    console.log('=== ProfileGameAccount Debug ===');
+    console.log('me:', me);
+    console.log('houses:', houses);
+    console.log('isBound:', !!(me && me.account));
+    console.log('loadingMe:', loadingMe);
+    console.log('loadingHouses:', loadingHouses);
+  }, [me, houses, loadingMe, loadingHouses]);
 
   const onBind = async () => {
     if (!account || !password) {
@@ -68,7 +82,7 @@ export const ProfileGameAccount = () => {
     }
   };
 
-  const isBound = !!(me && Object.keys(me as any).length > 0);
+  const isBound = !!(me && me.account);
 
   return (
     <InfoCard>
@@ -76,11 +90,30 @@ export const ProfileGameAccount = () => {
         <InfoCardTitle>我的游戏账号</InfoCardTitle>
       </InfoCardHeader>
       <InfoCardContent>
-        {isBound ? (
+        {loadingMe ? (
+          <Text className="text-muted-foreground">加载中...</Text>
+        ) : isBound ? (
           <View className="gap-3">
             <InfoCardRow label="账号" value={me.account ?? '-'} />
             <InfoCardRow label="登录方式" value={getLoginModeLabel(me.login_mode as any)} />
             <InfoCardRow label="状态" value={String(me.status ?? '-') } />
+
+            {/* 显示绑定的游戏ID列表 */}
+            {loadingHouses ? (
+              <Text className="text-muted-foreground text-sm mt-2">加载游戏ID列表...</Text>
+            ) : houses && houses.length > 0 ? (
+              <View className="gap-2 mt-2">
+                <Text variant="muted" className="font-semibold">绑定的游戏ID：</Text>
+                {houses.map((house) => (
+                  <View key={house.id} className="flex-row items-center gap-2 pl-2">
+                    <Text className="text-sm">
+                      {house.is_default ? '👌' : '⭕'} 店铺 {house.house_gid}
+                      {house.status === 1 ? ' (启用)' : ' (禁用)'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         ) : (
           <View className="gap-3">
