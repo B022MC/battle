@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { router } from 'expo-router';
 import { PermissionGate } from '@/components/auth/PermissionGate';
- 
+
 
 export default function ShopHubScreen() {
 
@@ -21,12 +21,6 @@ export default function ShopHubScreen() {
         </PermissionGate>
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/members')}><Text>成员管理</Text></Button>
-        </PermissionGate>
-        <PermissionGate anyOf={["shop:apply:view"]}>
-          <Button onPress={() => router.push('/(shop)/applications')}><Text>提交申请</Text></Button>
-        </PermissionGate>
-        <PermissionGate anyOf={["shop:apply:view"]}>
-          <Button onPress={() => router.push('/(shop)/applications-list')}><Text>申请列表</Text></Button>
         </PermissionGate>
 
         {/* 战绩查询功能 */}

@@ -82,3 +82,22 @@ func RequireAnyPerm(perms ...string) gin.HandlerFunc {
 		c.Abort()
 	}
 }
+
+// AdminOnly：仅限超级管理员
+func AdminOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, err := utils.GetClaims(c)
+		if err != nil {
+			response.Fail(c, ecode.TokenValidateFailed, err)
+			c.Abort()
+			return
+		}
+		// 仅超级管理员可以访问
+		if !claims.BaseClaims.IsSuperAdmin() {
+			response.Fail(c, ecode.Failed, "admin only")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

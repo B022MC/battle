@@ -19,6 +19,7 @@ type BattleRecordUseCase struct {
 	ctrlRepo    repo.GameCtrlAccountRepo
 	linkRepo    repo.GameCtrlAccountHouseRepo
 	accountRepo repo.GameAccountRepo
+	memberRepo  repo.GameMemberRepo
 	log         *log.Helper
 }
 
@@ -27,6 +28,7 @@ func NewBattleRecordUseCase(
 	ctrlRepo repo.GameCtrlAccountRepo,
 	linkRepo repo.GameCtrlAccountHouseRepo,
 	accountRepo repo.GameAccountRepo,
+	memberRepo repo.GameMemberRepo,
 	logger log.Logger,
 ) *BattleRecordUseCase {
 	return &BattleRecordUseCase{
@@ -34,6 +36,7 @@ func NewBattleRecordUseCase(
 		ctrlRepo:    ctrlRepo,
 		linkRepo:    linkRepo,
 		accountRepo: accountRepo,
+		memberRepo:  memberRepo,
 		log:         log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
 	}
 }
@@ -48,17 +51,32 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 	now := time.Now()
 	for _, b := range list {
 		pbytes, _ := json.Marshal(b.Players)
-		rec := &model.GameBattleRecord{
-			HouseGID:    int32(houseGID),
-			GroupID:     int32(groupID),
-			RoomUID:     int32(b.RoomID),
-			KindID:      int32(b.KindID),
-			BaseScore:   int32(b.BaseScore),
-			BattleAt:    time.Unix(int64(b.CreateTime), 0),
-			PlayersJSON: string(pbytes),
-			CreatedAt:   now,
+
+		// 为每个玩家创建战绩记录，并从 game_member 表中查询玩家的当前圈子
+		for _, player := range b.Players {
+			playerGroupID := int32(groupID) // 默认使用参数中的 groupID
+
+			// 从 game_member 表中查询玩家的当前圈子
+			member, err := uc.memberRepo.GetByGameID(ctx, int32(houseGID), int32(player.UserGameID))
+			if err == nil && member != nil && member.GroupID != nil {
+				playerGroupID = *member.GroupID
+			} else if err != nil {
+				uc.log.Warnf("Failed to get member info for gameID %d: %v, using default groupID %d", player.UserGameID, err, groupID)
+			}
+			userGameID := int32(player.UserGameID)
+			rec := &model.GameBattleRecord{
+				HouseGID:     int32(houseGID),
+				GroupID:      playerGroupID, // 使用玩家当前所在的圈子
+				RoomUID:      int32(b.RoomID),
+				KindID:       int32(b.KindID),
+				BaseScore:    int32(b.BaseScore),
+				BattleAt:     time.Unix(int64(b.CreateTime), 0),
+				PlayerGameID: &userGameID,
+				PlayersJSON:  string(pbytes),
+				CreatedAt:    now,
+			}
+			batch = append(batch, rec)
 		}
-		batch = append(batch, rec)
 	}
 	if err := uc.repo.SaveBatch(ctx, batch); err != nil {
 		return 0, err
@@ -85,31 +103,24 @@ func (uc *BattleRecordUseCase) ListMyBattleRecords(
 	ctx context.Context,
 	userID int32,
 	houseGID int32,
+	GroupID *int32,
 	start, end *time.Time,
 	page, size int32,
 ) ([]*model.GameBattleRecord, int64, error) {
-	// 1. 查询用户绑定的游戏账号
 	account, err := uc.accountRepo.GetOneByUser(ctx, userID)
 	if err != nil {
 		uc.log.Errorf("Failed to get game account for user %d: %v", userID, err)
 		return nil, 0, fmt.Errorf("未找到绑定的游戏账号")
 	}
 
-	// 2. 检查是否有 game_user_id
-	if account.GameUserID == "" {
-		uc.log.Warnf("User %d has no game_user_id", userID)
+	// 检查是否有游戏账号
+	if account.Account == "" {
+		uc.log.Warnf("User %d has no game account", userID)
 		return []*model.GameBattleRecord{}, 0, nil
 	}
 
-	// 3. 解析 game_user_id 为整数
-	var playerGameID int32
-	if ok, err := parseGameUserID(account.GameUserID, &playerGameID); !ok || err != nil {
-		uc.log.Errorf("Failed to parse game_user_id %s: %v", account.GameUserID, err)
-		return nil, 0, fmt.Errorf("游戏账号ID格式错误")
-	}
-
-	// 4. 查询战绩
-	return uc.repo.ListByPlayer(ctx, houseGID, playerGameID, nil, start, end, page, size)
+	// 查询战绩（使用游戏账号 account.Account）
+	return uc.repo.ListByPlayerGameName(ctx, houseGID, account.Account, GroupID, start, end, page, size)
 }
 
 // GetMyBattleStats 获取用户的战绩统计
@@ -117,6 +128,7 @@ func (uc *BattleRecordUseCase) GetMyBattleStats(
 	ctx context.Context,
 	userID int32,
 	houseGID int32,
+	groupID *int32,
 	start, end *time.Time,
 ) (totalGames int64, totalScore int, totalFee int, err error) {
 	// 1. 查询用户绑定的游戏账号
@@ -126,21 +138,14 @@ func (uc *BattleRecordUseCase) GetMyBattleStats(
 		return 0, 0, 0, fmt.Errorf("未找到绑定的游戏账号")
 	}
 
-	// 2. 检查是否有 game_user_id
-	if account.GameUserID == "" {
-		uc.log.Warnf("User %d has no game_user_id", userID)
+	// 检查是否有游戏账号
+	if account.Account == "" {
+		uc.log.Warnf("User %d has no game account", userID)
 		return 0, 0, 0, nil
 	}
 
-	// 3. 解析 game_user_id 为整数
-	var playerGameID int32
-	if ok, err := parseGameUserID(account.GameUserID, &playerGameID); !ok || err != nil {
-		uc.log.Errorf("Failed to parse game_user_id %s: %v", account.GameUserID, err)
-		return 0, 0, 0, fmt.Errorf("游戏账号ID格式错误")
-	}
-
-	// 4. 查询统计
-	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, nil, start, end)
+	// 查询统计（使用游戏账号 account.Account）
+	return uc.repo.GetPlayerStatsByGameName(ctx, houseGID, account.Account, groupID, start, end)
 }
 
 // ListHouseBattleRecords 管理员查看店铺战绩
@@ -168,7 +173,83 @@ func (uc *BattleRecordUseCase) GetPlayerBattleStats(
 	playerGameID int32,
 	start, end *time.Time,
 ) (totalGames int64, totalScore int, totalFee int, err error) {
-	return uc.repo.GetPlayerStats(ctx, houseGID, playerGameID, nil, start, end)
+	return uc.repo.GetPlayerStats(ctx, houseGID, string(playerGameID), nil, start, end)
+}
+
+// GetMyBalances 获取用户的余额
+func (uc *BattleRecordUseCase) GetMyBalances(
+	ctx context.Context,
+	userID int32,
+	houseGID int32,
+	groupID *int32,
+) (interface{}, error) {
+	// 1. 查询用户绑定的游戏账号
+	account, err := uc.accountRepo.GetOneByUser(ctx, userID)
+	if err != nil {
+		uc.log.Errorf("Failed to get game account for user %d: %v", userID, err)
+		return nil, fmt.Errorf("未找到绑定的游戏账号")
+	}
+
+	// 2. 检查是否有游戏账号
+	if account.Account == "" {
+		uc.log.Warnf("User %d has no game account", userID)
+		return []interface{}{}, nil
+	}
+
+	// 3. 返回空列表（暂时实现）
+	// TODO: 实现实际的余额查询逻辑
+	return []interface{}{}, nil
+}
+
+// ListGroupMemberBalances 查询圈子成员余额
+func (uc *BattleRecordUseCase) ListGroupMemberBalances(
+	ctx context.Context,
+	houseGID int32,
+	groupID int32,
+	minYuan *int32,
+	maxYuan *int32,
+	page, size int32,
+) (interface{}, int64, error) {
+	// 暂时返回空列表
+	return []interface{}{}, 0, nil
+}
+
+// GetGroupStats 查询圈子统计
+func (uc *BattleRecordUseCase) GetGroupStats(
+	ctx context.Context,
+	houseGID int32,
+	groupID int32,
+	start, end *time.Time,
+) (interface{}, error) {
+	totalGames, totalScore, totalFee, activeMembers, err := uc.repo.GetGroupStats(ctx, houseGID, groupID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"group_id":       groupID,
+		"total_games":    totalGames,
+		"total_score":    totalScore,
+		"total_fee":      totalFee,
+		"active_members": activeMembers,
+	}, nil
+}
+
+// GetHouseStats 查询店铺统计
+func (uc *BattleRecordUseCase) GetHouseStats(
+	ctx context.Context,
+	houseGID int32,
+	start, end *time.Time,
+) (interface{}, error) {
+	totalGames, totalScore, totalFee, err := uc.repo.GetHouseStats(ctx, houseGID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"house_gid":   houseGID,
+		"total_games": totalGames,
+		"total_score": totalScore,
+		"total_fee":   totalFee,
+	}, nil
 }
 
 // parseGameUserID 解析 game_user_id 字符串为整数

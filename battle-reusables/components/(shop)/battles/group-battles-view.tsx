@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
@@ -9,6 +9,19 @@ import { Card } from '@/components/ui/card';
 import { alert } from '@/utils/alert';
 import { listGroupBattles, getGroupStats } from '@/services/battles/query';
 import type { BattleRecord, GroupStats } from '@/services/battles/query-typing';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { getGroupOptions } from '@/services/shops/groups';
+import { TriggerRef } from '@rn-primitives/select';
+import { isWeb } from '@/utils/platform';
 
 export const GroupBattlesView = () => {
   const { isStoreAdmin } = usePermission();
@@ -24,6 +37,31 @@ export const GroupBattlesView = () => {
   // API 请求
   const { data: battlesData, loading: loadingBattles, run: runListBattles } = useRequest(listGroupBattles, { manual: true });
   const { data: statsData, loading: loadingStats, run: runGetStats } = useRequest(getGroupStats, { manual: true });
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const { data: groupOptions, run: runGetGroupOptions } = useRequest(getGroupOptions, { manual: true });
+  const houseRef = useRef<TriggerRef>(null);
+  const groupRef = useRef<TriggerRef>(null);
+
+  function onHouseTouchStart() {
+    isWeb && houseRef.current?.open();
+  }
+
+  function onGroupTouchStart() {
+    isWeb && groupRef.current?.open();
+  }
+
+  // 当店铺改变时，加载该店铺的圈子列表
+  const handleHouseChange = async (newHouseGid: string) => {
+    setHouseGid(newHouseGid);
+    setGroupId(''); // 重置圈子选择
+    if (newHouseGid) {
+      try {
+        await runGetGroupOptions({ house_gid: Number(newHouseGid) });
+      } catch (error) {
+        console.error('加载圈子列表失败:', error);
+      }
+    }
+  };
 
   // 加载战绩
   const handleLoadBattles = async () => {
@@ -157,22 +195,46 @@ export const GroupBattlesView = () => {
         
         <View className="mb-3">
           <Text className="mb-2">店铺号 *</Text>
-          <Input
-            placeholder="请输入店铺号"
-            value={houseGid}
-            onChangeText={setHouseGid}
-            keyboardType="numeric"
-          />
+          <Select
+            value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
+            onValueChange={(opt) => handleHouseChange(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>店铺号</SelectLabel>
+                {(houseOptions ?? []).map((gid) => (
+                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                    店铺 {gid}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </View>
 
         <View className="mb-3">
-          <Text className="mb-2">圈子ID *</Text>
-          <Input
-            placeholder="请输入圈子ID"
-            value={groupId}
-            onChangeText={setGroupId}
-            keyboardType="numeric"
-          />
+          <Text className="mb-2">圈子 *</Text>
+          <Select
+            value={groupId ? ({ label: groupOptions?.find(g => String(g.id) === groupId)?.name || `圈子 ${groupId}`, value: groupId } as any) : undefined}
+            onValueChange={(opt) => setGroupId(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={groupRef} onTouchStart={onGroupTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={groupId ? `圈子 ${groupId}` : '选择圈子'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>圈子</SelectLabel>
+                {(groupOptions ?? []).map((group) => (
+                  <SelectItem key={String(group.id)} label={group.name} value={String(group.id)}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </View>
 
         <View className="mb-3">

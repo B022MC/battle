@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollView, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { Text } from '@/components/ui/text';
@@ -8,23 +8,67 @@ import { Card } from '@/components/ui/card';
 import { alert } from '@/utils/alert';
 import { listMyBattles, getMyStats } from '@/services/battles/query';
 import type { BattleRecord, BattleStats } from '@/services/battles/query-typing';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { getGroupOptions } from '@/services/shops/groups';
+import { TriggerRef } from '@rn-primitives/select';
+import { isWeb } from '@/utils/platform';
 
 export const MyBattlesView = () => {
   // 状态管理
   const [houseGid, setHouseGid] = useState<string>('');
   const [groupId, setGroupId] = useState<string>('');
   const [page, setPage] = useState(1);
-  const [startTime, setStartTime] = useState<string>('');
-  const [endTime, setEndTime] = useState<string>('');
+
+  // 计算最近7天的时间范围
+  const getTimeRange = () => {
+    const now = new Date();
+    const endTime = Math.floor(now.getTime() / 1000);
+    const startTime = endTime - 7 * 24 * 60 * 60; // 7天前
+    return { startTime, endTime };
+  };
 
   // API 请求
   const { data: battlesData, loading: loadingBattles, run: runListBattles } = useRequest(listMyBattles, { manual: true });
   const { data: statsData, loading: loadingStats, run: runGetStats } = useRequest(getMyStats, { manual: true });
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const { data: groupOptions, run: runGetGroupOptions } = useRequest(getGroupOptions, { manual: true });
+  const houseRef = useRef<TriggerRef>(null);
+  const groupRef = useRef<TriggerRef>(null);
+
+  function onHouseTouchStart() {
+    isWeb && houseRef.current?.open();
+  }
+
+  function onGroupTouchStart() {
+    isWeb && groupRef.current?.open();
+  }
+
+  // 当店铺改变时，加载该店铺的圈子列表
+  const handleHouseChange = async (newHouseGid: string) => {
+    setHouseGid(newHouseGid);
+    setGroupId(''); // 重置圈子选择
+    if (newHouseGid) {
+      try {
+        await runGetGroupOptions({ house_gid: Number(newHouseGid) });
+      } catch (error) {
+        console.error('加载圈子列表失败:', error);
+      }
+    }
+  };
 
   // 加载战绩
   const handleLoadBattles = async () => {
     if (!houseGid) {
-      alert.show({ title: '请输入店铺号', variant: 'error' });
+      alert.show({ title: '请选择店铺号', variant: 'error' });
       return;
     }
     const gid = Number(houseGid);
@@ -33,30 +77,19 @@ export const MyBattlesView = () => {
       return;
     }
 
+    const { startTime, endTime } = getTimeRange();
     const params: any = {
       house_gid: gid,
       page,
       size: 20,
+      start_time: startTime,
+      end_time: endTime,
     };
 
     if (groupId) {
       const gidNum = Number(groupId);
       if (!isNaN(gidNum) && gidNum > 0) {
         params.group_id = gidNum;
-      }
-    }
-
-    if (startTime) {
-      const timestamp = new Date(startTime).getTime() / 1000;
-      if (!isNaN(timestamp)) {
-        params.start_time = Math.floor(timestamp);
-      }
-    }
-
-    if (endTime) {
-      const timestamp = new Date(endTime).getTime() / 1000;
-      if (!isNaN(timestamp)) {
-        params.end_time = Math.floor(timestamp);
       }
     }
 
@@ -70,7 +103,7 @@ export const MyBattlesView = () => {
   // 加载统计
   const handleLoadStats = async () => {
     if (!houseGid) {
-      alert.show({ title: '请输入店铺号', variant: 'error' });
+      alert.show({ title: '请选择店铺号', variant: 'error' });
       return;
     }
     const gid = Number(houseGid);
@@ -79,28 +112,17 @@ export const MyBattlesView = () => {
       return;
     }
 
+    const { startTime, endTime } = getTimeRange();
     const params: any = {
       house_gid: gid,
+      start_time: startTime,
+      end_time: endTime,
     };
 
     if (groupId) {
       const gidNum = Number(groupId);
       if (!isNaN(gidNum) && gidNum > 0) {
         params.group_id = gidNum;
-      }
-    }
-
-    if (startTime) {
-      const timestamp = new Date(startTime).getTime() / 1000;
-      if (!isNaN(timestamp)) {
-        params.start_time = Math.floor(timestamp);
-      }
-    }
-
-    if (endTime) {
-      const timestamp = new Date(endTime).getTime() / 1000;
-      if (!isNaN(timestamp)) {
-        params.end_time = Math.floor(timestamp);
       }
     }
 
@@ -136,40 +158,52 @@ export const MyBattlesView = () => {
         
         <View className="mb-3">
           <Text className="mb-2">店铺号 *</Text>
-          <Input
-            placeholder="请输入店铺号"
-            value={houseGid}
-            onChangeText={setHouseGid}
-            keyboardType="numeric"
-          />
+          <Select
+            value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
+            onValueChange={(opt) => handleHouseChange(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>店铺号</SelectLabel>
+                {(houseOptions ?? []).map((gid) => (
+                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                    店铺 {gid}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </View>
 
         <View className="mb-3">
-          <Text className="mb-2">圈子ID (可选)</Text>
-          <Input
-            placeholder="不填则查询所有圈子"
-            value={groupId}
-            onChangeText={setGroupId}
-            keyboardType="numeric"
-          />
+          <Text className="mb-2">圈子 (可选)</Text>
+          <Select
+            value={groupId ? ({ label: groupOptions?.find(g => String(g.id) === groupId)?.name || `圈子 ${groupId}`, value: groupId } as any) : undefined}
+            onValueChange={(opt) => setGroupId(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={groupRef} onTouchStart={onGroupTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={groupId ? `圈子 ${groupId}` : '选择圈子 (可选)'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>圈子</SelectLabel>
+                {(groupOptions ?? []).map((group) => (
+                  <SelectItem key={String(group.id)} label={group.name} value={String(group.id)}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </View>
 
         <View className="mb-3">
-          <Text className="mb-2">开始时间 (可选)</Text>
-          <Input
-            placeholder="YYYY-MM-DD HH:mm:ss"
-            value={startTime}
-            onChangeText={setStartTime}
-          />
-        </View>
-
-        <View className="mb-3">
-          <Text className="mb-2">结束时间 (可选)</Text>
-          <Input
-            placeholder="YYYY-MM-DD HH:mm:ss"
-            value={endTime}
-            onChangeText={setEndTime}
-          />
+          <Text className="text-sm text-muted-foreground">
+            查询最近7天的战绩数据
+          </Text>
         </View>
 
         <View className="flex-row gap-2">

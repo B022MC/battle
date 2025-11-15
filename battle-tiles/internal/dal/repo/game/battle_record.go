@@ -14,17 +14,21 @@ type BattleRecordRepo interface {
 	SaveBatch(ctx context.Context, list []*model.GameBattleRecord) error
 	SaveBatchWithDedup(ctx context.Context, list []*model.GameBattleRecord) (int, error)
 	List(ctx context.Context, houseGID int32, groupID *int32, gameID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error)
-	
-	// 淇敼: 澧炲姞 groupID 鍙傛暟
-	ListByPlayer(ctx context.Context, houseGID int32, playerGameID int32, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error)
-	
-	// 淇敼: 澧炲姞 groupID 鍙傛暟
-	GetPlayerStats(ctx context.Context, houseGID int32, playerGameID int32, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error)
-	
-	// 鏂板: 鏌ヨ鍦堝瓙缁熻
+
+	// 按游戏用户ID查询（保留用于向后兼容）
+	ListByPlayer(ctx context.Context, houseGID int32, playerGameID interface{}, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error)
+
+	// 按游戏账号查询
+	ListByPlayerGameName(ctx context.Context, houseGID int32, playerGameName string, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error)
+
+	// 按游戏用户ID获取统计（保留用于向后兼容）
+	GetPlayerStats(ctx context.Context, houseGID int32, playerGameID interface{}, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error)
+
+	// 按游戏账号获取统计
+	GetPlayerStatsByGameName(ctx context.Context, houseGID int32, playerGameName string, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error)
+
 	GetGroupStats(ctx context.Context, houseGID int32, groupID int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, activeMembers int64, err error)
-	
-	// 鏂板: 鏌ヨ搴楅摵缁熻
+
 	GetHouseStats(ctx context.Context, houseGID int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error)
 }
 
@@ -109,12 +113,54 @@ func (r *battleRecordRepo) List(ctx context.Context, houseGID int32, groupID *in
 	return out, total, nil
 }
 
-// ListByPlayer 鏌ヨ鎸囧畾鐜╁鐨勬垬缁?
-func (r *battleRecordRepo) ListByPlayer(ctx context.Context, houseGID int32, playerGameID int32, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error) {
-	db := r.db(ctx).Model(&model.GameBattleRecord{}).
-		Where("house_gid = ? AND player_game_id = ?", houseGID, playerGameID)
+func (r *battleRecordRepo) ListByPlayer(ctx context.Context, houseGID int32, playerGameID interface{}, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error) {
+	// 支持 int32 和 string 两种类型
+	var db *gorm.DB
+	if str, ok := playerGameID.(string); ok {
+		db = r.db(ctx).Model(&model.GameBattleRecord{}).
+			Where("house_gid = ? AND player_game_name = ?", houseGID, str)
+	} else {
+		db = r.db(ctx).Model(&model.GameBattleRecord{}).
+			Where("house_gid = ? AND player_game_id = ?", houseGID, playerGameID)
+	}
 
-	// 鏂板: 鏀寔鎸夊湀瀛愮瓫閫?
+	if groupID != nil {
+		db = db.Where("group_id = ?", *groupID)
+	}
+
+	if start != nil {
+		db = db.Where("battle_at >= ?", *start)
+	}
+	if end != nil {
+		db = db.Where("battle_at < ?", *end)
+	}
+
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 || size > 200 {
+		size = 20
+	}
+	offset := (page - 1) * size
+
+	var out []*model.GameBattleRecord
+	if err := db.Order("battle_at DESC").Limit(int(size)).Offset(int(offset)).Find(&out).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return out, total, nil
+}
+
+// ListByPlayerGameName 按游戏账号查询战绩
+func (r *battleRecordRepo) ListByPlayerGameName(ctx context.Context, houseGID int32, playerGameName string, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error) {
+	db := r.db(ctx).Model(&model.GameBattleRecord{}).
+		Where("house_gid = ? AND player_game_ID = ?", houseGID, playerGameName)
+
 	if groupID != nil {
 		db = db.Where("group_id = ?", *groupID)
 	}
@@ -148,9 +194,16 @@ func (r *battleRecordRepo) ListByPlayer(ctx context.Context, houseGID int32, pla
 }
 
 // GetPlayerStats 鑾峰彇鐜╁缁熻鏁版嵁
-func (r *battleRecordRepo) GetPlayerStats(ctx context.Context, houseGID int32, playerGameID int32, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error) {
-	db := r.db(ctx).Model(&model.GameBattleRecord{}).
-		Where("house_gid = ? AND player_game_id = ?", houseGID, playerGameID)
+func (r *battleRecordRepo) GetPlayerStats(ctx context.Context, houseGID int32, playerGameID interface{}, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error) {
+	// 支持 int32 和 string 两种类型
+	var db *gorm.DB
+	if str, ok := playerGameID.(string); ok {
+		db = r.db(ctx).Model(&model.GameBattleRecord{}).
+			Where("house_gid = ? AND player_game_name = ?", houseGID, str)
+	} else {
+		db = r.db(ctx).Model(&model.GameBattleRecord{}).
+			Where("house_gid = ? AND player_game_id = ?", houseGID, playerGameID)
+	}
 
 	// 鏂板: 鏀寔鎸夊湀瀛愮瓫閫?
 	if groupID != nil {
@@ -170,6 +223,42 @@ func (r *battleRecordRepo) GetPlayerStats(ctx context.Context, houseGID int32, p
 	}
 
 	// 缁熻鎬诲垎鏁板拰鎬昏垂鐢?
+	type Result struct {
+		TotalScore int
+		TotalFee   int
+	}
+	var result Result
+	err = db.Select("COALESCE(SUM(score), 0) as total_score, COALESCE(SUM(fee), 0) as total_fee").
+		Scan(&result).Error
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return totalGames, result.TotalScore, result.TotalFee, nil
+}
+
+// GetPlayerStatsByGameName 按游戏账号获取玩家统计数据
+func (r *battleRecordRepo) GetPlayerStatsByGameName(ctx context.Context, houseGID int32, playerGameName string, groupID *int32, start, end *time.Time) (totalGames int64, totalScore int, totalFee int, err error) {
+	db := r.db(ctx).Model(&model.GameBattleRecord{}).
+		Where("house_gid = ? AND player_game_name = ?", houseGID, playerGameName)
+
+	if groupID != nil {
+		db = db.Where("group_id = ?", *groupID)
+	}
+
+	if start != nil {
+		db = db.Where("battle_at >= ?", *start)
+	}
+	if end != nil {
+		db = db.Where("battle_at < ?", *end)
+	}
+
+	// 统计总局数
+	if err = db.Count(&totalGames).Error; err != nil {
+		return 0, 0, 0, err
+	}
+
+	// 统计总分数和总费用
 	type Result struct {
 		TotalScore int
 		TotalFee   int

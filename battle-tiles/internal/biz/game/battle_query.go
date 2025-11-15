@@ -12,30 +12,30 @@ import (
 
 // BattleStats 鎴樼哗缁熻鏁版嵁
 type BattleStats struct {
-	TotalGames  int64   `json:"total_games"`
-	TotalScore  int     `json:"total_score"`
-	TotalFee    int     `json:"total_fee"`
-	AvgScore    float64 `json:"avg_score"`
-	GroupID     *int32  `json:"group_id,omitempty"`
-	GroupName   string  `json:"group_name,omitempty"`
+	TotalGames int64   `json:"total_games"`
+	TotalScore int     `json:"total_score"`
+	TotalFee   int     `json:"total_fee"`
+	AvgScore   float64 `json:"avg_score"`
+	GroupID    *int32  `json:"group_id,omitempty"`
+	GroupName  string  `json:"group_name,omitempty"`
 }
 
 // GroupStats 鍦堝瓙缁熻鏁版嵁
 type GroupStats struct {
-	GroupID       int32   `json:"group_id"`
-	GroupName     string  `json:"group_name"`
-	TotalGames    int64   `json:"total_games"`
-	TotalScore    int     `json:"total_score"`
-	TotalFee      int     `json:"total_fee"`
-	ActiveMembers int64   `json:"active_members"`
+	GroupID       int32  `json:"group_id"`
+	GroupName     string `json:"group_name"`
+	TotalGames    int64  `json:"total_games"`
+	TotalScore    int    `json:"total_score"`
+	TotalFee      int    `json:"total_fee"`
+	ActiveMembers int64  `json:"active_members"`
 }
 
 // HouseStats 搴楅摵缁熻鏁版嵁
 type HouseStats struct {
-	HouseGID   int32   `json:"house_gid"`
-	TotalGames int64   `json:"total_games"`
-	TotalScore int     `json:"total_score"`
-	TotalFee   int     `json:"total_fee"`
+	HouseGID   int32 `json:"house_gid"`
+	TotalGames int64 `json:"total_games"`
+	TotalScore int   `json:"total_score"`
+	TotalFee   int   `json:"total_fee"`
 }
 
 // BattleQueryUseCase 鎴樼哗鏌ヨ涓氬姟閫昏緫
@@ -60,7 +60,6 @@ func NewBattleQueryUseCase(
 	}
 }
 
-// ListMyBattles 鐢ㄦ埛鏌ヨ鑷繁鐨勬垬缁?
 func (uc *BattleQueryUseCase) ListMyBattles(
 	ctx context.Context,
 	gameID int32,
@@ -69,7 +68,6 @@ func (uc *BattleQueryUseCase) ListMyBattles(
 	start, end *time.Time,
 	page, size int32,
 ) ([]*model.GameBattleRecord, int64, error) {
-	// 鏌ヨ鎴樼哗
 	records, total, err := uc.battleRepo.ListByPlayer(ctx, houseGID, gameID, groupID, start, end, page, size)
 	if err != nil {
 		uc.log.Errorf("list my battles failed: %v", err)
@@ -126,12 +124,10 @@ func (uc *BattleQueryUseCase) ListGroupBattles(
 	start, end *time.Time,
 	page, size int32,
 ) ([]*model.GameBattleRecord, int64, error) {
-	// TODO: 妫€鏌ョ鐞嗗憳鏉冮檺
-	// 楠岃瘉绠＄悊鍛樻槸鍚︾鐞嗚鍦堝瓙
 	group, err := uc.groupRepo.GetByID(ctx, groupID)
 	if err != nil {
 		uc.log.Errorf("get group failed: %v", err)
-		return nil, 0, fmt.Errorf("鍦堝瓙涓嶅瓨鍦?")
+		return nil, 0, fmt.Errorf("")
 	}
 
 	if group.AdminUserID != adminUserID {
@@ -145,10 +141,10 @@ func (uc *BattleQueryUseCase) ListGroupBattles(
 
 	if playerGameID != nil {
 		// 鏌ヨ鎸囧畾鐜╁鐨勬垬缁?
-	records, total, err = uc.battleRepo.ListByPlayer(ctx, houseGID, *playerGameID, &groupID, start, end, page, size)
+		records, total, err = uc.battleRepo.ListByPlayer(ctx, houseGID, *playerGameID, &groupID, start, end, page, size)
 	} else {
 		// 鏌ヨ鍦堝瓙鎵€鏈夋垬缁?
-	records, total, err = uc.battleRepo.List(ctx, houseGID, &groupID, nil, start, end, page, size)
+		records, total, err = uc.battleRepo.List(ctx, houseGID, &groupID, nil, start, end, page, size)
 	}
 
 	if err != nil {
@@ -168,7 +164,7 @@ func (uc *BattleQueryUseCase) GetGroupStats(
 	start, end *time.Time,
 ) (*GroupStats, error) {
 	// 楠岃瘉绠＄悊鍛樻潈闄?
-group, err := uc.groupRepo.GetByID(ctx, groupID)
+	group, err := uc.groupRepo.GetByID(ctx, groupID)
 	if err != nil {
 		uc.log.Errorf("get group failed: %v", err)
 		return nil, fmt.Errorf("鍦堝瓙涓嶅瓨鍦?")

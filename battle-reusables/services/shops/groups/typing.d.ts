@@ -88,4 +88,13 @@ declare namespace API {
   type ListShopAdminsParams = {
     house_gid: number;
   };
+
+  type GetGroupOptionsParams = {
+    house_gid: number;
+  };
+
+  type GroupOption = {
+    id: number;
+    name: string;
+  };
 }

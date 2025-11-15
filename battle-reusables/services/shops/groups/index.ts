@@ -79,3 +79,10 @@ export function listGroupMembers(data: API.ListGroupMembersParams) {
 export function listMyGroups() {
   return post<API.ShopGroup[]>('/groups/my/list', {});
 }
+
+/**
+ * 获取圈子选项列表（用于下拉框）
+ */
+export function getGroupOptions(data: API.GetGroupOptionsParams) {
+  return post<API.GroupOption[]>('/groups/options', data);
+}

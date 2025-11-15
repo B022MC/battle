@@ -30,6 +30,7 @@ func (s *ShopGroupService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/create", s.CreateGroup)          // 创建圈子
 	g.POST("/my", s.GetMyGroup)               // 获取我的圈子
 	g.POST("/list", s.ListGroupsByHouse)      // 获取店铺圈子列表
+	g.POST("/options", s.GetGroupOptions)     // 获取圈子选项列表（用于下拉框）
 	g.POST("/members/add", s.AddMembers)      // 添加成员到圈子
 	g.POST("/members/remove", s.RemoveMember) // 从圈子移除成员
 	g.POST("/members/list", s.ListMembers)    // 获取圈子成员列表
@@ -275,4 +276,37 @@ func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
 	}
 
 	response.Success(c, groups)
+}
+
+// GetGroupOptionsReq 获取圈子选项请求
+type GetGroupOptionsReq struct {
+	HouseGID int32 `json:"house_gid" binding:"required"`
+}
+
+// GetGroupOptions 获取圈子选项列表（用于下拉框）
+// POST /api/groups/options
+func (s *ShopGroupService) GetGroupOptions(c *gin.Context) {
+	var req GetGroupOptionsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, ecode.ParamsFailed, nil)
+		return
+	}
+
+	groups, err := s.groupUC.ListGroupsByHouse(c.Request.Context(), req.HouseGID)
+	if err != nil {
+		s.log.Errorf("get group options failed: %v", err)
+		response.Fail(c, ecode.Failed, err.Error())
+		return
+	}
+
+	// 返回只包含 ID 和名称的列表
+	options := make([]map[string]interface{}, 0, len(groups))
+	for _, group := range groups {
+		options = append(options, map[string]interface{}{
+			"id":   group.Id,
+			"name": group.GroupName,
+		})
+	}
+
+	response.Success(c, options)
 }

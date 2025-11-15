@@ -17,7 +17,6 @@ export default function ShopLayout() {
         headerShadowVisible: false,
       }}>
       <Stack.Screen name="account" options={{ title: '游戏账号' }} />
-      <Stack.Screen name="applications" options={{ title: '申请管理' }} />
       <Stack.Screen name="admins" options={{ title: '管理员' }} />
       <Stack.Screen name="rooms" options={{ title: '中控账号' }} />
       <Stack.Screen name="fees" options={{ title: '费用设置' }} />

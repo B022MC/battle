@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { Text } from '@/components/ui/text';
@@ -8,6 +8,18 @@ import { Card } from '@/components/ui/card';
 import { alert } from '@/utils/alert';
 import { getMyBalances } from '@/services/battles/query';
 import type { MemberBalance } from '@/services/battles/query-typing';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { TriggerRef } from '@rn-primitives/select';
+import { isWeb } from '@/utils/platform';
 
 export const MyBalancesView = () => {
   // 状态管理
@@ -16,6 +28,12 @@ export const MyBalancesView = () => {
 
   // API 请求
   const { data: balancesData, loading: loadingBalances, run: runGetBalances } = useRequest(getMyBalances, { manual: true });
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const houseRef = useRef<TriggerRef>(null);
+
+  function onHouseTouchStart() {
+    isWeb && houseRef.current?.open();
+  }
 
   // 加载余额
   const handleLoadBalances = async () => {
@@ -73,12 +91,24 @@ export const MyBalancesView = () => {
         
         <View className="mb-3">
           <Text className="mb-2">店铺号 *</Text>
-          <Input
-            placeholder="请输入店铺号"
-            value={houseGid}
-            onChangeText={setHouseGid}
-            keyboardType="numeric"
-          />
+          <Select
+            value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
+            onValueChange={(opt) => setHouseGid(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>店铺号</SelectLabel>
+                {(houseOptions ?? []).map((gid) => (
+                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                    店铺 {gid}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </View>
 
         <View className="mb-3">

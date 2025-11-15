@@ -30,6 +30,10 @@ func (s *AccountService) RegisterRouter(r *gin.RouterGroup) {
 	auth.POST("/accounts", s.BindMyAccount)        // 仅 1 条（只建 game_account）
 	auth.GET("/accounts/me", s.GetMyAccount)       // 查询我的账号
 	auth.DELETE("/accounts/me", s.DeleteMyAccount) // 解绑我的账号
+
+	// 管理员接口
+	admin := g.Use(middleware.JWTAuth(), middleware.AdminOnly())
+	admin.POST("/accounts/fix-empty-game-user-id", s.FixEmptyGameUserID) // 修复空的 game_user_id
 }
 
 // VerifyAccount
@@ -166,4 +170,27 @@ func (s *AccountService) DeleteMyAccount(c *gin.Context) {
 		return
 	}
 	response.SuccessWithOK(c)
+}
+
+// FixEmptyGameUserID
+// @Summary  修复空的 game_user_id 字段（管理员接口）
+// @Description 修复在修复代码之前注册的用户的 game_user_id。此接口仅限管理员使用。
+// @Tags     游戏/我的账号
+// @Produce  json
+// @Security BearerAuth
+// @Success  200 {object} response.Body{data=map[string]int64} "data: { fixed: 10, failed: 2 }"
+// @Failure  401 {object} response.Body
+// @Failure  403 {object} response.Body
+// @Failure  500 {object} response.Body
+// @Router   /game/accounts/fix-empty-game-user-id [post]
+func (s *AccountService) FixEmptyGameUserID(c *gin.Context) {
+	fixed, failed, err := s.uc.FixEmptyGameUserID(c.Request.Context())
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	response.Success(c, map[string]int64{
+		"fixed":  fixed,
+		"failed": failed,
+	})
 }
