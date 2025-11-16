@@ -11,7 +11,14 @@ type UpdateBasicUserReq struct {
 	AddBasicUserReq `mapstructure:",squash"`
 	Id              int32 `json:"id" from:"id" mapstructure:"id" title:"主键" binding:"required"` // 主键
 }
-
+type UpdateBasicUserNameReq struct {
+	AddBasicUserNameReq `mapstructure:",squash"`
+	Id                  int32 `json:"id" from:"id" mapstructure:"id" title:"主键" binding:"required"` // 主键
+}
+type AddBasicUserNameReq struct {
+	UserName string `json:"username" from:"username" mapstructure:"username" title:"用户名称"`
+	NickName string `json:"nick_name" from:"nick_name" mapstructure:"nick_name" title:"用户昵称"`
+}
 type ListBasicUserReq struct {
 	*utils.PageParam
 }

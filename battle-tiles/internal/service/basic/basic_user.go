@@ -360,7 +360,7 @@ func (s *BasicUserService) GetOption(ctx *gin.Context) {
 // @Success		    200		{object}	response.Body{data=basic.BasicUserDoc,msg=string}
 // @Router			/basic/user/updateOne [post]
 func (s *BasicUserService) UpdateOne(ctx *gin.Context) {
-	var inParam req.UpdateBasicUserReq
+	var inParam req.UpdateBasicUserNameReq
 	defaults.SetDefaults(&inParam)
 	if err := ctx.ShouldBindJSON(&inParam); err != nil {
 		response.Fail(ctx, ecode.ParamsFailed, err)
