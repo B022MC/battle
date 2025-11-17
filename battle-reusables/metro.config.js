@@ -12,7 +12,7 @@ const config = {
       return (req, res, next) => {
         if (req.url.startsWith('/web')) {
           return createProxyMiddleware({
-            target: 'http://127.0.0.1:8000',
+            target: 'http://8.137.52.203:8000',
             changeOrigin: true,
             pathRewrite: { '^/web': '/' },
           })(req, res, next);

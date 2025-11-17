@@ -165,10 +165,17 @@ func (s *BattleRecordService) GetMyStats(c *gin.Context) {
 		return
 	}
 
+	// 计算平均分
+	avgScore := 0.0
+	if totalGames > 0 {
+		avgScore = float64(totalScore) / float64(totalGames)
+	}
+
 	response.Success(c, gin.H{
 		"total_games": totalGames,
 		"total_score": totalScore,
 		"total_fee":   totalFee,
+		"avg_score":   avgScore,
 	})
 }
 

@@ -235,7 +235,7 @@ export const MyBattlesView = () => {
           <Text className="mb-2">总局数: {statsData.total_games}</Text>
           <Text className="mb-2">总分数: {formatScore(statsData.total_score)}</Text>
           <Text className="mb-2">总费用: {statsData.total_fee}</Text>
-          <Text className="mb-2">平均分: {statsData.avg_score.toFixed(2)}</Text>
+          <Text className="mb-2">平均分: {statsData.avg_score !== undefined ? statsData.avg_score.toFixed(2) : '0.00'}</Text>
         </Card>
       )}
 
