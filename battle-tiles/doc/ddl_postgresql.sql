@@ -163,6 +163,63 @@ COMMENT ON TABLE basic_user_role_rel IS '用户角色关联表';
 COMMENT ON COLUMN basic_user_role_rel.user_id IS '用户ID';
 COMMENT ON COLUMN basic_user_role_rel.role_id IS '角色ID';
 
+-- 基础权限表
+CREATE TABLE IF NOT EXISTS basic_permission (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+COMMENT ON TABLE basic_permission IS '基础权限表（细粒度权限定义）';
+COMMENT ON COLUMN basic_permission.id IS '权限ID';
+COMMENT ON COLUMN basic_permission.code IS '权限编码（唯一标识）';
+COMMENT ON COLUMN basic_permission.name IS '权限名称';
+COMMENT ON COLUMN basic_permission.category IS '权限分类：stats/fund/shop/game/system';
+COMMENT ON COLUMN basic_permission.description IS '权限描述';
+COMMENT ON COLUMN basic_permission.created_at IS '创建时间';
+COMMENT ON COLUMN basic_permission.updated_at IS '更新时间';
+COMMENT ON COLUMN basic_permission.is_deleted IS '是否删除';
+
+CREATE UNIQUE INDEX uk_basic_permission_code ON basic_permission(code) WHERE is_deleted = FALSE;
+CREATE INDEX idx_basic_permission_category ON basic_permission(category);
+
+-- 角色权限关联表
+CREATE TABLE IF NOT EXISTS basic_role_permission_rel (
+    role_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+COMMENT ON TABLE basic_role_permission_rel IS '角色权限关联表';
+COMMENT ON COLUMN basic_role_permission_rel.role_id IS '角色ID';
+COMMENT ON COLUMN basic_role_permission_rel.permission_id IS '权限ID';
+
+-- 菜单按钮表（用于UI级别的权限控制）
+CREATE TABLE IF NOT EXISTS basic_menu_button (
+    id SERIAL PRIMARY KEY,
+    menu_id INTEGER NOT NULL,
+    button_code VARCHAR(100) NOT NULL,
+    button_name VARCHAR(255) NOT NULL,
+    permission_codes VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE basic_menu_button IS '菜单按钮权限配置表（UI细粒度控制）';
+COMMENT ON COLUMN basic_menu_button.id IS '按钮ID';
+COMMENT ON COLUMN basic_menu_button.menu_id IS '所属菜单ID';
+COMMENT ON COLUMN basic_menu_button.button_code IS '按钮编码';
+COMMENT ON COLUMN basic_menu_button.button_name IS '按钮名称';
+COMMENT ON COLUMN basic_menu_button.permission_codes IS '所需权限码（逗号分隔，满足任一即可）';
+
+CREATE INDEX idx_menu_button_menu_id ON basic_menu_button(menu_id);
+CREATE UNIQUE INDEX uk_menu_button_menu_code ON basic_menu_button(menu_id, button_code);
+
 -- =====================================================
 -- 云平台模块 (Cloud Platform Module)
 -- =====================================================

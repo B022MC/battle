@@ -63,33 +63,31 @@ func (s *Store) GetUserPermCodes(ctx context.Context, userID int32) (map[string]
 	return toSet(codes), nil
 }
 
-// 直接从数据库聚合权限码
+// 直接从数据库聚合权限码（同时从菜单auths和权限表获取）
 func (s *Store) queryUserPermCodesDB(ctx context.Context, userID int32) ([]string, error) {
 	db := s.data.GetDBWithContext(ctx)
 	if db.Error != nil {
 		return nil, db.Error
 	}
 
-	// user -> roles -> menus -> menus.auths
-	type row struct{ Auths *string }
-	var list []row
+	seen := map[string]struct{}{}
+	out := make([]string, 0)
 
-	// 这里使用 gorm 链式 join；你也可以写 Raw SQL
+	// 1. 从菜单的 auths 字段获取权限（兼容旧系统）
+	type menuRow struct{ Auths *string }
+	var menuList []menuRow
 	err := db.
 		Table("basic_user_role_rel AS ur").
 		Select("m.auths").
 		Joins("JOIN basic_role_menu_rel AS rm ON rm.role_id = ur.role_id").
 		Joins("JOIN basic_menu AS m ON m.id = rm.menu_id AND m.deleted_at IS NULL").
 		Where("ur.user_id = ?", userID).
-		Find(&list).Error
+		Find(&menuList).Error
 	if err != nil {
 		return nil, err
 	}
 
-	// 展开、去重
-	seen := map[string]struct{}{}
-	out := make([]string, 0, len(list))
-	for _, r := range list {
+	for _, r := range menuList {
 		if r.Auths == nil || *r.Auths == "" {
 			continue
 		}
@@ -98,13 +96,40 @@ func (s *Store) queryUserPermCodesDB(ctx context.Context, userID int32) ([]strin
 			if code == "" {
 				continue
 			}
-			code = strings.ToLower(code) // 统一小写比较
+			code = strings.ToLower(code)
 			if _, ok := seen[code]; !ok {
 				seen[code] = struct{}{}
 				out = append(out, code)
 			}
 		}
 	}
+
+	// 2. 从权限表获取权限（新系统）
+	type permRow struct{ Code string }
+	var permList []permRow
+	err = db.
+		Table("basic_user_role_rel AS ur").
+		Select("DISTINCT p.code").
+		Joins("JOIN basic_role_permission_rel AS rpr ON rpr.role_id = ur.role_id").
+		Joins("JOIN basic_permission AS p ON p.id = rpr.permission_id AND p.is_deleted = false").
+		Where("ur.user_id = ?", userID).
+		Find(&permList).Error
+	if err != nil {
+		// 如果权限表不存在（旧版本数据库），忽略错误
+		s.logger.Warnf("query permission table failed: %v", err)
+	} else {
+		for _, r := range permList {
+			code := strings.ToLower(strings.TrimSpace(r.Code))
+			if code == "" {
+				continue
+			}
+			if _, ok := seen[code]; !ok {
+				seen[code] = struct{}{}
+				out = append(out, code)
+			}
+		}
+	}
+
 	return out, nil
 }
 

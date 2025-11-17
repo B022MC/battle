@@ -7,9 +7,6 @@ import { useRequest } from '@/hooks/use-request';
 import { shopsFeesGet, shopsFeesSet, shopsShareFeeSet, shopsPushCreditSet, shopsFeesSettlePayoffs } from '@/services/shops/fees';
 import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, InfoCardContent } from '@/components/shared/info-card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useRef } from 'react';
-import { TriggerRef } from '@rn-primitives/select';
-import { isWeb } from '@/utils/platform';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 
 export const FeesView = () => {
@@ -29,8 +26,6 @@ export const FeesView = () => {
   // Kind 选择
   const { data: consts, getLabel } = usePlazaConsts();
   const kindOptions = useMemo(() => (consts?.game_kinds ?? []).map(k => ({ label: k.label, value: String(k.value) })), [consts]);
-  const triggerRef = useRef<TriggerRef>(null);
-  function onTouchStart() { isWeb && triggerRef.current?.open(); }
 
   type FeeRule = { threshold: number; fee: number; kind?: string; base?: number };
   const [rules, setRules] = useState<FeeRule[]>([]);
@@ -149,7 +144,7 @@ export const FeesView = () => {
                           value={r.kind ? { label: r.kind, value: r.kind } as any : undefined}
                           onValueChange={(opt) => setRules(rs => rs.map((it, i) => i===idx ? { ...it, kind: opt?.label } : it))}
                         >
-                          <SelectTrigger ref={triggerRef} className="w-full" onTouchStart={onTouchStart}>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="选择玩法（不选表示通用规则）" />
                           </SelectTrigger>
                           <SelectContent className="w-full max-h-72">

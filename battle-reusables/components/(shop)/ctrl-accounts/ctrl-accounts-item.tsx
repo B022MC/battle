@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useRequest } from '@/hooks/use-request';
 import { shopsCtrlAccountsUnbind } from '@/services/shops/ctrlAccounts';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import {
   InfoCard,
   InfoCardHeader,
@@ -42,9 +43,11 @@ export const CtrlAccountsItem = ({ houseId, data }: CtrlAccountsItemProps) => {
         <InfoCardRow label="状态" value={status === 1 ? '启用' : '禁用'} />
       </InfoCardContent>
       <InfoCardFooter>
-        <Button disabled={unbindLoading} onPress={handleUnbind}>
-          <Text>解绑</Text>
-        </Button>
+        <PermissionGate anyOf={['game:ctrl:delete']}>
+          <Button disabled={unbindLoading} onPress={handleUnbind}>
+            <Text>解绑</Text>
+          </Button>
+        </PermissionGate>
       </InfoCardFooter>
     </InfoCard>
   );

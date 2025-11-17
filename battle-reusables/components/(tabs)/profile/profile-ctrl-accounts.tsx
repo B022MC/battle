@@ -95,7 +95,6 @@ export const ProfileCtrlAccounts = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     await runListAccounts();
-    await runGetHouseOptions();
     setRefreshing(false);
   };
 

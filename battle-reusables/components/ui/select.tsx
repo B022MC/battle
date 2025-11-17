@@ -15,14 +15,12 @@ const Select = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;
 
-function SelectValue({
-  ref,
-  className,
-  ...props
-}: SelectPrimitive.ValueProps &
-  React.RefAttributes<SelectPrimitive.ValueRef> & {
+const SelectValue = React.forwardRef<
+  SelectPrimitive.ValueRef,
+  SelectPrimitive.ValueProps & {
     className?: string;
-  }) {
+  }
+>(({ className, ...props }, ref) => {
   const { value } = SelectPrimitive.useRootContext();
   return (
     <SelectPrimitive.Value
@@ -35,19 +33,17 @@ function SelectValue({
       {...omitResponderProps(props)}
     />
   );
-}
+});
 
-function SelectTrigger({
-  ref,
-  className,
-  children,
-  size = 'default',
-  ...props
-}: SelectPrimitive.TriggerProps &
-  React.RefAttributes<SelectPrimitive.TriggerRef> & {
+SelectValue.displayName = 'SelectValue';
+
+const SelectTrigger = React.forwardRef<
+  SelectPrimitive.TriggerRef,
+  SelectPrimitive.TriggerProps & {
     children?: React.ReactNode;
     size?: 'default' | 'sm';
-  }) {
+  }
+>(({ className, children, size = 'default', ...props }, ref) => {
   return (
     <SelectPrimitive.Trigger
       ref={ref}
@@ -65,21 +61,19 @@ function SelectTrigger({
       <Icon as={ChevronDown} aria-hidden={true} className="text-muted-foreground size-4" />
     </SelectPrimitive.Trigger>
   );
-}
+});
+
+SelectTrigger.displayName = 'SelectTrigger';
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
 
-function SelectContent({
-  className,
-  children,
-  position = 'popper',
-  portalHost,
-  ...props
-}: SelectPrimitive.ContentProps &
-  React.RefAttributes<SelectPrimitive.ContentRef> & {
+const SelectContent = React.forwardRef<
+  SelectPrimitive.ContentRef,
+  SelectPrimitive.ContentProps & {
     className?: string;
     portalHost?: string;
-  }) {
+  }
+>(({ className, children, position = 'popper', portalHost, ...props }, ref) => {
   return (
     <SelectPrimitive.Portal hostName={portalHost}>
       <FullWindowOverlay>
@@ -87,6 +81,7 @@ function SelectContent({
           <TextClassContext.Provider value="text-popover-foreground">
             <NativeOnlyAnimatedView className="z-50" entering={FadeIn} exiting={FadeOut}>
               <SelectPrimitive.Content
+                ref={ref}
                 className={cn(
                   'bg-popover border-border relative z-50 min-w-[8rem] rounded-md border shadow-md shadow-black/5',
                   Platform.select({
@@ -130,27 +125,32 @@ function SelectContent({
       </FullWindowOverlay>
     </SelectPrimitive.Portal>
   );
-}
+});
 
-function SelectLabel({
-  className,
-  ...props
-}: SelectPrimitive.LabelProps & React.RefAttributes<SelectPrimitive.LabelRef>) {
+SelectContent.displayName = 'SelectContent';
+
+const SelectLabel = React.forwardRef<
+  SelectPrimitive.LabelRef,
+  SelectPrimitive.LabelProps
+>(({ className, ...props }, ref) => {
   return (
     <SelectPrimitive.Label
+      ref={ref}
       className={cn('text-muted-foreground px-2 py-2 text-xs sm:py-1.5', className)}
       {...omitResponderProps(props)}
     />
   );
-}
+});
 
-function SelectItem({
-  className,
-  children,
-  ...props
-}: SelectPrimitive.ItemProps & React.RefAttributes<SelectPrimitive.ItemRef>) {
+SelectLabel.displayName = 'SelectLabel';
+
+const SelectItem = React.forwardRef<
+  SelectPrimitive.ItemRef,
+  SelectPrimitive.ItemProps
+>(({ className, children, ...props }, ref) => {
   return (
     <SelectPrimitive.Item
+      ref={ref}
       className={cn(
         'active:bg-accent group relative flex w-full flex-row items-center gap-2 rounded-sm py-2 pl-2 pr-8 sm:py-1.5',
         Platform.select({
@@ -168,14 +168,17 @@ function SelectItem({
       <SelectPrimitive.ItemText className="text-foreground group-active:text-accent-foreground select-none text-sm" />
     </SelectPrimitive.Item>
   );
-}
+});
 
-function SelectSeparator({
-  className,
-  ...props
-}: SelectPrimitive.SeparatorProps & React.RefAttributes<SelectPrimitive.SeparatorRef>) {
+SelectItem.displayName = 'SelectItem';
+
+const SelectSeparator = React.forwardRef<
+  SelectPrimitive.SeparatorRef,
+  SelectPrimitive.SeparatorProps
+>(({ className, ...props }, ref) => {
   return (
     <SelectPrimitive.Separator
+      ref={ref}
       className={cn(
         'bg-border -mx-1 my-1 h-px',
         Platform.select({ web: 'pointer-events-none' }),
@@ -184,7 +187,9 @@ function SelectSeparator({
       {...omitResponderProps(props)}
     />
   );
-}
+});
+
+SelectSeparator.displayName = 'SelectSeparator';
 
 /**
  * @platform Web only

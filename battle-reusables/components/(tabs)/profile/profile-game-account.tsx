@@ -13,9 +13,11 @@ import { TriggerRef } from '@rn-primitives/select';
 import { useRef } from 'react';
 import { isWeb } from '@/utils/platform';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
+import { useAuthStore } from '@/hooks/use-auth-store';
 
 export const ProfileGameAccount = () => {
   const { getLoginModeLabel } = usePlazaConsts();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: me, run: runMe, loading: loadingMe } = useRequest(gameAccountMe, { manual: true });
   const { data: houses, run: runHouses, loading: loadingHouses } = useRequest(gameAccountMeHouses, { manual: true });
   const { run: runVerify, loading: verifying } = useRequest(gameAccountVerify, { manual: true });
@@ -52,9 +54,11 @@ export const ProfileGameAccount = () => {
   const modeOption = modeOptions.find(o => o.value === mode);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     runMe();
     runHouses();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // 调试信息
   useEffect(() => {

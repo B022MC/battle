@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { usePermission } from '@/hooks/use-permission';
 
 export const ProfileView = () => {
-  const { user, roles, perms, platform, clearAuth, updateAuth } = useAuthStore();
+  const { user, roles, perms, platform, clearAuth, updateAuth, isAuthenticated } = useAuthStore();
   const { isSuperAdmin, hasAny } = usePermission();
   const isAdmin = hasAny([
     'shop:admin:assign', 'shop:admin:view',
@@ -90,7 +90,11 @@ export const ProfileView = () => {
     runUpdate({ id: uid, username: uname ?? '', nick_name: nick, avatar });
   };
 
-  React.useEffect(() => { runMe(); }, []);
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    runMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return (
     <View className="flex-1">
@@ -122,8 +126,8 @@ export const ProfileView = () => {
             </InfoCardFooter>
           </InfoCard>
 
-          {/* 所有非超级管理员用户都可以绑定游戏账号 */}
-          {!isSuperAdmin && <ProfileGameAccount />}
+          {/* 普通用户可以绑定游戏账号，管理员无需绑定 */}
+          {!isSuperAdmin && !isAdmin && <ProfileGameAccount />}
 
           {/* 中控账号区域仅对超级管理员可见 - 使用新的综合管理组件 */}
           {isSuperAdmin && <ProfileCtrlAccounts />}
