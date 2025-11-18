@@ -46,11 +46,11 @@ export const request = async <T>(
   const nativeApiUrl = hostFromEnv
     ? `http://${hostFromEnv}:8000`
     : process.env.EXPO_PUBLIC_DEV_API_URL ||
-      (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://8.137.52.203:8000');
+      (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://127.0.0.1:8000');
 
   // Web 环境下，如果有自定义 host 则使用，否则使用开发环境的 API URL
   const apiUrl = isWeb
-    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_URL || 'http://8.137.52.203:8000')
+    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_URL || 'http://127.0.0.1:8000')
     : nativeApiUrl;
 
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';

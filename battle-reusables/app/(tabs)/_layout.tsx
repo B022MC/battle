@@ -15,8 +15,10 @@ export default function TabLayout() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { hasAny } = usePermission();
+  const canViewStats = hasAny(['stats:view']);
   const canViewTables = hasAny(['shop:table:view']);
   const canViewMembers = hasAny(['shop:member:view']);
+  const canViewFunds = hasAny(['fund:wallet:view']);
 
   useFocusEffect(() => {
     if (!isAuthenticated) router.replace('/auth');
@@ -37,6 +39,7 @@ export default function TabLayout() {
           title: '首页',
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="首页" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={HomeIcon} />,
+          href: canViewStats ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -63,6 +66,7 @@ export default function TabLayout() {
           title: '资金',
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="资金" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={WalletIcon} />,
+          href: canViewFunds ? undefined : null,
         }}
       />
       <Tabs.Screen

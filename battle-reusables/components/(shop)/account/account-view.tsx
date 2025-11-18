@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,18 +20,52 @@ export const AccountView = () => {
 
   const handleBind = async () => {
     if (!account || !password) return;
-    await bindAccount({
-      mode: 'account',
-      account,
-      pwd_md5: password,
-      nickname: nickname || undefined,
-    });
-    getAccount();
+    
+    Alert.alert(
+      '确认绑定',
+      `确定要绑定游戏账号 "${account}" 吗？`,
+      [
+        {
+          text: '取消',
+          style: 'cancel'
+        },
+        {
+          text: '确定',
+          onPress: async () => {
+            await bindAccount({
+              mode: 'account',
+              account,
+              pwd_md5: password,
+              nickname: nickname || undefined,
+            });
+            getAccount();
+          }
+        }
+      ],
+      { cancelable: false }
+    );
   };
 
   const handleDelete = async () => {
-    await deleteAccount();
-    getAccount();
+    Alert.alert(
+      '确认解绑',
+      `确定要解绑游戏账号 "${myAccount?.account}" 吗？解绑后需要重新绑定才能使用。`,
+      [
+        {
+          text: '取消',
+          style: 'cancel'
+        },
+        {
+          text: '确定解绑',
+          onPress: async () => {
+            await deleteAccount();
+            getAccount();
+          },
+          style: 'destructive'
+        }
+      ],
+      { cancelable: false }
+    );
   };
 
   return (
