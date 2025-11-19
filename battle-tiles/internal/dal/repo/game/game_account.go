@@ -19,8 +19,9 @@ type GameAccountRepo interface {
 	GetByIDForUser(ctx context.Context, id int32, userID int32) (*model.GameAccount, error)
 	DeleteByUser(ctx context.Context, userID int32) error
 	CountByCtrl(ctx context.Context, ctrlID int32) (int64, error)
-	ListByGameUserIDEmpty(ctx context.Context) ([]*model.GameAccount, error) // 查询 game_user_id 为空的记录
-	Update(ctx context.Context, a *model.GameAccount) error                   // 更新记录
+	ListByGameUserIDEmpty(ctx context.Context) ([]*model.GameAccount, error)            // 查询 game_user_id 为空的记录
+	Update(ctx context.Context, a *model.GameAccount) error                             // 更新记录
+	GetByGameUserID(ctx context.Context, gameUserID string) (*model.GameAccount, error) // 通过游戏账号ID查询
 }
 
 type gameAccountRepo struct {
@@ -102,4 +103,17 @@ func (r *gameAccountRepo) Update(ctx context.Context, a *model.GameAccount) erro
 	return r.data.GetDBWithContext(ctx).
 		Model(a).
 		Updates(a).Error
+}
+
+// GetByGameUserID 通过游戏账号ID（game_user_id）查询游戏账号
+// 注意：game_user_id 是游戏服务器返回的账号ID，不是系统内部ID
+func (r *gameAccountRepo) GetByGameUserID(ctx context.Context, gameUserID string) (*model.GameAccount, error) {
+	var a model.GameAccount
+	err := r.data.GetDBWithContext(ctx).
+		Where("game_user_id = ? AND is_del = 0", gameUserID).
+		First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
 }

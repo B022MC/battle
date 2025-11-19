@@ -67,7 +67,7 @@ export function RoleForm({ visible, onClose, onSuccess, role }: RoleFormProps) {
           onSuccess();
           onClose();
         } else {
-          showToast(res.message || '更新失败', 'error');
+          showToast(res.msg || '更新失败', 'error');
         }
       } else {
         // 创建
@@ -82,7 +82,7 @@ export function RoleForm({ visible, onClose, onSuccess, role }: RoleFormProps) {
           onSuccess();
           onClose();
         } else {
-          showToast(res.message || '创建失败', 'error');
+          showToast(res.msg || '创建失败', 'error');
         }
       }
     } catch (error) {

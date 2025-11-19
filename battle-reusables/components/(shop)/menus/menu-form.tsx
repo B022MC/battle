@@ -144,8 +144,14 @@ export function MenuForm({ visible, onClose, onSuccess, menu }: MenuFormProps) {
           show_link: showLink,
           show_parent: showParent,
         };
-        await updateMenu(data);
-        showToast('更新成功', 'success');
+        const res = await updateMenu(data);
+        if (res.code === 0) {
+          showToast('更新成功', 'success');
+          onSuccess();
+          onClose();
+        } else {
+          showToast(res.msg || '更新失败', 'error');
+        }
       } else {
         // 创建
         const data: CreateMenuRequest = {
@@ -161,14 +167,18 @@ export function MenuForm({ visible, onClose, onSuccess, menu }: MenuFormProps) {
           show_link: showLink,
           show_parent: showParent,
         };
-        await createMenu(data);
-        showToast('创建成功', 'success');
+        const res = await createMenu(data);
+        if (res.code === 0) {
+          showToast('创建成功', 'success');
+          onSuccess();
+          onClose();
+        } else {
+          showToast(res.msg || '创建失败', 'error');
+        }
       }
-      
-      onSuccess();
-      onClose();
     } catch (error: any) {
-      showToast(error.message || '操作失败', 'error');
+      showToast(menu ? '更新失败' : '创建失败', 'error');
+      console.error('Menu form error:', error);
     } finally {
       setLoading(false);
     }

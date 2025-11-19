@@ -123,7 +123,7 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
             <View className="flex-1">
               <View className="flex-row items-center">
                 {/* 展开/折叠按钮 */}
-                {hasChildren && (
+                {hasChildren ? (
                   <TouchableOpacity
                     onPress={() => toggleExpand(menu.id)}
                     className="mr-2"
@@ -132,8 +132,9 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
                       {isExpanded ? '▼' : '▶'}
                     </Text>
                   </TouchableOpacity>
+                ) : (
+                  <View className="w-6" />
                 )}
-                {!hasChildren && <View className="w-6" />}
 
                 <View className="flex-1">
                   <Text className="text-base font-medium text-gray-900">
@@ -142,11 +143,11 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
                   <Text className="text-sm text-gray-500 mt-1">
                     {menu.name} • {menu.path}
                   </Text>
-                  {menu.auths && (
+                  {menu.auths ? (
                     <Text className="text-xs text-gray-400 mt-1">
                       权限: {menu.auths}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -175,8 +176,9 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
         </View>
 
         {/* 子菜单 */}
-        {isExpanded &&
-          children.map((child) => renderMenu(child, level + 1))}
+        {isExpanded && children.length > 0 && (
+          <>{children.map((child) => renderMenu(child, level + 1))}</>
+        )}
       </View>
     );
   };

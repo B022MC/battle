@@ -23,24 +23,36 @@ type ShopApplicationService struct {
 	users    basicRepo.BasicUserRepo
 	auth     basicRepo.AuthRepo
 	sAdm     gameRepo.GameShopAdminRepo
+	logRepo  gameRepo.ShopApplicationLogRepo // 游戏内申请日志
 }
 
-func NewShopApplicationService(mgr plaza.Manager, userRepo gameRepo.UserApplicationRepo, users basicRepo.BasicUserRepo, auth basicRepo.AuthRepo, sAdm gameRepo.GameShopAdminRepo) *ShopApplicationService {
-	return &ShopApplicationService{mgr: mgr, userRepo: userRepo, users: users, auth: auth, sAdm: sAdm}
+func NewShopApplicationService(mgr plaza.Manager, userRepo gameRepo.UserApplicationRepo, users basicRepo.BasicUserRepo, auth basicRepo.AuthRepo, sAdm gameRepo.GameShopAdminRepo, logRepo gameRepo.ShopApplicationLogRepo) *ShopApplicationService {
+	return &ShopApplicationService{mgr: mgr, userRepo: userRepo, users: users, auth: auth, sAdm: sAdm, logRepo: logRepo}
 }
 
 func (s *ShopApplicationService) RegisterRouter(r *gin.RouterGroup) {
-	shops := r.Group("/shops").Use(middleware.JWTAuth())
-	apps := r.Group("/applications").Use(middleware.JWTAuth())
+	// ============ 游戏内申请功能（新）============
+	g := r.Group("/shops/game-applications").Use(middleware.JWTAuth())
+	g.POST("/list", middleware.RequirePerm("shop:applications:view"), s.ListGameApplications)
+	g.POST("/approve", middleware.RequirePerm("shop:applications:approve"), s.ApproveGameApplication)
+	g.POST("/reject", middleware.RequirePerm("shop:applications:reject"), s.RejectGameApplication)
 
-	// 路由不带参数，全部从 body 取
-	shops.POST("/applications/list", middleware.RequirePerm("shop:apply:view"), s.List)
-	shops.POST("/applications/applyAdmin", s.ApplyAdmin)
-	shops.POST("/applications/applyJoin", s.ApplyJoin)
-	// 仅返回当前用户的申请记录，无需额外权限
-	shops.POST("/applications/history", s.History)
-	apps.POST("/approve", middleware.RequirePerm("shop:apply:approve"), s.Approve)
-	apps.POST("/reject", middleware.RequirePerm("shop:apply:reject"), s.Reject)
+	// ============ 旧的管理员申请功能（已废弃）============
+	// 注释：入圈申请和管理员申请功能已废弃（2025-11-19）
+	// 如需恢复，取消以下注释
+	/*
+		shops := r.Group("/shops").Use(middleware.JWTAuth())
+		apps := r.Group("/applications").Use(middleware.JWTAuth())
+
+		// 路由不带参数，全部从 body 取
+		shops.POST("/applications/list", middleware.RequirePerm("shop:apply:view"), s.List)
+		shops.POST("/applications/applyAdmin", s.ApplyAdmin)
+		shops.POST("/applications/applyJoin", s.ApplyJoin)
+		// 仅返回当前用户的申请记录，无需额外权限
+		shops.POST("/applications/history", s.History)
+		apps.POST("/approve", middleware.RequirePerm("shop:apply:approve"), s.Approve)
+		apps.POST("/reject", middleware.RequirePerm("shop:apply:reject"), s.Reject)
+	*/
 }
 
 // List
@@ -436,5 +448,145 @@ func (s *ShopApplicationService) ApplyJoin(c *gin.Context) {
 		response.Fail(c, ecode.Failed, err)
 		return
 	}
+	response.SuccessWithOK(c)
+}
+
+// ============ 游戏内申请功能（新）============
+
+// ListGameApplications 列出游戏内待处理申请（从 Plaza Session 内存读取）
+// @Summary 查询游戏内申请列表
+// @Description 从 Plaza Session 内存读取实时申请列表
+// @Tags 店铺/游戏申请
+// @Accept json
+// @Produce json
+// @Param in body req.ListGameApplicationsRequest true "house_gid"
+// @Success 200 {object} response.Body{data=[]resp.GameApplicationVO}
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Router /shops/game-applications/list [post]
+func (s *ShopApplicationService) ListGameApplications(c *gin.Context) {
+	var in req.ListGameApplicationsRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+
+	// 从 Plaza Session 内存读取申请列表
+	sess, ok := s.mgr.Get(int(claims.BaseClaims.UserID), int(in.HouseGID))
+	if !ok {
+		// 尝试获取该店铺的任意会话（共享读取）
+		sess, ok = s.mgr.GetAnyByHouse(int(in.HouseGID))
+		if !ok {
+			// 没有会话时，返回空列表（不报错）
+			response.Success(c, []resp.GameApplicationVO{})
+			return
+		}
+	}
+
+	// 获取申请列表（从内存）
+	applications := sess.ListApplications(int(in.HouseGID))
+
+	var result []resp.GameApplicationVO
+	for _, app := range applications {
+		result = append(result, resp.GameApplicationVO{
+			MessageID:    app.MessageId,
+			HouseGID:     int32(app.HouseGid),
+			ApplierGID:   int32(app.ApplierGid),
+			ApplierGName: app.ApplierGName,
+			AppliedAt:    app.CreatedAt,
+		})
+	}
+
+	response.Success(c, result)
+}
+
+// ApproveGameApplication 通过游戏内申请
+// @Summary 通过游戏内申请
+// @Description 发送通过命令到游戏服务器，并记录操作日志
+// @Tags 店铺/游戏申请
+// @Accept json
+// @Produce json
+// @Param in body req.RespondGameApplicationRequest true "house_gid, message_id"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Router /shops/game-applications/approve [post]
+func (s *ShopApplicationService) ApproveGameApplication(c *gin.Context) {
+	s.respondGameApplication(c, true)
+}
+
+// RejectGameApplication 拒绝游戏内申请
+// @Summary 拒绝游戏内申请
+// @Description 发送拒绝命令到游戏服务器，并记录操作日志
+// @Tags 店铺/游戏申请
+// @Accept json
+// @Produce json
+// @Param in body req.RespondGameApplicationRequest true "house_gid, message_id"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Router /shops/game-applications/reject [post]
+func (s *ShopApplicationService) RejectGameApplication(c *gin.Context) {
+	s.respondGameApplication(c, false)
+}
+
+// respondGameApplication 处理游戏内申请（通用方法）
+func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bool) {
+	var in req.RespondGameApplicationRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+
+	// 获取 plaza session
+	sess, ok := s.mgr.Get(int(claims.BaseClaims.UserID), int(in.HouseGID))
+	if !ok {
+		response.Fail(c, ecode.Failed, "会话不存在，请先登录游戏")
+		return
+	}
+
+	// 从内存查找申请信息
+	applyInfo, ok := sess.FindApplicationByID(in.MessageID)
+	if !ok {
+		response.Fail(c, ecode.Failed, "申请信息不存在或已过期")
+		return
+	}
+
+	// 发送响应命令到游戏服务器
+	sess.RespondApplication(applyInfo, agree)
+
+	// 记录操作日志到数据库（异步，不影响主流程）
+	if s.logRepo != nil {
+		action := gameModel.ApplicationActionRejected
+		if agree {
+			action = gameModel.ApplicationActionApproved
+		}
+		go func() {
+			logEntry := &gameModel.GameShopApplicationLog{
+				HouseGID:     int32(applyInfo.HouseGid),
+				ApplierGID:   int32(applyInfo.ApplierGid),
+				ApplierGName: applyInfo.ApplierGName,
+				Action:       action,
+				AdminUserID:  claims.BaseClaims.UserID,
+				CreatedAt:    time.Now(),
+			}
+			if err := s.logRepo.Create(c.Request.Context(), logEntry); err != nil {
+				// 日志记录失败不影响主流程
+			}
+		}()
+	}
+
 	response.SuccessWithOK(c)
 }

@@ -1,5 +1,20 @@
 package req
 
+// ============ 游戏内申请功能（从 Plaza Session 内存读取）============
+
+// ListGameApplicationsRequest 请求：列出游戏内待处理申请（从内存读取）
+type ListGameApplicationsRequest struct {
+	HouseGID int32 `json:"house_gid" binding:"required"` // 店铺游戏ID
+}
+
+// RespondGameApplicationRequest 请求：处理游戏内申请（通过/拒绝）
+type RespondGameApplicationRequest struct {
+	HouseGID  int32 `json:"house_gid" binding:"required"`  // 店铺游戏ID
+	MessageID int   `json:"message_id" binding:"required"` // 游戏消息ID
+}
+
+// ============ 旧的管理员申请功能（已废弃，保留用于兼容）============
+
 // ListApplicationsRequest 请求：按店铺号列出管理员申请
 type ListApplicationsRequest struct {
 	HouseGID int  `json:"house_gid" binding:"required"`      // 店铺号（HouseGID）

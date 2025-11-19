@@ -62,7 +62,7 @@ export function RoleList({
                 loadRoles();
                 onRefresh?.();
               } else {
-                showToast(res.message || '删除失败', 'error');
+                showToast(res.msg || '删除失败', 'error');
               }
             } catch (error) {
               showToast('删除失败', 'error');
