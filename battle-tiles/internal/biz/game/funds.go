@@ -202,7 +202,7 @@ func (uc *FundsUseCase) UpdateLimit(ctx context.Context, opUser int32, houseGID,
 // —— 单人钱包 ——
 // 这里你的 model 就是 time.Time，直接塞出去即可
 func (uc *FundsUseCase) GetWallet(ctx context.Context, houseGID, memberID int32) (*resp.WalletVO, error) {
-	m, err := uc.walletRead.Get(ctx, houseGID, memberID)
+	m, err := uc.walletRead.Get(ctx, houseGID, memberID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (uc *FundsUseCase) GetWallet(ctx context.Context, houseGID, memberID int32)
 // —— 钱包列表 ——
 // 直接映射，无需额外转换
 func (uc *FundsUseCase) ListWallets(ctx context.Context, houseGID int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]resp.WalletVO, int64, error) {
-	list, total, err := uc.walletRead.ListWallets(ctx, houseGID, min, max, hasCustomLimit, page, size)
+	list, total, err := uc.walletRead.ListWallets(ctx, houseGID, nil, min, max, hasCustomLimit, page, size)
 	if err != nil {
 		return nil, 0, err
 	}

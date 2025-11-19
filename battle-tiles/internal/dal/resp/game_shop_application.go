@@ -1,5 +1,18 @@
 package resp
 
+// ============ 游戏内申请功能 Response ============
+
+// GameApplicationVO 游戏内申请信息（从 Plaza Session 内存读取）
+type GameApplicationVO struct {
+	MessageID    int    `json:"message_id"`    // 游戏消息ID
+	HouseGID     int32  `json:"house_gid"`     // 店铺游戏ID
+	ApplierGID   int32  `json:"applier_gid"`   // 申请人游戏ID
+	ApplierGName string `json:"applier_gname"` // 申请人游戏昵称
+	AppliedAt    int64  `json:"applied_at"`    // 申请时间戳（秒）
+}
+
+// ============ 旧的管理员申请功能 Response（已废弃）============
+
 // ApplicationItemVO 单条申请信息
 type ApplicationItemVO struct {
 	ID          int    `json:"id"`            // 申请消息ID

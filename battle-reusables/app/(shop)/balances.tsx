@@ -4,10 +4,11 @@ import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { InfoCard, InfoCardContent, InfoCardFooter, InfoCardHeader, InfoCardRow, InfoCardTitle } from '@/components/shared/info-card';
+import { RouteGuard } from '@/components/auth/RouteGuard';
 import { useRequest } from '@/hooks/use-request';
 import { membersWalletListByGroup } from '@/services/members/wallet';
 
-export default function BalancesScreen() {
+function BalancesContent() {
   const [houseGid, setHouseGid] = useState('');
   const [groupId, setGroupId] = useState('');
   const [maxBalance, setMaxBalance] = useState('');
@@ -43,6 +44,14 @@ export default function BalancesScreen() {
         </InfoCardFooter>
       </InfoCard>
     </ScrollView>
+  );
+}
+
+export default function BalancesScreen() {
+  return (
+    <RouteGuard anyOf={['fund:wallet:view']}>
+      <BalancesContent />
+    </RouteGuard>
   );
 }
 

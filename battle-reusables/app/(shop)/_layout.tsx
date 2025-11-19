@@ -17,13 +17,15 @@ export default function ShopLayout() {
         headerShadowVisible: false,
       }}>
       <Stack.Screen name="account" options={{ title: '游戏账号' }} />
-      <Stack.Screen name="session" options={{ title: '会话管理' }} />
-      <Stack.Screen name="applications" options={{ title: '申请管理' }} />
       <Stack.Screen name="admins" options={{ title: '管理员' }} />
       <Stack.Screen name="rooms" options={{ title: '中控账号' }} />
       <Stack.Screen name="fees" options={{ title: '费用设置' }} />
       <Stack.Screen name="balances" options={{ title: '余额筛查' }} />
       <Stack.Screen name="members" options={{ title: '成员管理' }} />
+      <Stack.Screen name="my-battles" options={{ title: '我的战绩' }} />
+      <Stack.Screen name="my-balances" options={{ title: '我的余额' }} />
+      <Stack.Screen name="group-battles" options={{ title: '圈子战绩' }} />
+      <Stack.Screen name="group-balances" options={{ title: '圈子余额' }} />
     </Stack>
   );
 }

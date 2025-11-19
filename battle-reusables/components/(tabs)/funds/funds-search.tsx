@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Pressable } from 'react-native';
 import { Input } from '@/components/ui/input';
 import { Button, ButtonProps } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import z from 'zod';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { omitResponderProps } from '@/lib/utils';
 import { useRecentHouseIds } from '@/hooks/use-recent-house-ids';
+import { useRequest } from '@/hooks/use-request';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { TriggerRef } from '@rn-primitives/select';
+import { isWeb } from '@/utils/platform';
 
 const searchFormSchema = z.lazy(() =>
   z.object({
@@ -46,6 +60,12 @@ export const FundsSearch = ({ submitButtonProps, onSubmit }: FundsSearchProps) =
   };
 
   const { loading, ...restSubmitButtonProps } = submitButtonProps ?? {};
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const ref = useRef<TriggerRef>(null);
+
+  function onTouchStart() {
+    isWeb && ref.current?.open();
+  }
 
   return (
     <View className="flex flex-col gap-2 border-b border-b-border p-4">
@@ -54,24 +74,24 @@ export const FundsSearch = ({ submitButtonProps, onSubmit }: FundsSearchProps) =
           control={control}
           name="houseGid"
           render={({ field: { onChange, value } }) => (
-            <View className="flex-1">
-              <Input
-                keyboardType="numeric"
-                className="w-full"
-                placeholder="店铺号"
-                value={value}
-                onChangeText={onChange}
-              />
-              {suggestions(value).length > 0 && (
-                <View className="mt-1 gap-1">
-                  {suggestions(value).map((s) => (
-                    <Pressable key={s} onPress={() => onChange(s)}>
-                      <Text className="text-muted-foreground">历史：{s}</Text>
-                    </Pressable>
+            <Select
+              value={value ? ({ label: `店铺 ${value}`, value } as any) : undefined}
+              onValueChange={(opt) => onChange(String(opt?.value ?? ''))}
+            >
+              <SelectTrigger ref={ref} onTouchStart={onTouchStart} className="min-w-[160px]">
+                <SelectValue placeholder={value ? `店铺 ${value}` : '选择店铺号'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>店铺号</SelectLabel>
+                  {(houseOptions ?? []).map((gid) => (
+                    <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                      店铺 {gid}
+                    </SelectItem>
                   ))}
-                </View>
-              )}
-            </View>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           )}
         />
       </View>

@@ -6,6 +6,9 @@ declare namespace API {
 
   type LoginRegisterParams = LoginUsernameParams & {
     nick_name?: string;
+    game_account_mode?: string;
+    game_account?: string;
+    game_password?: string;
   };
 
   type UserInfo = {

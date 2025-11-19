@@ -63,6 +63,9 @@ type Manager interface {
 	// 指标与健康
 	Metrics() Metrics
 	Health() HealthStatus
+
+	// 设置重连失败回调
+	SetReconnectFailedCallback(callback func(houseGID int, retryCount int) int32)
 }
 
 type manager struct {
@@ -77,6 +80,9 @@ type manager struct {
 	// 指标
 	restartCount  map[string]int       // 重启次数，按 userID:houseGID 统计
 	lastRestartAt map[string]time.Time // 最近一次重启时间
+
+	// 重连失败回调 (houseGID, retryCount) -> ctrlAccountID
+	onReconnectFailedCallback func(houseGID int, retryCount int) int32
 }
 
 // 复合 key
@@ -105,10 +111,11 @@ func NewManager(globalConf *conf.Global, logger log.Logger) Manager {
 // --- handler 包装器：实现并转发 IPlazaHandler 的全部方法，附带钩子 ---
 
 type handlerWrapper struct {
-	inner     Handler
-	onLogin   func(ok bool)
-	onRooms   func(tables []*utilsplaza.TableInfo)
-	onRestart func(s *utilsplaza.Session)
+	inner            Handler
+	onLogin          func(ok bool)
+	onRooms          func(tables []*utilsplaza.TableInfo)
+	onRestart        func(s *utilsplaza.Session)
+	onReconnectFailed func(houseGID int, retryCount int)
 }
 
 func (w *handlerWrapper) OnSessionRestarted(s *utilsplaza.Session) {
@@ -184,6 +191,14 @@ func (w *handlerWrapper) OnAppliesForHouse(list []*utilsplaza.ApplyInfo) {
 		w.inner.OnAppliesForHouse(list)
 	}
 }
+func (w *handlerWrapper) OnReconnectFailed(houseGID int, retryCount int) {
+	if w.onReconnectFailed != nil {
+		w.onReconnectFailed(houseGID, retryCount)
+	}
+	if w.inner != nil {
+		w.inner.OnReconnectFailed(houseGID, retryCount)
+	}
+}
 
 // --- Manager 方法实现 ---
 
@@ -227,6 +242,14 @@ func (m *manager) StartUser(ctx context.Context, userID, houseGID int, mode cons
 			m.sessions[key] = s
 			m.restartCount[key] = m.restartCount[key] + 1
 			m.lastRestartAt[key] = time.Now()
+		},
+		onReconnectFailed: func(houseGID int, retryCount int) {
+			m.logger.Errorf("重连失败 house=%d retries=%d, 将自动停用中控账号", houseGID, retryCount)
+			// 调用回调获取 ctrlAccountID 并停用
+			if m.onReconnectFailedCallback != nil {
+				ctrlID := m.onReconnectFailedCallback(houseGID, retryCount)
+				m.logger.Infof("自动停用中控账号 ctrlID=%d house=%d", ctrlID, houseGID)
+			}
 		},
 	}
 
@@ -564,4 +587,11 @@ func (m *manager) ListHousesByLogin(ctx context.Context, mode consts.GameLoginMo
 			}
 		}
 	}
+}
+
+// SetReconnectFailedCallback 设置重连失败回调
+func (m *manager) SetReconnectFailedCallback(callback func(houseGID int, retryCount int) int32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onReconnectFailedCallback = callback
 }

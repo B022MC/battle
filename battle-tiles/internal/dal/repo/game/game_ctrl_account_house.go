@@ -20,7 +20,11 @@ type GameCtrlAccountHouseRepo interface {
 	ListByHouse(ctx context.Context, houseGID int32) ([]*model.GameCtrlAccount, error)
 	// 按中控列出其绑定的店铺
 	ListHousesByCtrl(ctx context.Context, ctrlID int32) ([]*model.GameCtrlAccountHouse, error)
+	// 按中控ID列出其绑定的店铺
+	ListByCtrlID(ctx context.Context, ctrlID int32) ([]*model.GameCtrlAccountHouse, error)
 	ListHouseMapByCtrlIDs(ctx context.Context, ctrlIDs []int32) (map[int32][]int32, error)
+	// 删除中控账号的所有绑定
+	DeleteByCtrlID(ctx context.Context, ctrlID int32) error
 	// 列出所有出现过的店铺号（去重）
 	ListDistinctHouses(ctx context.Context) ([]int32, error)
 }
@@ -132,9 +136,39 @@ func (r *gameCtrlAccountHouseRepo) ListHouseMapByCtrlIDs(ctx context.Context, ct
 	return m, nil
 }
 
+func (r *gameCtrlAccountHouseRepo) ListByCtrlID(ctx context.Context, ctrlID int32) ([]*model.GameCtrlAccountHouse, error) {
+	var rows []*model.GameCtrlAccountHouse
+	err := r.db(ctx).
+		Table("game_account_house AS l").
+		Select("l.*").
+		Joins("JOIN game_account AS ga ON ga.id = l.game_account_id").
+		Where("ga.ctrl_account_id = ?", ctrlID).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *gameCtrlAccountHouseRepo) DeleteByCtrlID(ctx context.Context, ctrlID int32) error {
+	// 删除该中控账号下所有 game_account 的绑定关系
+	return r.db(ctx).
+		Exec(`DELETE FROM game_account_house
+			  WHERE game_account_id IN (
+				  SELECT id FROM game_account WHERE ctrl_account_id = ?
+			  )`, ctrlID).Error
+}
+
 func (r *gameCtrlAccountHouseRepo) ListDistinctHouses(ctx context.Context) ([]int32, error) {
 	var rows []int32
-	if err := r.db(ctx).Table("game_account_house").Distinct("house_gid").Pluck("house_gid", &rows).Error; err != nil {
+	// 只返回启用账号(status=1)关联的店铺
+	err := r.db(ctx).
+		Table("game_account_house gah").
+		Select("DISTINCT gah.house_gid").
+		Joins("JOIN game_account ga ON ga.id = gah.game_account_id").
+		Where("ga.status = 1").
+		Pluck("gah.house_gid", &rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil

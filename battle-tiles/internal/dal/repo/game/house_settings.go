@@ -13,6 +13,7 @@ import (
 type HouseSettingsRepo interface {
 	Upsert(ctx context.Context, in *model.GameHouseSettings) error
 	Get(ctx context.Context, houseGID int32) (*model.GameHouseSettings, error)
+	UpdateShareFee(ctx context.Context, houseGID int32, enable bool) error
 }
 
 type houseSettingsRepo struct {
@@ -42,4 +43,10 @@ func (r *houseSettingsRepo) Get(ctx context.Context, houseGID int32) (*model.Gam
 		return nil, err
 	}
 	return &m, nil
+}
+
+func (r *houseSettingsRepo) UpdateShareFee(ctx context.Context, houseGID int32, enable bool) error {
+	return r.db(ctx).Model(&model.GameHouseSettings{}).
+		Where("house_gid = ?", houseGID).
+		Update("share_fee", enable).Error
 }

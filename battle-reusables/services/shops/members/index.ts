@@ -24,6 +24,10 @@ export function shopsMembersRemovePlatform(data: { house_gid: number; group_id?:
   return post<null>('/shops/members/remove_platform', data);
 }
 
+export function shopsMembersAddToPlatform(data: { house_gid: number; group_id?: number; member_user_id: number }) {
+  return post<null>('/shops/members/add_platform', data);
+}
+
 export function shopsMembersDiamondQuery(data: API.ShopsMembersListParams) {
   return post<API.ShopsMembersDiamond>('/shops/diamond/query', data);
 }

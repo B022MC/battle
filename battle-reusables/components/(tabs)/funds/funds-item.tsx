@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRequest } from '@/hooks/use-request';
 import { membersCreditDeposit, membersCreditWithdraw, membersLimitUpdate } from '@/services/game/funds';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import {
   InfoCard,
   InfoCardHeader,
@@ -88,15 +89,21 @@ export const FundsItem = ({ houseId, data }: FundsItemProps) => {
         </View>
       </InfoCardContent>
       <InfoCardFooter>
-        <Button disabled={depositLoading || !amount} onPress={handleDeposit}>
-          上分
-        </Button>
-        <Button disabled={withdrawLoading || !amount} onPress={handleWithdraw}>
-          下分
-        </Button>
-        <Button disabled={limitLoading} onPress={handleUpdateLimit}>
-          设置阈值
-        </Button>
+        <PermissionGate anyOf={['fund:deposit']}>
+          <Button disabled={depositLoading || !amount} onPress={handleDeposit}>
+            上分
+          </Button>
+        </PermissionGate>
+        <PermissionGate anyOf={['fund:withdraw']}>
+          <Button disabled={withdrawLoading || !amount} onPress={handleWithdraw}>
+            下分
+          </Button>
+        </PermissionGate>
+        <PermissionGate anyOf={['fund:limit:update']}>
+          <Button disabled={limitLoading} onPress={handleUpdateLimit}>
+            设置阈值
+          </Button>
+        </PermissionGate>
       </InfoCardFooter>
     </InfoCard>
   );

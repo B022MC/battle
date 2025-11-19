@@ -12,6 +12,10 @@ export function gameAccountMe() {
   return get<API.GameAccountItem | null>('/game/accounts/me');
 }
 
+export function gameAccountMeHouses() {
+  return get<API.GameAccountHouseItem[]>('/game/accounts/me/houses');
+}
+
 export function gameAccountDelete() {
   return del<null>('/game/accounts/me');
 }

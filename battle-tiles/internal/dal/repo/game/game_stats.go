@@ -53,17 +53,23 @@ type LedgerAgg struct {
 }
 
 func (r *statsRepo) AggregateLedger(ctx context.Context, houseGID int, start, end time.Time) (*LedgerAgg, error) {
-	// payout 取正：对 type IN (2,3) 的负数额取反
+	// 从 game_battle_record 表查询统计数据
+	// income: 总分数（score）
+	// payout: 总费用（fee）
+	// adjust: 0（暂无调整数据）
+	// net: 总分数 - 总费用
+	// records: 战绩总数
+	// members_involved: 参与的玩家数
 	raw := `
 SELECT
-	COALESCE(SUM(CASE WHEN type = 1 THEN change_amount ELSE 0 END), 0)                                               AS income,
-	COALESCE(SUM(CASE WHEN type IN (2,3) THEN -change_amount ELSE 0 END), 0)                                         AS payout,
-	COALESCE(SUM(CASE WHEN type = 4 THEN change_amount ELSE 0 END), 0)                                               AS adjust,
-	COALESCE(SUM(change_amount), 0)                                                                                   AS net,
+	COALESCE(SUM(score), 0)                                                                                           AS income,
+	COALESCE(SUM(fee), 0)                                                                                             AS payout,
+	0                                                                                                                 AS adjust,
+	COALESCE(SUM(score) - SUM(fee), 0)                                                                                AS net,
 	COUNT(*)                                                                                                          AS records,
-	COUNT(DISTINCT member_id)                                                                                         AS members_involved
-FROM game_wallet_ledger
-WHERE house_gid = ? AND created_at >= ? AND created_at < ?;
+	COUNT(DISTINCT player_id)                                                                                         AS members_involved
+FROM game_battle_record
+WHERE house_gid = ? AND battle_at >= ? AND battle_at < ?;
 `
 	var row LedgerAgg
 	if err := r.db(ctx).Raw(raw, houseGID, start, end).Scan(&row).Error; err != nil {
@@ -75,14 +81,14 @@ WHERE house_gid = ? AND created_at >= ? AND created_at < ?;
 func (r *statsRepo) AggregateLedgerByMember(ctx context.Context, houseGID, memberID int, start, end time.Time) (*LedgerAgg, error) {
 	raw := `
 SELECT
-    COALESCE(SUM(CASE WHEN type = 1 THEN change_amount ELSE 0 END), 0)                                               AS income,
-    COALESCE(SUM(CASE WHEN type IN (2,3) THEN -change_amount ELSE 0 END), 0)                                         AS payout,
-    COALESCE(SUM(CASE WHEN type = 4 THEN change_amount ELSE 0 END), 0)                                               AS adjust,
-    COALESCE(SUM(change_amount), 0)                                                                                   AS net,
+    COALESCE(SUM(score), 0)                                                                                           AS income,
+    COALESCE(SUM(fee), 0)                                                                                             AS payout,
+    0                                                                                                                 AS adjust,
+    COALESCE(SUM(score) - SUM(fee), 0)                                                                                AS net,
     COUNT(*)                                                                                                          AS records,
-    COUNT(DISTINCT member_id)                                                                                         AS members_involved
-FROM game_wallet_ledger
-WHERE house_gid = ? AND member_id = ? AND created_at >= ? AND created_at < ?;
+    COUNT(DISTINCT player_id)                                                                                         AS members_involved
+FROM game_battle_record
+WHERE house_gid = ? AND player_id = ? AND battle_at >= ? AND battle_at < ?;
 `
 	var row LedgerAgg
 	if err := r.db(ctx).Raw(raw, houseGID, memberID, start, end).Scan(&row).Error; err != nil {
@@ -97,14 +103,14 @@ func (r *statsRepo) AggregateLedgerByMembers(ctx context.Context, houseGID int, 
 	}
 	raw := `
 SELECT
-    COALESCE(SUM(CASE WHEN type = 1 THEN change_amount ELSE 0 END), 0)                                               AS income,
-    COALESCE(SUM(CASE WHEN type IN (2,3) THEN -change_amount ELSE 0 END), 0)                                         AS payout,
-    COALESCE(SUM(CASE WHEN type = 4 THEN change_amount ELSE 0 END), 0)                                               AS adjust,
-    COALESCE(SUM(change_amount), 0)                                                                                   AS net,
+    COALESCE(SUM(score), 0)                                                                                           AS income,
+    COALESCE(SUM(fee), 0)                                                                                             AS payout,
+    0                                                                                                                 AS adjust,
+    COALESCE(SUM(score) - SUM(fee), 0)                                                                                AS net,
     COUNT(*)                                                                                                          AS records,
-    COUNT(DISTINCT member_id)                                                                                         AS members_involved
-FROM game_wallet_ledger
-WHERE house_gid = ? AND member_id IN (?) AND created_at >= ? AND created_at < ?;
+    COUNT(DISTINCT player_id)                                                                                         AS members_involved
+FROM game_battle_record
+WHERE house_gid = ? AND player_id IN (?) AND battle_at >= ? AND battle_at < ?;
 `
 	var row LedgerAgg
 	if err := r.db(ctx).Raw(raw, houseGID, memberIDs, start, end).Scan(&row).Error; err != nil {

@@ -2,6 +2,7 @@ package game
 
 import (
 	"battle-tiles/internal/biz/game"
+	"battle-tiles/internal/dal/resp"
 	"battle-tiles/pkg/plugin/middleware"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
@@ -61,11 +62,26 @@ func (s *MemberService) ListAllUsers(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, map[string]interface{}{
-		"items": users,
-		"total": total,
-		"page":  req.Page,
-		"size":  req.Size,
+	// 转换为 DTO，过滤敏感字段
+	items := make([]resp.UserInfo, 0, len(users))
+	for _, u := range users {
+		items = append(items, resp.UserInfo{
+			ID:           u.Id,
+			Username:     u.Username,
+			NickName:     u.NickName,
+			Avatar:       u.Avatar,
+			Role:         u.Role,
+			Introduction: u.Introduction,
+			CreatedAt:    u.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:    u.UpdatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	response.Success(c, resp.UserListResponse{
+		Items: items,
+		Total: total,
+		Page:  req.Page,
+		Size:  req.Size,
 	})
 }
 
@@ -90,7 +106,19 @@ func (s *MemberService) GetUser(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, user)
+	// 转换为 DTO，过滤敏感字段
+	userInfo := resp.UserInfo{
+		ID:           user.Id,
+		Username:     user.Username,
+		NickName:     user.NickName,
+		Avatar:       user.Avatar,
+		Role:         user.Role,
+		Introduction: user.Introduction,
+		CreatedAt:    user.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:    user.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	response.Success(c, userInfo)
 }
 
 // ListShopAdminsReq 获取店铺管理员列表请求
@@ -114,5 +142,20 @@ func (s *MemberService) ListShopAdmins(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, users)
+	// 转换为 DTO，过滤敏感字段
+	items := make([]resp.UserInfo, 0, len(users))
+	for _, u := range users {
+		items = append(items, resp.UserInfo{
+			ID:           u.Id,
+			Username:     u.Username,
+			NickName:     u.NickName,
+			Avatar:       u.Avatar,
+			Role:         u.Role,
+			Introduction: u.Introduction,
+			CreatedAt:    u.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:    u.UpdatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	response.Success(c, items)
 }

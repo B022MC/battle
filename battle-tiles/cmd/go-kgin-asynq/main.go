@@ -34,6 +34,14 @@ var (
 )
 
 func init() {
+	// 设置时区为中国标准时间 (UTC+8)
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		fmt.Printf("Failed to load timezone: %v\n", err)
+		return
+	}
+	time.Local = loc
+
 	flag.StringVar(&flagconf, "conf", "./configs/config.yaml", "config path, eg: -conf config.yaml")
 }
 

@@ -1,4 +1,5 @@
 import { AlertProvider } from '@/components/shared/alert-provider';
+import { ToastProvider } from '@/components/shared/toast-provider';
 import '@/global.css';
 
 import { NAV_THEME } from '@/lib/theme';
@@ -21,7 +22,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        {/* 将应用包裹于 AlertProvider，支持 Portal 覆盖层 */}
+        {/* 暂时使用 AlertProvider，Toast系统待修复 */}
         <AlertProvider>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

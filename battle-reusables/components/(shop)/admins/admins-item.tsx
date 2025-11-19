@@ -4,6 +4,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { useRequest } from '@/hooks/use-request';
 import { shopsAdminsRevoke } from '@/services/shops/admins';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import {
   InfoCard,
   InfoCardHeader,
@@ -39,9 +40,11 @@ export const AdminsItem = ({ houseId, data }: AdminsItemProps) => {
         <InfoCardRow label="角色" value={role || '管理员'} />
       </InfoCardContent>
       <InfoCardFooter>
-        <Button disabled={revokeLoading} onPress={handleRevoke}>
-          撤销
-        </Button>
+        <PermissionGate anyOf={['shop:admin:revoke']}>
+          <Button disabled={revokeLoading} onPress={handleRevoke}>
+            撤销
+          </Button>
+        </PermissionGate>
       </InfoCardFooter>
     </InfoCard>
   );

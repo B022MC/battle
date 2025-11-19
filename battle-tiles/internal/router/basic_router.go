@@ -7,10 +7,11 @@ import (
 )
 
 type BasicRouter struct {
-	userService  *basic.BasicUserService
-	loginService *basic.BasicLoginService
-	menuService  *basic.BasicMenuService
-	roleService  *basic.BasicRoleService
+	userService       *basic.BasicUserService
+	loginService      *basic.BasicLoginService
+	menuService       *basic.BasicMenuService
+	roleService       *basic.BasicRoleService
+	permissionService *basic.BasicPermissionService
 }
 
 func (r *BasicRouter) InitRouter(root *gin.RouterGroup) {
@@ -18,6 +19,7 @@ func (r *BasicRouter) InitRouter(root *gin.RouterGroup) {
 	r.loginService.RegisterRouter(root)
 	r.menuService.RegisterRouter(root)
 	r.roleService.RegisterRouter(root)
+	r.permissionService.RegisterRouter(root)
 }
 
 func NewBasicRouter(
@@ -25,11 +27,13 @@ func NewBasicRouter(
 	loginService *basic.BasicLoginService,
 	menuService *basic.BasicMenuService,
 	roleService *basic.BasicRoleService,
+	permissionService *basic.BasicPermissionService,
 ) *BasicRouter {
 	return &BasicRouter{
-		userService:  userService,
-		loginService: loginService,
-		menuService:  menuService,
-		roleService:  roleService,
+		userService:       userService,
+		loginService:      loginService,
+		menuService:       menuService,
+		roleService:       roleService,
+		permissionService: permissionService,
 	}
 }

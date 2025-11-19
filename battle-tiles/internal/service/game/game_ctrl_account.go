@@ -11,6 +11,7 @@ import (
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,10 @@ func (s *CtrlAccountService) RegisterRouter(r *gin.RouterGroup) {
 
 	// 仅创建/更新中控（不绑定店铺）
 	g.POST("/ctrlAccounts", middleware.RequirePerm("game:ctrl:create"), s.CreateOrUpdate)
+	// 更新状态（启用/停用）
+	g.POST("/ctrlAccounts/updateStatus", middleware.RequirePerm("game:ctrl:update"), s.UpdateStatus)
+	// 删除中控账号
+	g.DELETE("/ctrlAccounts/:id", middleware.RequirePerm("game:ctrl:delete"), s.Delete)
 	// 绑定/解绑
 	g.POST("/ctrlAccounts/bind", middleware.RequirePerm("game:ctrl:update"), s.Bind)
 	g.DELETE("/ctrlAccounts/bind", middleware.RequirePerm("game:ctrl:update"), s.Unbind)
@@ -58,6 +63,11 @@ type bindCtrlReq struct {
 type unbindCtrlReq struct {
 	CtrlID   int32 `json:"ctrl_id"   binding:"required"`
 	HouseGID int32 `json:"house_gid" binding:"required"`
+}
+
+type updateStatusReq struct {
+	CtrlID int32  `json:"ctrl_id" binding:"required"`
+	Status *int32 `json:"status"  binding:"required,oneof=0 1"` // 0=停用, 1=启用
 }
 
 // ------------------------------------------------------------------
@@ -124,6 +134,59 @@ func (s *CtrlAccountService) CreateOrUpdate(c *gin.Context) {
 		Status:     m.Status,
 	}
 	response.Success(c, out)
+}
+
+// UpdateStatus
+// @Summary  更新中控账号状态（启用/停用）
+// @Tags     游戏/中控
+// @Accept   json
+// @Produce  json
+// @Param    in body updateStatusReq true "ctrl_id, status(0=停用, 1=启用)"
+// @Success  200 {object} response.Body
+// @Router   /shops/ctrlAccounts/updateStatus [post]
+func (s *CtrlAccountService) UpdateStatus(c *gin.Context) {
+	var in updateStatusReq
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	// 更新状态
+	if err := s.uc.UpdateStatus(c.Request.Context(), in.CtrlID, *in.Status); err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+
+	response.SuccessWithOK(c)
+}
+
+// Delete
+// @Summary  删除中控账号
+// @Tags     游戏/中控
+// @Accept   json
+// @Produce  json
+// @Param    id path int true "中控账号ID"
+// @Success  200 {object} response.Body
+// @Router   /shops/ctrlAccounts/{id} [delete]
+func (s *CtrlAccountService) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	if idStr == "" {
+		response.Fail(c, ecode.ParamsFailed, "id required")
+		return
+	}
+
+	var id int32
+	if _, err := fmt.Sscanf(idStr, "%d", &id); err != nil {
+		response.Fail(c, ecode.ParamsFailed, "invalid id")
+		return
+	}
+
+	if err := s.uc.Delete(c.Request.Context(), id); err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+
+	response.SuccessWithOK(c)
 }
 
 // Bind

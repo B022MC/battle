@@ -16,9 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TriggerRef } from '@rn-primitives/select';
 import { isWeb } from '@/utils/platform';
 import z from 'zod';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { StatsPath } from '@/services/stats';
+import { useRequest } from '@/hooks/use-request';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { getGroupOptions } from '@/services/shops/groups';
 
 // 时间选项配置
 const timeOptions: { label: string; value: StatsPath }[] = [
@@ -61,6 +64,7 @@ export const StatsSearch = ({ submitButtonProps, onSubmit }: SearchFormProps) =>
     control,
     handleSubmit,
     formState: { isValid },
+    setValue,
   } = useForm<StatsSearchParams>({
     resolver: zodResolver(searchFormSchema),
     defaultValues: {
@@ -79,21 +83,67 @@ export const StatsSearch = ({ submitButtonProps, onSubmit }: SearchFormProps) =>
   };
 
   const { loading, ...restSubmitButtonProps } = submitButtonProps ?? {};
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const houseRef = useRef<TriggerRef>(null);
+  const groupRef = useRef<TriggerRef>(null);
+
+  function onHouseTouchStart() {
+    isWeb && houseRef.current?.open();
+  }
+
+  function onGroupTouchStart() {
+    isWeb && groupRef.current?.open();
+  }
+
+  // 获取当前选中的店铺ID
+  const currentHouseGid = useWatch({
+    control,
+    name: 'houseGid',
+  });
+
+  // 根据店铺ID获取圈子选项
+  const { data: groupOptions, run: fetchGroupOptions } = useRequest(
+    () => getGroupOptions({ house_gid: Number(currentHouseGid) }),
+    {
+      manual: true,
+    }
+  );
+
+  // 当店铺改变时，重新获取圈子列表
+  React.useEffect(() => {
+    if (currentHouseGid) {
+      // 清空圈子选择
+      setValue('groupId', '');
+      // 获取新的圈子列表
+      fetchGroupOptions();
+    }
+  }, [currentHouseGid]);
 
   return (
     <View className="flex flex-row items-center gap-2 border-b border-b-border p-4">
-      {/* 店铺号输入框 */}
+      {/* 店铺号下拉框 */}
       <Controller
         control={control}
         name="houseGid"
         render={({ field: { onChange, value } }) => (
-          <Input
-            keyboardType="numeric"
-            className="flex-1"
-            placeholder="请输入店铺号"
-            value={value}
-            onChangeText={onChange}
-          />
+          <Select
+            value={value ? ({ label: `店铺 ${value}`, value } as any) : undefined}
+            onValueChange={(opt) => onChange(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={value ? `店铺 ${value}` : '选择店铺号'} />
+            </SelectTrigger>
+            <SelectContent insets={contentInsets}>
+              <SelectGroup>
+                <SelectLabel>店铺号</SelectLabel>
+                {(houseOptions ?? []).map((gid) => (
+                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                    店铺 {gid}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         )}
       />
 
@@ -102,13 +152,24 @@ export const StatsSearch = ({ submitButtonProps, onSubmit }: SearchFormProps) =>
         control={control}
         name="groupId"
         render={({ field: { onChange, value } }) => (
-          <Input
-            keyboardType="numeric"
-            className="w-28"
-            placeholder="圈子ID(选填)"
-            value={value}
-            onChangeText={onChange}
-          />
+          <Select
+            value={value ? ({ label: `圈子 ${value}`, value } as any) : undefined}
+            onValueChange={(opt) => onChange(String(opt?.value ?? ''))}
+          >
+            <SelectTrigger ref={groupRef} onTouchStart={onGroupTouchStart} className="min-w-[160px]">
+              <SelectValue placeholder={value ? `圈子 ${value}` : '选择圈子(选填)'} />
+            </SelectTrigger>
+            <SelectContent insets={contentInsets}>
+              <SelectGroup>
+                <SelectLabel>圈子</SelectLabel>
+                {(groupOptions ?? []).map((group) => (
+                  <SelectItem key={String(group.id)} label={group.name} value={String(group.id)}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         )}
       />
 

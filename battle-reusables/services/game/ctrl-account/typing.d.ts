@@ -8,18 +8,13 @@ export interface CtrlAccountVO {
   status: number; // 0=disabled, 1=enabled
 }
 
-export interface CtrlAccountHouse {
-  house_gid: number;
-  status: number;
-}
-
 export interface CtrlAccountAllVO {
   id: number;
   login_mode: 'account' | 'mobile';
   identifier: string;
   status: number;
   last_verify_at?: string;
-  houses: CtrlAccountHouse[]; // List of bound houses with status
+  houses: number[]; // List of bound house_gid
 }
 
 export interface CreateCtrlAccountRequest {
@@ -65,5 +60,10 @@ export interface StopSessionRequest {
 
 export interface SessionStateResponse {
   state: 'online' | 'offline' | 'error';
+}
+
+export interface UpdateStatusRequest {
+  ctrl_id: number;
+  status: 0 | 1; // 0=disabled, 1=enabled
 }
 

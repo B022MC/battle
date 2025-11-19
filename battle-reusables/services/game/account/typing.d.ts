@@ -24,5 +24,12 @@ declare namespace API {
     status?: number;
     login_mode?: string;
   };
+
+  type GameAccountHouseItem = {
+    id: number;
+    house_gid: number;
+    is_default: boolean;
+    status: number;
+  };
 }
 

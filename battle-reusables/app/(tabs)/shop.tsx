@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { router } from 'expo-router';
 import { PermissionGate } from '@/components/auth/PermissionGate';
- 
+
 
 export default function ShopHubScreen() {
 
@@ -22,17 +22,32 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/members')}><Text>成员管理</Text></Button>
         </PermissionGate>
-        <PermissionGate anyOf={["shop:apply:view"]}>
-          <Button onPress={() => router.push('/(shop)/applications')}><Text>提交申请</Text></Button>
+
+        {/* 战绩查询功能 */}
+        <Text className="text-lg font-semibold mt-4">战绩查询</Text>
+        <Button onPress={() => router.push('/(shop)/my-battles')}><Text>我的战绩</Text></Button>
+        <Button onPress={() => router.push('/(shop)/my-balances')}><Text>我的余额</Text></Button>
+
+        <PermissionGate anyOf={["shop:member:view"]}>
+          <Button onPress={() => router.push('/(shop)/group-battles')}><Text>圈子战绩(管理员)</Text></Button>
         </PermissionGate>
-        <PermissionGate anyOf={["shop:apply:view"]}>
-          <Button onPress={() => router.push('/(shop)/applications-list')}><Text>申请列表</Text></Button>
+        <PermissionGate anyOf={["shop:member:view"]}>
+          <Button onPress={() => router.push('/(shop)/group-balances')}><Text>圈子余额(管理员)</Text></Button>
         </PermissionGate>
-        <PermissionGate anyOf={["game:ctrl:view","game:ctrl:update","game:ctrl:create"]}>
-          <Button onPress={() => router.push('/(shop)/session')}><Text>会话控制</Text></Button>
+
+        {/* 系统管理功能 */}
+        <Text className="text-lg font-semibold mt-4">系统管理</Text>
+        <PermissionGate anyOf={["permission:view"]}>
+          <Button onPress={() => router.push('/(shop)/permissions')}><Text>权限管理</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["role:view"]}>
+          <Button onPress={() => router.push('/(shop)/roles')}><Text>角色管理</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["menu:view"]}>
+          <Button onPress={() => router.push('/(shop)/menus')}><Text>菜单管理</Text></Button>
         </PermissionGate>
       </View>
-        
+
       </View>
     </ScrollView>
   );

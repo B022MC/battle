@@ -26,6 +26,9 @@ type BasicMenuRepo interface {
 	FindOneByScope(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) (*basicModel.BasicMenu, error)
 	FindByScope(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]*basicModel.BasicMenu, error)
 	FindByKeyword(ctx context.Context, keyword string) ([]*basicModel.BasicMenu, error)
+	// RBAC 相关
+	GetUserMenus(ctx context.Context, userID int32) ([]*basicModel.BasicMenu, error)
+	GetMenuButtons(ctx context.Context, menuID int32) ([]*basicModel.BasicMenuButton, error)
 }
 
 type basicMenuRepo struct {
@@ -207,4 +210,39 @@ func (rp *basicMenuRepo) BatchSave(ctx context.Context, list []*basicModel.Basic
 	return rp.data.GetDBWithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return rp.createChildren(ctx, tx, consts.DefaultIntMinusOneValue, list)
 	})
+}
+
+// GetUserMenus 获取用户可访问的菜单列表
+func (rp *basicMenuRepo) GetUserMenus(ctx context.Context, userID int32) ([]*basicModel.BasicMenu, error) {
+	db := rp.data.GetDBWithContext(ctx)
+	var menus []*basicModel.BasicMenu
+
+	// 查询用户通过角色可以访问的菜单
+	err := db.Table(basicModel.TableNameBasicMenu+" AS m").
+		Select("DISTINCT m.*").
+		Joins("JOIN "+basicModel.TableNameBasicRoleMenuRel+" AS rmr ON rmr.menu_id = m.id").
+		Joins("JOIN "+basicModel.TableNameBasicUserRoleRel+" AS urr ON urr.role_id = rmr.role_id").
+		Where("urr.user_id = ? AND m.deleted_at IS NULL", userID).
+		Order("m.parent_id, m.rank").
+		Find(&menus).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return menus, nil
+}
+
+// GetMenuButtons 获取菜单的按钮配置
+func (rp *basicMenuRepo) GetMenuButtons(ctx context.Context, menuID int32) ([]*basicModel.BasicMenuButton, error) {
+	db := rp.data.GetDBWithContext(ctx)
+	var buttons []*basicModel.BasicMenuButton
+
+	err := db.Where("menu_id = ?", menuID).
+		Order("id").
+		Find(&buttons).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return buttons, nil
 }

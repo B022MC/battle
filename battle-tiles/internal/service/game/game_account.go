@@ -27,9 +27,14 @@ func (s *AccountService) RegisterRouter(r *gin.RouterGroup) {
 
 	// 以下接口需要 JWT 认证
 	auth := g.Use(middleware.JWTAuth())
-	auth.POST("/accounts", s.BindMyAccount)        // 仅 1 条（只建 game_account）
-	auth.GET("/accounts/me", s.GetMyAccount)       // 查询我的账号
-	auth.DELETE("/accounts/me", s.DeleteMyAccount) // 解绑我的账号
+	auth.POST("/accounts", s.BindMyAccount)               // 仅 1 条（只建 game_account）
+	auth.GET("/accounts/me", s.GetMyAccount)              // 查询我的账号
+	auth.GET("/accounts/me/houses", s.GetMyAccountHouses) // 查询我的账号绑定的店铺游戏ID
+	auth.DELETE("/accounts/me", s.DeleteMyAccount)        // 解绑我的账号
+
+	// 管理员接口
+	admin := g.Use(middleware.JWTAuth(), middleware.AdminOnly())
+	admin.POST("/accounts/fix-empty-game-user-id", s.FixEmptyGameUserID) // 修复空的 game_user_id
 }
 
 // VerifyAccount
@@ -146,6 +151,39 @@ func (s *AccountService) GetMyAccount(c *gin.Context) {
 	})
 }
 
+// GetMyAccountHouses
+// @Summary  查询我的游戏账号绑定的店铺游戏ID列表
+// @Tags     游戏/我的账号
+// @Produce  json
+// @Security BearerAuth
+// @Success  200 {object} response.Body{data=[]resp.GameAccountHouseVO} "返回绑定的店铺游戏ID列表"
+// @Failure  401 {object} response.Body
+// @Failure  500 {object} response.Body
+// @Router   /game/accounts/me/houses [get]
+func (s *AccountService) GetMyAccountHouses(c *gin.Context) {
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	houses, err := s.uc.GetMyHouses(c.Request.Context(), claims.BaseClaims.UserID)
+	if err != nil {
+		// 如果用户没有绑定游戏账号，返回空数组而不是错误
+		response.Success(c, []resp.GameAccountHouseVO{})
+		return
+	}
+	var result []resp.GameAccountHouseVO
+	for _, h := range houses {
+		result = append(result, resp.GameAccountHouseVO{
+			ID:        h.Id,
+			HouseGID:  h.HouseGID,
+			IsDefault: h.IsDefault,
+			Status:    h.Status,
+		})
+	}
+	response.Success(c, result)
+}
+
 // DeleteMyAccount
 // @Summary  解绑我的游戏账号
 // @Tags     游戏/我的账号
@@ -166,4 +204,27 @@ func (s *AccountService) DeleteMyAccount(c *gin.Context) {
 		return
 	}
 	response.SuccessWithOK(c)
+}
+
+// FixEmptyGameUserID
+// @Summary  修复空的 game_user_id 字段（管理员接口）
+// @Description 修复在修复代码之前注册的用户的 game_user_id。此接口仅限管理员使用。
+// @Tags     游戏/我的账号
+// @Produce  json
+// @Security BearerAuth
+// @Success  200 {object} response.Body{data=map[string]int64} "data: { fixed: 10, failed: 2 }"
+// @Failure  401 {object} response.Body
+// @Failure  403 {object} response.Body
+// @Failure  500 {object} response.Body
+// @Router   /game/accounts/fix-empty-game-user-id [post]
+func (s *AccountService) FixEmptyGameUserID(c *gin.Context) {
+	fixed, failed, err := s.uc.FixEmptyGameUserID(c.Request.Context())
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	response.Success(c, map[string]int64{
+		"fixed":  fixed,
+		"failed": failed,
+	})
 }

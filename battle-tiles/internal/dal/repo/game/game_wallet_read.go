@@ -1,4 +1,4 @@
-// internal/dal/repo/game/game_wallet_read.go
+﻿// internal/dal/repo/game/game_wallet_read.go
 package game
 
 import (
@@ -12,13 +12,20 @@ import (
 )
 
 type WalletReadRepo interface {
-	// 读：非加锁
-	Get(ctx context.Context, houseGID, memberID int32) (*model.GameMemberWallet, error)
-	// 列表 + 计数（余额区间、是否个性额度、分页）
-	ListWallets(ctx context.Context, houseGID int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error)
-	// 流水列表 + 计数（可按成员/类型/时间范围筛选，分页）
+	// 璇伙細闈炲姞閿?	// 淇敼: 澧炲姞 groupID 鍙傛暟
+	Get(ctx context.Context, houseGID, memberID int32, groupID *int32) (*model.GameMemberWallet, error)
+	
+	// 鍒楄〃 + 璁℃暟锛堜綑棰濆尯闂淬€佹槸鍚︿釜鎬ч搴︺€佸垎椤碉級
+	// 淇敼: 澧炲姞 groupID 鍙傛暟
+	ListWallets(ctx context.Context, houseGID int32, groupID *int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error)
+	
+	// 鏂板: 鏌ヨ鎴愬憳鍦ㄦ墍鏈夊湀瀛愮殑浣欓
+	ListMemberBalances(ctx context.Context, houseGID int32, memberID int32) ([]*model.GameMemberWallet, error)
+	
+	// 娴佹按鍒楄〃 + 璁℃暟锛堝彲鎸夋垚鍛?绫诲瀷/鏃堕棿鑼冨洿绛涢€夛紝鍒嗛〉锛?
 	ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end time.Time, page, size int32) ([]*model.GameWalletLedger, int64, error)
-	// 按成员集合过滤的钱包列表
+	
+	// 鎸夋垚鍛橀泦鍚堣繃婊ょ殑閽卞寘鍒楄〃
 	ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]*model.GameMemberWallet, int64, error)
 }
 
@@ -36,18 +43,30 @@ func NewWalletReadRepo(data *infra.Data, logger log.Logger) WalletReadRepo {
 
 func (r *walletReadRepo) db(ctx context.Context) *gorm.DB { return r.data.GetDBWithContext(ctx) }
 
-func (r *walletReadRepo) Get(ctx context.Context, houseGID, memberID int32) (*model.GameMemberWallet, error) {
+// Get 鑾峰彇閽卞寘淇℃伅
+func (r *walletReadRepo) Get(ctx context.Context, houseGID, memberID int32, groupID *int32) (*model.GameMemberWallet, error) {
 	var m model.GameMemberWallet
-	if err := r.db(ctx).
-		Where("house_gid = ? AND member_id = ?", houseGID, memberID).
-		First(&m).Error; err != nil {
+	db := r.db(ctx).Where("house_gid = ? AND member_id = ?", houseGID, memberID)
+	
+	// 鏂板: 鏀寔鎸夊湀瀛愮瓫閫?
+	if groupID != nil {
+		db = db.Where("group_id = ?", *groupID)
+	}
+	
+	if err := db.First(&m).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
 }
 
-func (r *walletReadRepo) ListWallets(ctx context.Context, houseGID int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error) {
+// ListWallets 鏌ヨ閽卞寘鍒楄〃
+func (r *walletReadRepo) ListWallets(ctx context.Context, houseGID int32, groupID *int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error) {
 	db := r.db(ctx).Model(&model.GameMemberWallet{}).Where("house_gid = ?", houseGID)
+
+	// 鏂板: 鏀寔鎸夊湀瀛愮瓫閫?
+	if groupID != nil {
+		db = db.Where("group_id = ?", *groupID)
+	}
 
 	if min != nil {
 		db = db.Where("balance >= ?", *min)
@@ -83,19 +102,33 @@ func (r *walletReadRepo) ListWallets(ctx context.Context, houseGID int32, min, m
 		Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
+
 	return list, total, nil
 }
 
-func (r *walletReadRepo) ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end time.Time, page, size int32) ([]*model.GameWalletLedger, int64, error) {
-	db := r.db(ctx).Model(&model.GameWalletLedger{}).
-		Where("house_gid = ? AND created_at >= ? AND created_at < ?", houseGID, start, end)
+// ListMemberBalances 鏌ヨ鎴愬憳鍦ㄦ墍鏈夊湀瀛愮殑浣欓
+func (r *walletReadRepo) ListMemberBalances(ctx context.Context, houseGID int32, memberID int32) ([]*model.GameMemberWallet, error) {
+	var wallets []*model.GameMemberWallet
+	if err := r.db(ctx).
+		Where("house_gid = ? AND member_id = ?", houseGID, memberID).
+		Order("group_id").
+		Find(&wallets).Error; err != nil {
+		return nil, err
+	}
+	
+	return wallets, nil
+}
 
+// ListLedger 鏌ヨ娴佹按鍒楄〃
+func (r *walletReadRepo) ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end time.Time, page, size int32) ([]*model.GameWalletLedger, int64, error) {
+	db := r.db(ctx).Model(&model.GameWalletLedger{}).Where("house_gid = ?", houseGID)
 	if memberID != nil {
 		db = db.Where("member_id = ?", *memberID)
 	}
 	if tp != nil {
 		db = db.Where("type = ?", *tp)
 	}
+	db = db.Where("created_at >= ? AND created_at < ?", start, end)
 
 	var total int64
 	if err := db.Count(&total).Error; err != nil {
@@ -111,15 +144,14 @@ func (r *walletReadRepo) ListLedger(ctx context.Context, houseGID int32, memberI
 	offset := (page - 1) * size
 
 	var list []*model.GameWalletLedger
-	if err := db.
-		Order("created_at DESC"). // 更直观
-		Limit(int(size)).Offset(int(offset)).
-		Find(&list).Error; err != nil {
+	if err := db.Order("created_at DESC").Limit(int(size)).Offset(int(offset)).Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
+
 	return list, total, nil
 }
 
+// ListWalletsByMembers 鎸夋垚鍛橀泦鍚堣繃婊ょ殑閽卞寘鍒楄〃
 func (r *walletReadRepo) ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]*model.GameMemberWallet, int64, error) {
 	if len(memberIDs) == 0 {
 		return []*model.GameMemberWallet{}, 0, nil
@@ -138,6 +170,7 @@ func (r *walletReadRepo) ListWalletsByMembers(ctx context.Context, houseGID int3
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+
 	if page <= 0 {
 		page = 1
 	}
@@ -145,9 +178,11 @@ func (r *walletReadRepo) ListWalletsByMembers(ctx context.Context, houseGID int3
 		size = 20
 	}
 	offset := (page - 1) * size
+
 	var list []*model.GameMemberWallet
 	if err := db.Order("updated_at DESC").Limit(int(size)).Offset(int(offset)).Find(&list).Error; err != nil {
 		return nil, 0, err
 	}
+
 	return list, total, nil
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollView, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
@@ -20,6 +20,18 @@ import {
   shopsAdminsList,
   shopsAdminsMe
 } from '@/services/shops/admins';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { TriggerRef } from '@rn-primitives/select';
+import { isWeb } from '@/utils/platform';
 import { SetShopAdminModal } from './set-shop-admin-modal';
 
 export const MembersView = () => {
@@ -45,18 +57,30 @@ export const MembersView = () => {
   const { run: runAssignAdmin, loading: assigningAdmin } = useRequest(shopsAdminsAssign, { manual: true });
   const { run: runRevokeAdmin, loading: revokingAdmin } = useRequest(shopsAdminsRevoke, { manual: true });
   const { data: shopAdmins, run: runListAdmins } = useRequest(shopsAdminsList, { manual: true });
-  const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: false }); // 自动加载
+  const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: true }); // 改为手动加载
+  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const houseRef = useRef<TriggerRef>(null);
+
+  function onHouseTouchStart() {
+    isWeb && houseRef.current?.open();
+  }
 
   // 加载所有用户
   const handleLoadUsers = async () => {
     await runListUsers({ page, size: 20, keyword: keyword || undefined });
   };
 
-  // 店铺管理员自动加载圈子
+  // 店铺管理员自动加载管理员信息和圈子
   React.useEffect(() => {
-    if (isStoreAdmin && myAdminInfo && myAdminInfo.house_gid) {
-      // 自动加载店铺管理员的圈子
-      runGetMyGroup({ house_gid: myAdminInfo.house_gid })
+    // 只有当用户是店铺管理员时才加载
+    if (isStoreAdmin) {
+      runGetMyAdminInfo()
+        .then((adminInfo) => {
+          if (adminInfo && adminInfo.house_gid) {
+            // 加载店铺管理员的圈子
+            return runGetMyGroup({ house_gid: adminInfo.house_gid });
+          }
+        })
         .then((group) => {
           if (group) {
             // 加载圈子成员
@@ -67,7 +91,7 @@ export const MembersView = () => {
           console.error('自动加载圈子失败:', error);
         });
     }
-  }, [isStoreAdmin, myAdminInfo]);
+  }, [isStoreAdmin]); // 只依赖 isStoreAdmin，避免重复调用
 
   // 加载我的圈子（手动触发，用于超级管理员）
   const handleLoadMyGroup = async () => {
@@ -276,13 +300,24 @@ export const MembersView = () => {
             {/* 店铺管理员不需要输入店铺号 */}
             {!isStoreAdmin && (
               <View className="flex-row gap-2">
-                <Input
-                  className="flex-1"
-                  placeholder="店铺号"
-                  value={houseGid}
-                  onChangeText={setHouseGid}
-                  keyboardType="numeric"
-                />
+                <Select
+                  value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
+                  onValueChange={(opt) => setHouseGid(String(opt?.value ?? ''))}
+                >
+                  <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+                    <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>店铺号</SelectLabel>
+                      {(houseOptions ?? []).map((gid) => (
+                        <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                          店铺 {gid}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 <Button onPress={handleLoadMyGroup} disabled={loadingMyGroup}>
                   <Text>{loadingMyGroup ? '加载中...' : '加载圈子'}</Text>
                 </Button>

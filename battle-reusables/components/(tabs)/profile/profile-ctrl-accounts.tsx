@@ -16,11 +16,8 @@ import { useRequest } from '@/hooks/use-request';
 import {
   createCtrlAccount,
   listAllCtrlAccounts,
-  bindCtrlAccount,
-  unbindCtrlAccount,
-  startSession,
-  stopSession,
-  getHouseOptions,
+  updateCtrlAccountStatus,
+  deleteCtrlAccount,
 } from '@/services/game/ctrl-account';
 import { gameAccountVerify } from '@/services/game/account';
 import { alert } from '@/utils/alert';
@@ -30,7 +27,7 @@ import { TriggerRef } from '@rn-primitives/select';
 import { isWeb } from '@/utils/platform';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import { Icon } from '@/components/ui/icon';
-import { Plus, Trash2, Play, Square, Link, Unlink } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 
 export const ProfileCtrlAccounts = () => {
   const { getLoginModeLabel } = usePlazaConsts();
@@ -42,9 +39,7 @@ export const ProfileCtrlAccounts = () => {
   const [password, setPassword] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Binding state
-  const [bindingAccountId, setBindingAccountId] = useState<number | null>(null);
-  const [bindHouseGid, setBindHouseGid] = useState('');
+
 
   // Select refs
   const modeRef = useRef<TriggerRef>(null);
@@ -60,9 +55,7 @@ export const ProfileCtrlAccounts = () => {
     { manual: true }
   );
 
-  const { data: houseOptions, run: runGetHouseOptions } = useRequest(getHouseOptions, {
-    manual: true,
-  });
+
 
   const { run: runVerify, loading: verifying } = useRequest(gameAccountVerify, { manual: true });
 
@@ -77,49 +70,31 @@ export const ProfileCtrlAccounts = () => {
     },
   });
 
-  const { run: runBind, loading: binding } = useRequest(bindCtrlAccount, {
+
+
+  const { run: runUpdateStatus, loading: updatingStatus } = useRequest(updateCtrlAccountStatus, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '成功', description: '已绑定店铺' });
-      setBindingAccountId(null);
-      setBindHouseGid('');
+      alert.show({ title: '成功', description: '状态已更新' });
       runListAccounts();
     },
   });
 
-  const { run: runUnbind, loading: unbinding } = useRequest(unbindCtrlAccount, {
+  const { run: runDelete, loading: deleting } = useRequest(deleteCtrlAccount, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '成功', description: '已解绑店铺' });
-      runListAccounts();
-    },
-  });
-
-  const { run: runStartSession, loading: startingSession } = useRequest(startSession, {
-    manual: true,
-    onSuccess: () => {
-      alert.show({ title: '成功', description: '会话已启动' });
-      runListAccounts();
-    },
-  });
-
-  const { run: runStopSession, loading: stoppingSession } = useRequest(stopSession, {
-    manual: true,
-    onSuccess: () => {
-      alert.show({ title: '成功', description: '会话已停止' });
+      alert.show({ title: '成功', description: '中控账号已删除' });
       runListAccounts();
     },
   });
 
   useEffect(() => {
     runListAccounts();
-    runGetHouseOptions();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await runListAccounts();
-    await runGetHouseOptions();
     setRefreshing(false);
   };
 
@@ -142,27 +117,33 @@ export const ProfileCtrlAccounts = () => {
     }
   };
 
-  const onBindHouse = async (ctrlId: number) => {
-    if (!bindHouseGid) {
-      return alert.show({ title: '参数错误', description: '请输入店铺号' });
+
+
+  const onEnableAccount = async (ctrlId: number) => {
+    // 启用账号,后端的 session monitor 会自动检测并启动所有绑定店铺的会话
+    await runUpdateStatus({ ctrl_id: ctrlId, status: 1 });
+  };
+
+  const onDisableAccount = async (ctrlId: number) => {
+    // 停用账号,后端会自动停止所有会话
+    await runUpdateStatus({ ctrl_id: ctrlId, status: 0 });
+  };
+
+  const onDeleteAccount = async (ctrlId: number, identifier: string) => {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      alert.show({
+        title: '确认删除',
+        description: `确定要删除中控账号 "${identifier}" 吗?此操作不可恢复。`,
+        actions: [
+          { text: '取消', onPress: () => resolve(false) },
+          { text: '删除', onPress: () => resolve(true), style: 'destructive' },
+        ],
+      });
+    });
+
+    if (confirmed) {
+      await runDelete(ctrlId);
     }
-    const houseGid = parseInt(bindHouseGid, 10);
-    if (isNaN(houseGid)) {
-      return alert.show({ title: '参数错误', description: '店铺号必须是数字' });
-    }
-    await runBind({ ctrl_id: ctrlId, house_gid: houseGid, status: 1 });
-  };
-
-  const onUnbindHouse = async (ctrlId: number, houseGid: number) => {
-    await runUnbind({ ctrl_id: ctrlId, house_gid: houseGid });
-  };
-
-  const onStartSession = async (ctrlId: number, houseGid: number) => {
-    await runStartSession({ id: ctrlId, house_gid: houseGid });
-  };
-
-  const onStopSession = async (ctrlId: number, houseGid: number) => {
-    await runStopSession({ id: ctrlId, house_gid: houseGid });
   };
 
   function onTouchStart() {
@@ -246,91 +227,50 @@ export const ProfileCtrlAccounts = () => {
                     label="绑定店铺"
                     value={account.houses.length > 0 ? account.houses.join(', ') : '未绑定'}
                   />
-
-                  {/* Bind House Form */}
-                  {bindingAccountId === account.id ? (
-                    <View className="gap-2 mt-2 p-3 bg-muted rounded-lg">
-                      <Text variant="muted">绑定店铺号</Text>
-                      <Input
-                        value={bindHouseGid}
-                        onChangeText={setBindHouseGid}
-                        placeholder="输入店铺号"
-                        keyboardType="numeric"
-                      />
-                      <View className="flex-row gap-2">
-                        <Button
-                          variant="outline"
-                          onPress={() => {
-                            setBindingAccountId(null);
-                            setBindHouseGid('');
-                          }}
-                          className="flex-1"
-                        >
-                          <Text>取消</Text>
-                        </Button>
-                        <Button disabled={binding} onPress={() => onBindHouse(account.id)} className="flex-1">
-                          <Text>{binding ? '绑定中...' : '确认绑定'}</Text>
-                        </Button>
-                      </View>
-                    </View>
-                  ) : null}
                 </View>
               </InfoCardContent>
               <InfoCardFooter>
-                <View className="gap-2">
-                  {/* 绑定店铺按钮 - 只有未绑定时显示 */}
-                  {account.houses.length === 0 && (
+                <View className="flex-row gap-2">
+                  {/* 启用按钮 - 只在停用状态显示 */}
+                  {account.status === 0 && (
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      onPress={() => {
-                        setBindingAccountId(account.id);
-                        setBindHouseGid('');
-                      }}
+                      onPress={() => onEnableAccount(account.id)}
+                      disabled={updatingStatus}
+                      className="flex-1"
                     >
-                      <Icon as={Link} size={14} className="mr-1" />
-                      <Text>绑定店铺</Text>
+                      <Text className="text-primary-foreground">
+                        {updatingStatus ? '启用中...' : '启用'}
+                      </Text>
                     </Button>
                   )}
 
-                  {/* 每个店铺的操作按钮 - 垂直排列避免超出 */}
-                  {account.houses.map((houseGid) => (
-                    <View key={houseGid} className="gap-2">
-                      <Text variant="muted" className="text-xs">店铺 {houseGid}</Text>
-                      <View className="flex-row flex-wrap gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onPress={() => onStartSession(account.id, houseGid)}
-                          disabled={startingSession}
-                          className="flex-1 min-w-[80px]"
-                        >
-                          <Icon as={Play} size={14} className="mr-1 text-primary-foreground" />
-                          <Text className="text-primary-foreground">启动</Text>
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onPress={() => onStopSession(account.id, houseGid)}
-                          disabled={stoppingSession}
-                          className="flex-1 min-w-[80px]"
-                        >
-                          <Icon as={Square} size={14} className="mr-1" />
-                          <Text>停止</Text>
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onPress={() => onUnbindHouse(account.id, houseGid)}
-                          disabled={unbinding}
-                          className="flex-1 min-w-[80px]"
-                        >
-                          <Icon as={Unlink} size={14} className="mr-1 text-destructive-foreground" />
-                          <Text className="text-destructive-foreground">解绑</Text>
-                        </Button>
-                      </View>
-                    </View>
-                  ))}
+                  {/* 停用按钮 - 只在启用状态显示 */}
+                  {account.status === 1 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => onDisableAccount(account.id)}
+                      disabled={updatingStatus}
+                      className="flex-1"
+                    >
+                      <Text>{updatingStatus ? '停用中...' : '停用'}</Text>
+                    </Button>
+                  )}
+
+                  {/* 删除按钮 */}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onPress={() => onDeleteAccount(account.id, account.identifier)}
+                    disabled={deleting}
+                    className="flex-1"
+                  >
+                    <Text className="text-destructive-foreground">
+                      {deleting ? '删除中...' : '删除'}
+                    </Text>
+                  </Button>
                 </View>
               </InfoCardFooter>
             </InfoCard>

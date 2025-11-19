@@ -14,13 +14,20 @@ import { usePermission } from '@/hooks/use-permission';
 export default function TabLayout() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  
+  // 未登录时立即重定向，不渲染任何内容
+  useFocusEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/auth');
+    }
+  });
+
+  // 等待认证检查完成后再获取权限
   const { hasAny } = usePermission();
+  const canViewStats = hasAny(['stats:view']);
   const canViewTables = hasAny(['shop:table:view']);
   const canViewMembers = hasAny(['shop:member:view']);
-
-  useFocusEffect(() => {
-    if (!isAuthenticated) router.replace('/auth');
-  });
+  const canViewFunds = hasAny(['fund:wallet:view']);
 
   return (
     <Tabs
@@ -37,6 +44,7 @@ export default function TabLayout() {
           title: '首页',
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="首页" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={HomeIcon} />,
+          href: canViewStats ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -63,6 +71,7 @@ export default function TabLayout() {
           title: '资金',
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="资金" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={WalletIcon} />,
+          href: canViewFunds ? undefined : null,
         }}
       />
       <Tabs.Screen

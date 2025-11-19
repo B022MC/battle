@@ -19,6 +19,7 @@ var ProviderSet = wire.NewSet(
 	basic.NewBaseMenuRepo,
 	basic.NewBaseRoleMenuRelRepo,
 	basic.NewBaseRoleMenuBtnRelRepo,
+	basic.NewPermissionRepo,
 
 	cloud.NewBasePlatformRepo,
 
@@ -38,5 +39,7 @@ var ProviderSet = wire.NewSet(
 	game.NewBattleRecordRepo,
 	game.NewShopGroupRepo,
 	game.NewShopGroupMemberRepo,
+	game.NewGameMemberRepo,
+	game.NewShopApplicationLogRepo,
 	rbac.NewStore,
 )

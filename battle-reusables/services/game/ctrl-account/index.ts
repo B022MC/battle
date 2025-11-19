@@ -11,6 +11,7 @@ import type {
   StartSessionRequest,
   StopSessionRequest,
   SessionStateResponse,
+  UpdateStatusRequest,
 } from './typing';
 
 /**
@@ -106,6 +107,29 @@ export const stopSession = (data: StopSessionRequest) => {
     url: '/game/accounts/sessionStop',
     method: 'POST',
     data,
+  });
+};
+
+/**
+ * Update control account status (enable/disable)
+ * Requires permission: game:ctrl:update
+ */
+export const updateCtrlAccountStatus = (data: UpdateStatusRequest) => {
+  return request<{ ok: boolean }>({
+    url: '/shops/ctrlAccounts/updateStatus',
+    method: 'POST',
+    data,
+  });
+};
+
+/**
+ * Delete control account
+ * Requires permission: game:ctrl:delete
+ */
+export const deleteCtrlAccount = (ctrlId: number) => {
+  return request<{ ok: boolean }>({
+    url: `/shops/ctrlAccounts/${ctrlId}`,
+    method: 'DELETE',
   });
 };
 

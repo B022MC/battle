@@ -72,7 +72,7 @@ export const LoginForm = () => {
 
   const { run: runUserLogin, loading } = useRequest(loginUsername, {
     manual: true,
-    onSuccess: () => router.replace('/'),
+    onSuccess: () => router.replace('/(tabs)'),
   });
 
   const onSubmit = (values: LoginFormValues) => {

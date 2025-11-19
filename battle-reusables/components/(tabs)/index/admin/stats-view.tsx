@@ -8,10 +8,32 @@ import { statsByPath, statsActiveByHouse } from '@/services/stats';
 import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardContent, InfoCardRow } from '@/components/shared/info-card';
 import { useRequest } from '@/hooks/use-request';
 import { Text } from '@/components/ui/text';
+import { useAuthStore } from '@/hooks/use-auth-store';
 
 export const StatsView = () => {
+  const { isAuthenticated } = useAuthStore();
   const { data, loading, run } = useRequest(statsByPath, { manual: true });
-  const { data: activeSessions, loading: activeLoading } = useRequest(statsActiveByHouse);
+  const { data: activeSessions, loading: activeLoading } = useRequest(statsActiveByHouse, {
+    manual: !isAuthenticated, // 未登录时不自动请求
+  });
+
+  // 未登录时显示提示信息
+  if (!isAuthenticated) {
+    return (
+      <ScrollView className="flex-1 bg-secondary">
+        <View className="gap-4 p-4">
+          <InfoCard>
+            <InfoCardHeader>
+              <InfoCardTitle>提示</InfoCardTitle>
+            </InfoCardHeader>
+            <InfoCardContent>
+              <Text className="text-muted-foreground">请先登录后查看统计数据</Text>
+            </InfoCardContent>
+          </InfoCard>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <View className="flex-1">

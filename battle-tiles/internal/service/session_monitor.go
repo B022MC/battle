@@ -15,25 +15,29 @@ import (
 
 // SessionMonitor 定时同步 plaza 会话到 DB（按店铺维度，一店一条）
 type SessionMonitor struct {
-	log   *log.Helper
-	mgr   plaza.Manager
-	cloud cloudRepo.BasePlatformRepo
-	link  gameRepo.GameCtrlAccountHouseRepo
-	sess  gameRepo.SessionRepo
-	ctrl  *biz.CtrlSessionUseCase
-	tick  time.Duration
-	stopC chan struct{}
+	log      *log.Helper
+	mgr      plaza.Manager
+	cloud    cloudRepo.BasePlatformRepo
+	link     gameRepo.GameCtrlAccountHouseRepo
+	sess     gameRepo.SessionRepo
+	ctrlRepo gameRepo.GameCtrlAccountRepo // 新增：用于检查中控账号状态
+	ctrl     *biz.CtrlSessionUseCase
+	syncMgr  *biz.BattleSyncManager // 新增：战绩同步管理器
+	tick     time.Duration
+	stopC    chan struct{}
 }
 
-func NewSessionMonitor(logger log.Logger, mgr plaza.Manager, cloud cloudRepo.BasePlatformRepo, link gameRepo.GameCtrlAccountHouseRepo, sess gameRepo.SessionRepo, uc *biz.CtrlSessionUseCase) *SessionMonitor {
+func NewSessionMonitor(logger log.Logger, mgr plaza.Manager, cloud cloudRepo.BasePlatformRepo, link gameRepo.GameCtrlAccountHouseRepo, sess gameRepo.SessionRepo, ctrlRepo gameRepo.GameCtrlAccountRepo, syncMgr *biz.BattleSyncManager, uc *biz.CtrlSessionUseCase) *SessionMonitor {
 	m := &SessionMonitor{
-		log:   log.NewHelper(log.With(logger, "module", "service/session_monitor")),
-		mgr:   mgr,
-		cloud: cloud,
-		link:  link,
-		sess:  sess,
-		tick:  10 * time.Second,
-		stopC: make(chan struct{}),
+		log:      log.NewHelper(log.With(logger, "module", "service/session_monitor")),
+		mgr:      mgr,
+		cloud:    cloud,
+		link:     link,
+		sess:     sess,
+		ctrlRepo: ctrlRepo,
+		syncMgr:  syncMgr,
+		tick:     10 * time.Second,
+		stopC:    make(chan struct{}),
 	}
 	if uc != nil {
 		m.WithCtrlUseCase(uc)
@@ -91,20 +95,42 @@ func (m *SessionMonitor) syncOnce(ctx context.Context) {
 				ctrlID = ctrls[0].Id
 			}
 
-			if _, ok := m.mgr.GetAnyByHouse(int(hg)); ok {
-				// 已有会话（任意用户）→ 按绑定 ctrlID 确保 DB 在线
-				if err := m.sess.EnsureOnlineByHouse(pctx, hg, ctrlID); err != nil {
-					m.log.Errorf("ensure online house=%d err=%v", hg, err)
+			// 检查中控账号状态，如果停用则停止会话
+			if ctrlID > 0 {
+				ctrl, err := m.ctrlRepo.Get(pctx, ctrlID)
+				if err == nil && ctrl.Status != 1 {
+					// 中控账号已停用，停止会话和战绩同步
+					if _, ok := m.mgr.GetAnyByHouse(int(hg)); ok {
+						m.log.Infof("ctrl account %d is disabled, stopping session and sync for house %d", ctrlID, hg)
+						m.mgr.StopUser(1, int(hg)) // 停止超管的会话
+						// 停止战绩同步
+						if m.syncMgr != nil {
+							m.syncMgr.StopSync(1, int(hg))
+						}
+						if err := m.sess.SetOfflineByHouse(pctx, hg); err != nil {
+							m.log.Errorf("set offline house=%d err=%v", hg, err)
+						}
+					}
+					continue
 				}
+			}
+
+			if _, ok := m.mgr.GetAnyByHouse(int(hg)); ok {
+				// 已有会话（任意用户）→ 什么都不做,会话启动时已经更新了数据库
+				// 不要在这里频繁调用 EnsureOnlineByHouse,会导致每10秒都更新数据库!
 			} else {
 				// 无任何会话 → 若有绑定中控且注入了 UseCase，尝试自动拉起（以超管 1 身份）
 				started := false
 				if m.ctrl != nil && ctrlID > 0 {
-					if err := m.ctrl.StartSession(pctx, 1, ctrlID, hg); err != nil {
-						m.log.Errorf("auto start session failed house=%d ctrl=%d err=%v", hg, ctrlID, err)
-					} else {
-						started = true
-						m.log.Infof("auto start session ok house=%d ctrl=%d", hg, ctrlID)
+					// 再次检查中控账号状态
+					ctrl, err := m.ctrlRepo.Get(pctx, ctrlID)
+					if err == nil && ctrl.Status == 1 {
+						if err := m.ctrl.StartSession(pctx, 1, ctrlID, hg); err != nil {
+							m.log.Errorf("auto start session failed house=%d ctrl=%d err=%v", hg, ctrlID, err)
+						} else {
+							started = true
+							m.log.Infof("auto start session ok house=%d ctrl=%d", hg, ctrlID)
+						}
 					}
 				}
 				// 若本轮已尝试并成功发起启动，则不在本 tick 立即写离线，下一轮再校正

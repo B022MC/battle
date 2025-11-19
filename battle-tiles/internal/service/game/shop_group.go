@@ -3,6 +3,7 @@ package game
 import (
 	"battle-tiles/internal/biz/game"
 	"battle-tiles/pkg/plugin/middleware"
+	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
 
@@ -29,6 +30,7 @@ func (s *ShopGroupService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/create", s.CreateGroup)          // 创建圈子
 	g.POST("/my", s.GetMyGroup)               // 获取我的圈子
 	g.POST("/list", s.ListGroupsByHouse)      // 获取店铺圈子列表
+	g.POST("/options", s.GetGroupOptions)     // 获取圈子选项列表（用于下拉框）
 	g.POST("/members/add", s.AddMembers)      // 添加成员到圈子
 	g.POST("/members/remove", s.RemoveMember) // 从圈子移除成员
 	g.POST("/members/list", s.ListMembers)    // 获取圈子成员列表
@@ -51,13 +53,14 @@ func (s *ShopGroupService) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	group, err := s.groupUC.CreateGroup(c.Request.Context(), req.HouseGID, userID.(int32), req.GroupName, req.Description)
+	group, err := s.groupUC.CreateGroup(c.Request.Context(), req.HouseGID, userID, req.GroupName, req.Description)
 	if err != nil {
 		s.log.Errorf("create group failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -81,13 +84,14 @@ func (s *ShopGroupService) GetMyGroup(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	group, err := s.groupUC.GetMyGroup(c.Request.Context(), req.HouseGID, userID.(int32))
+	group, err := s.groupUC.GetMyGroup(c.Request.Context(), req.HouseGID, userID)
 	if err != nil {
 		s.log.Errorf("get my group failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -167,13 +171,14 @@ func (s *ShopGroupService) AddMembers(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	err := s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID.(int32), req.UserIDs)
+	err = s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID, req.UserIDs)
 	if err != nil {
 		s.log.Errorf("add members failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -198,13 +203,14 @@ func (s *ShopGroupService) RemoveMember(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	err := s.groupUC.RemoveMemberFromGroup(c.Request.Context(), req.GroupID, userID.(int32), req.UserID)
+	err = s.groupUC.RemoveMemberFromGroup(c.Request.Context(), req.GroupID, userID, req.UserID)
 	if err != nil {
 		s.log.Errorf("remove member failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -255,13 +261,14 @@ func (s *ShopGroupService) ListMembers(c *gin.Context) {
 // ListMyGroups 获取我加入的所有圈子
 // POST /api/groups/my/list
 func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		response.Fail(c, ecode.TokenFailed, nil)
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
 		return
 	}
+	userID := claims.BaseClaims.UserID
 
-	groups, err := s.groupUC.ListMyGroups(c.Request.Context(), userID.(int32))
+	groups, err := s.groupUC.ListMyGroups(c.Request.Context(), userID)
 	if err != nil {
 		s.log.Errorf("list my groups failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
@@ -269,4 +276,37 @@ func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
 	}
 
 	response.Success(c, groups)
+}
+
+// GetGroupOptionsReq 获取圈子选项请求
+type GetGroupOptionsReq struct {
+	HouseGID int32 `json:"house_gid" binding:"required"`
+}
+
+// GetGroupOptions 获取圈子选项列表（用于下拉框）
+// POST /api/groups/options
+func (s *ShopGroupService) GetGroupOptions(c *gin.Context) {
+	var req GetGroupOptionsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, ecode.ParamsFailed, nil)
+		return
+	}
+
+	groups, err := s.groupUC.ListGroupsByHouse(c.Request.Context(), req.HouseGID)
+	if err != nil {
+		s.log.Errorf("get group options failed: %v", err)
+		response.Fail(c, ecode.Failed, err.Error())
+		return
+	}
+
+	// 返回只包含 ID 和名称的列表
+	options := make([]map[string]interface{}, 0, len(groups))
+	for _, group := range groups {
+		options = append(options, map[string]interface{}{
+			"id":   group.Id,
+			"name": group.GroupName,
+		})
+	}
+
+	response.Success(c, options)
 }

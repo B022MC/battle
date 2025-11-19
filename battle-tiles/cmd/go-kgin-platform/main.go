@@ -23,6 +23,16 @@ import (
 	_ "go.uber.org/automaxprocs"
 )
 
+func init() {
+	// 设置时区为中国标准时间 (UTC+8)
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		fmt.Printf("Failed to load timezone: %v\n", err)
+		return
+	}
+	time.Local = loc
+}
+
 // go build -ldflags "-X main.Version=x.y.z"
 var (
 	// Name is the name of the compiled software.
