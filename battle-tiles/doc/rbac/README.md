@@ -1,253 +1,287 @@
-# RBAC 权限管理系统
+# RBAC 权限系统文档
 
-基于 **battle-reusables** React Native 移动应用的完整权限管理配置。
+本目录包含完整的 RBAC（基于角色的访问控制）系统的数据库脚本和文档。
 
-## 📋 文件说明
+## 📁 文件说明
 
-### 1. `base_role.sql`
-定义系统中的角色：
-- **超级管理员** (id=1, code='super_admin')
-- **店铺管理员** (id=2, code='shop_admin')
-- **普通用户** (id=3, code='user')
+### SQL 脚本
 
-### 2. `basic_menu.sql`
-定义应用菜单结构，基于 battle-reusables 的实际页面：
+1. **00_init_data.sql** - 完整初始化脚本
+   - 创建所有 RBAC 相关表结构
+   - 插入初始角色、菜单、权限数据
+   - 配置角色权限关联
+   - 配置菜单按钮权限
+   - 适用于首次部署或完全重置
 
-#### 一级菜单（底部标签页）
-| ID | 名称 | 路径 | 权限 |
-|----|------|------|------|
-| 1 | 首页 | `/(tabs)/index` | `stats:view` |
-| 2 | 桌台 | `/(tabs)/tables` | `shop:table:view` |
-| 3 | 成员 | `/(tabs)/members` | `shop:member:view` |
-| 4 | 资金 | `/(tabs)/funds` | `fund:wallet:view` |
-| 5 | 店铺 | `/(tabs)/shop` | 无 |
-| 6 | 我的 | `/(tabs)/profile` | 无 |
+2. **01_update_permissions.sql** - 权限更新脚本
+   - 更新现有角色信息
+   - 添加新的菜单（权限管理、角色管理、菜单管理）
+   - 添加新的权限
+   - 更新角色权限关联
+   - 清理无效数据
+   - 适用于系统升级
 
-#### 二级菜单（店铺子页面）
-| ID | 名称 | 路径 | 权限 |
-|----|------|------|------|
-| 51 | 游戏账号 | `/(shop)/account` | 无 |
-| 52 | 管理员 | `/(shop)/admins` | `shop:admin:view,shop:admin:assign,shop:admin:revoke` |
-| 53 | 中控账号 | `/(shop)/rooms` | `game:ctrl:view,game:ctrl:create,game:ctrl:update,game:ctrl:delete` |
-| 54 | 费用设置 | `/(shop)/fees` | `shop:fees:view` |
-| 55 | 余额筛查 | `/(shop)/balances` | `fund:wallet:view` |
-| 56 | 成员管理 | `/(shop)/members` | `shop:member:view,shop:member:kick` |
-| 57 | 我的战绩 | `/(shop)/my-battles` | 无 |
-| 58 | 我的余额 | `/(shop)/my-balances` | 无 |
-| 59 | 圈子战绩 | `/(shop)/group-battles` | `shop:member:view` |
-| 60 | 圈子余额 | `/(shop)/group-balances` | `shop:member:view` |
+3. **02_add_menu_management.sql** - 菜单管理快速修复脚本
+   - 添加菜单管理菜单项
+   - 为超级管理员分配菜单管理权限
+   - 配置菜单管理按钮
+   - 适用于修复缺少菜单管理功能的问题
 
-### 3. `basic_role_menu_rel.sql`
-定义角色与菜单的关联关系：
+3. **base_role.sql** - 角色表结构和初始数据
+   - 超级管理员（id=1）
+   - 店铺管理员（id=2）
+   - 普通用户（id=3）
 
-#### 超级管理员 (role_id=1)
-拥有所有菜单权限（菜单 1-6, 51-60）
+4. **basic_menu.sql** - 菜单表结构和数据
+   - 一级菜单（底部Tab）
+   - 二级菜单（店铺子页面）
+   - 包含权限管理和角色管理菜单
 
-#### 店铺管理员 (role_id=2)
-拥有所有菜单权限（菜单 1-6, 51-60）
+5. **basic_role_menu_rel.sql** - 角色菜单关联
+   - 定义每个角色可访问的菜单
 
-#### 普通用户 (role_id=3)
-仅拥有基础权限：
-- 店铺 (5)
-- 我的 (6)
-- 游戏账号 (51)
-- 我的战绩 (57)
-- 我的余额 (58)
+6. **basic_permission.sql** - 权限表和数据
+   - 完整的权限定义
+   - 角色权限关联
+   - 菜单按钮配置
 
-## 🔑 权限码说明
+## 🚀 部署指南
 
-### 统计相关
-- `stats:view` - 查看统计数据
-
-### 资金相关
-- `fund:wallet:view` - 查看钱包/余额
-- `fund:ledger:view` - 查看资金流水
-- `fund:deposit` - 上分
-- `fund:withdraw` - 下分
-- `fund:force_withdraw` - 强制下分
-- `fund:limit:update` - 更新额度/禁分设置
-
-### 店铺相关
-- `shop:table:view` - 查看桌台
-- `shop:table:dismiss` - 解散桌台
-- `shop:member:view` - 查看成员
-- `shop:member:kick` - 踢出成员
-- `shop:admin:view` - 查看管理员
-- `shop:admin:assign` - 分配管理员
-- `shop:admin:revoke` - 撤销管理员
-- `shop:apply:view` - 查看入圈申请
-- `shop:apply:approve` - 批准入圈申请
-- `shop:apply:reject` - 拒绝入圈申请
-- `shop:fees:view` - 查看费用设置
-- `shop:group:view` - 查看圈子
-
-### 游戏控制相关
-- `game:ctrl:view` - 查看中控账号
-- `game:ctrl:create` - 创建中控账号
-- `game:ctrl:update` - 更新中控账号
-- `game:ctrl:delete` - 删除中控账号
-
-### 系统相关
-- `menu:view` - 查看菜单
-- `menu:create` - 创建菜单
-- `menu:update` - 更新菜单
-- `menu:delete` - 删除菜单
-
-## 🚀 使用方法
-
-### 1. 初始化数据库
-
-按顺序执行以下 SQL 文件：
+### 首次部署
 
 ```bash
-# 1. 创建角色
+# 方式一：执行完整初始化脚本
+psql -U B022MC -d your_database -f 00_init_data.sql
+
+# 方式二：分步执行
 psql -U B022MC -d your_database -f base_role.sql
-
-# 2. 创建菜单
 psql -U B022MC -d your_database -f basic_menu.sql
-
-# 3. 创建角色-菜单关联
 psql -U B022MC -d your_database -f basic_role_menu_rel.sql
+psql -U B022MC -d your_database -f basic_permission.sql
 ```
 
-### 2. 分配角色给用户
+### 系统升级
+
+如果已有旧数据，需要升级到新的 RBAC 系统：
+
+```bash
+# 执行更新脚本
+psql -U B022MC -d your_database -f 01_update_permissions.sql
+```
+
+### 快速修复（缺少菜单管理）
+
+如果发现系统中缺少菜单管理功能：
+
+```bash
+# 执行快速修复脚本
+psql -U B022MC -d your_database -f 02_add_menu_management.sql
+```
+
+详细说明请参考 [MENU_MANAGEMENT_FIX.md](./MENU_MANAGEMENT_FIX.md)
+
+## 📊 数据结构
+
+### 核心表
+
+1. **basic_role** - 角色表
+   - 存储系统角色信息
+   - 支持角色继承（parent_id）
+   - 软删除支持
+
+2. **basic_menu** - 菜单表
+   - 存储前端菜单配置
+   - 支持二级菜单结构
+   - 包含权限标识（auths 字段）
+
+3. **basic_permission** - 权限表
+   - 存储细粒度权限定义
+   - 按分类组织（stats/fund/shop/game/system）
+   - 支持权限描述
+
+4. **basic_role_menu_rel** - 角色菜单关联表
+   - 定义角色可访问的菜单
+   - 联合主键（role_id, menu_id）
+
+5. **basic_role_permission_rel** - 角色权限关联表
+   - 定义角色拥有的权限
+   - 联合主键（role_id, permission_id）
+
+6. **basic_menu_button** - 菜单按钮表
+   - 定义菜单内的按钮级权限
+   - 支持多权限OR逻辑（permission_codes）
+
+7. **basic_user_role_rel** - 用户角色关联表
+   - 定义用户的角色分配
+   - 支持一个用户拥有多个角色
+
+## 🎯 权限体系
+
+### 权限分类
+
+- **stats** - 统计数据权限
+- **fund** - 资金管理权限
+- **shop** - 店铺管理权限
+- **game** - 游戏控制权限
+- **system** - 系统管理权限
+
+### 权限命名规范
+
+格式：`分类:功能:操作`
+
+示例：
+- `shop:admin:view` - 查看店铺管理员
+- `shop:admin:assign` - 分配店铺管理员
+- `fund:deposit` - 上分操作
+- `permission:create` - 创建权限
+
+### 预定义角色
+
+#### 1. 超级管理员 (super_admin, id=1)
+- 拥有系统所有权限
+- 可以管理权限、角色、菜单
+- 不能被删除
+
+#### 2. 店铺管理员 (shop_admin, id=2)
+- 拥有店铺管理相关权限
+- 可以管理成员、资金、桌台等
+- 不能管理系统级设置
+- 不能被删除
+
+#### 3. 普通用户 (user, id=3)
+- 仅拥有基础查看权限
+- 可以查看自己的数据
+- 不能管理他人数据
+- 不能被删除
+
+## 🔧 使用示例
+
+### 创建新角色
 
 ```sql
--- 将用户设置为普通用户
-INSERT INTO basic_user_role_rel (user_id, role_id) VALUES (4, 3);
+-- 1. 创建角色
+INSERT INTO basic_role (code, name, remark, enable) 
+VALUES ('custom_role', '自定义角色', '描述信息', true);
 
--- 将用户设置为店铺管理员
-INSERT INTO basic_user_role_rel (user_id, role_id) VALUES (4, 2);
+-- 2. 为角色分配权限
+INSERT INTO basic_role_permission_rel (role_id, permission_id)
+SELECT 4, id FROM basic_permission 
+WHERE code IN ('shop:member:view', 'fund:wallet:view');
 
--- 将用户设置为超级管理员
-INSERT INTO basic_user_role_rel (user_id, role_id) VALUES (4, 1);
+-- 3. 为角色分配菜单
+INSERT INTO basic_role_menu_rel (role_id, menu_id)
+VALUES (4, 3), (4, 4), (4, 5), (4, 6);
 ```
 
-### 3. 查看用户权限
+### 为用户分配角色
 
 ```sql
--- 查看用户的角色
-SELECT r.* 
-FROM basic_role r
-JOIN basic_user_role_rel urr ON r.id = urr.role_id
-WHERE urr.user_id = 4;
-
--- 查看用户可访问的菜单
-SELECT m.* 
-FROM basic_menu m
-JOIN basic_role_menu_rel rmr ON m.id = rmr.menu_id
-JOIN basic_user_role_rel urr ON rmr.role_id = urr.role_id
-WHERE urr.user_id = 4
-ORDER BY m.parent_id, m.rank;
+-- 将用户 ID=100 设置为店铺管理员
+INSERT INTO basic_user_role_rel (user_id, role_id) 
+VALUES (100, 2)
+ON CONFLICT (user_id, role_id) DO NOTHING;
 ```
 
-### 4. 修改用户角色
+### 查询用户权限
 
 ```sql
--- 删除用户的所有角色
-DELETE FROM basic_user_role_rel WHERE user_id = 4;
-
--- 重新分配角色
-INSERT INTO basic_user_role_rel (user_id, role_id) VALUES (4, 3);
+-- 查询用户的所有权限
+SELECT DISTINCT p.code, p.name, p.category
+FROM basic_user_role_rel urr
+JOIN basic_role_permission_rel rpr ON rpr.role_id = urr.role_id
+JOIN basic_permission p ON p.id = rpr.permission_id
+WHERE urr.user_id = 100 AND p.is_deleted = false
+ORDER BY p.category, p.code;
 ```
 
-## 📊 角色权限对比
-
-| 功能 | 超级管理员 | 店铺管理员 | 普通用户 |
-|------|-----------|-----------|---------|
-| 首页统计 | ✅ | ✅ | ❌ |
-| 桌台管理 | ✅ | ✅ | ❌ |
-| 成员管理 | ✅ | ✅ | ❌ |
-| 资金管理 | ✅ | ✅ | ❌ |
-| 店铺入口 | ✅ | ✅ | ✅ |
-| 我的页面 | ✅ | ✅ | ✅ |
-| 游戏账号 | ✅ | ✅ | ✅ |
-| 管理员设置 | ✅ | ✅ | ❌ |
-| 中控账号 | ✅ | ✅ | ❌ |
-| 费用设置 | ✅ | ✅ | ❌ |
-| 余额筛查 | ✅ | ✅ | ❌ |
-| 成员管理 | ✅ | ✅ | ❌ |
-| 我的战绩 | ✅ | ✅ | ✅ |
-| 我的余额 | ✅ | ✅ | ✅ |
-| 圈子战绩 | ✅ | ✅ | ❌ |
-| 圈子余额 | ✅ | ✅ | ❌ |
-
-## 🔧 自定义配置
-
-### 添加新菜单
+### 查询角色的菜单
 
 ```sql
--- 添加一级菜单
-INSERT INTO basic_menu (id, parent_id, menu_type, title, name, path, component, rank, redirect, icon, extra_icon, enter_transition, leave_transition, active_path, auths, frame_src, frame_loading, keep_alive, hidden_tag, fixed_tag, show_link, show_parent) 
-VALUES (7, -1, 1, '新菜单', 'new_menu', '/(tabs)/new', 'tabs/new', '7', '', 'icon-name', '', '', '', '', 'new:view', '', false, false, false, false, true, true);
-
--- 添加二级菜单
-INSERT INTO basic_menu (id, parent_id, menu_type, title, name, path, component, rank, redirect, icon, extra_icon, enter_transition, leave_transition, active_path, auths, frame_src, frame_loading, keep_alive, hidden_tag, fixed_tag, show_link, show_parent) 
-VALUES (71, 7, 2, '子菜单', 'new_menu.sub', '/(new)/sub', 'new/sub', NULL, '', '', '', '', '', '', 'new:sub:view', '', false, false, false, false, true, true);
+-- 查询角色可访问的菜单
+SELECT m.*
+FROM basic_role_menu_rel rmr
+JOIN basic_menu m ON m.id = rmr.menu_id
+WHERE rmr.role_id = 2 AND m.is_del = 0
+ORDER BY m.menu_type, m.id;
 ```
 
-### 为角色分配新菜单
+## 📝 前端集成
 
-```sql
--- 为超级管理员分配新菜单
-INSERT INTO basic_role_menu_rel (role_id, menu_id) VALUES (1, 7);
-INSERT INTO basic_role_menu_rel (role_id, menu_id) VALUES (1, 71);
+### 路由配置
+
+RBAC管理页面已添加到系统：
+
+- `/(shop)/permissions` - 权限管理页面
+- `/(shop)/roles` - 角色管理页面
+- `/(shop)/menus` - 菜单管理页面
+
+### 权限控制组件
+
+```tsx
+// 页面级权限控制
+<RouteGuard anyOf={['permission:view']}>
+  <PermissionsView />
+</RouteGuard>
+
+// 按钮级权限控制
+<PermissionGate anyOf={['permission:create']}>
+  <Button>创建权限</Button>
+</PermissionGate>
 ```
 
-## 📝 注意事项
+### API 接口
 
-1. **菜单 ID 规则**：
-   - 一级菜单：1-9
-   - 二级菜单：父菜单ID * 10 + 序号（如 51, 52, 53...）
+#### 权限管理
+- GET `/basic/permission/list` - 查询权限列表
+- GET `/basic/permission/listAll` - 查询所有权限
+- POST `/basic/permission/create` - 创建权限
+- POST `/basic/permission/update` - 更新权限
+- POST `/basic/permission/delete` - 删除权限
+- GET `/basic/permission/role/permissions` - 查询角色权限
+- POST `/basic/permission/role/assign` - 为角色分配权限
+- POST `/basic/permission/role/remove` - 从角色移除权限
 
-2. **权限检查**：
-   - 菜单的 `auths` 字段为空时，所有用户都可以访问
-   - 菜单的 `auths` 字段有值时，用户必须拥有其中任一权限才能访问
+#### 角色管理
+- GET `/basic/role/list` - 查询角色列表
+- GET `/basic/role/getOne` - 查询单个角色
+- GET `/basic/role/all` - 查询所有角色
+- POST `/basic/role/create` - 创建角色
+- POST `/basic/role/update` - 更新角色
+- POST `/basic/role/delete` - 删除角色
+- GET `/basic/role/menus` - 查询角色菜单
+- POST `/basic/role/menus/assign` - 为角色分配菜单
 
-3. **角色继承**：
-   - 当前系统不支持角色继承
-   - 每个角色的权限需要单独配置
+## 🔒 安全注意事项
 
-4. **数据一致性**：
-   - 删除菜单前，先删除 `basic_role_menu_rel` 中的关联记录
-   - 删除角色前，先删除 `basic_user_role_rel` 和 `basic_role_menu_rel` 中的关联记录
+1. **不要删除系统预定义角色**（id=1,2,3）
+2. **超级管理员账号需要严格保护**
+3. **权限变更后需要清理 Redis 缓存**
+4. **定期审计权限分配情况**
+5. **最小权限原则**：只分配必要的权限
 
-## 🐛 故障排查
+## 📊 数据统计
 
-### 用户看不到某个菜单
+执行初始化脚本后的数据量：
 
-1. 检查用户是否有对应角色：
-```sql
-SELECT * FROM basic_user_role_rel WHERE user_id = 4;
-```
+- 角色：3 个（超级管理员、店铺管理员、普通用户）
+- 菜单：19 个（6个一级菜单 + 13个二级菜单，包含菜单管理）
+- 权限：43 个（覆盖所有功能模块）
+- 菜单按钮：26 个（细粒度按钮控制）
 
-2. 检查角色是否有菜单权限：
-```sql
-SELECT * FROM basic_role_menu_rel WHERE role_id = 3 AND menu_id = 1;
-```
+## 🔄 维护建议
 
-3. 检查用户是否有菜单要求的权限：
-```sql
-SELECT p.code 
-FROM basic_permission p
-JOIN basic_role_permission_rel rpr ON p.id = rpr.permission_id
-JOIN basic_user_role_rel urr ON rpr.role_id = urr.role_id
-WHERE urr.user_id = 4;
-```
+1. **定期备份**：在修改权限数据前进行备份
+2. **版本控制**：所有 SQL 脚本纳入版本控制
+3. **文档更新**：添加新权限时同步更新文档
+4. **测试验证**：权限变更后进行完整测试
+5. **日志记录**：记录权限变更操作
 
-### 重置所有权限
+## 📞 问题反馈
 
-```sql
--- 清空所有角色-菜单关联
-TRUNCATE TABLE basic_role_menu_rel;
+如有问题或建议，请联系开发团队。
 
--- 重新执行 basic_role_menu_rel.sql
-\i basic_role_menu_rel.sql
-```
+---
 
-## 📚 相关文档
-
-- [React Native 应用结构](../../battle-reusables/README.md)
-- [权限系统设计](./permission-design.md)
-- [API 权限控制](../api/permission-control.md)
-
+**最后更新**: 2025-11-18  
+**版本**: 2.0  
+**维护者**: Development Team

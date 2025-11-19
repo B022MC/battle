@@ -14,15 +14,20 @@ import { usePermission } from '@/hooks/use-permission';
 export default function TabLayout() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  
+  // 未登录时立即重定向，不渲染任何内容
+  useFocusEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/auth');
+    }
+  });
+
+  // 等待认证检查完成后再获取权限
   const { hasAny } = usePermission();
   const canViewStats = hasAny(['stats:view']);
   const canViewTables = hasAny(['shop:table:view']);
   const canViewMembers = hasAny(['shop:member:view']);
   const canViewFunds = hasAny(['fund:wallet:view']);
-
-  useFocusEffect(() => {
-    if (!isAuthenticated) router.replace('/auth');
-  });
 
   return (
     <Tabs

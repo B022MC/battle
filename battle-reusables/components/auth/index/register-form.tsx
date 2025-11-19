@@ -114,7 +114,7 @@ export const RegisterForm = () => {
 
   const { run: runUserRegister, loading: registering } = useRequest(loginRegister, {
     manual: true,
-    onSuccess: () => router.replace('/'),
+    onSuccess: () => router.replace('/(tabs)'),
   });
 
   const onSubmit = async (values: RegisterFormValues) => {
@@ -284,7 +284,10 @@ export const RegisterForm = () => {
             control={control}
             name="gameAccountMode"
             render={({ field: { onChange, value } }) => (
-              <Select onValueChange={(option) => onChange(option?.value)} defaultValue={{ value }}>
+              <Select 
+                onValueChange={(option) => onChange(option?.value)} 
+                value={{ value, label: value === 'mobile' ? '手机号' : '游戏账号' }}
+              >
                 <SelectTrigger
                   ref={gameModeRef}
                   className="w-full"

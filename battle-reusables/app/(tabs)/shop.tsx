@@ -34,6 +34,18 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/group-balances')}><Text>圈子余额(管理员)</Text></Button>
         </PermissionGate>
+
+        {/* 系统管理功能 */}
+        <Text className="text-lg font-semibold mt-4">系统管理</Text>
+        <PermissionGate anyOf={["permission:view"]}>
+          <Button onPress={() => router.push('/(shop)/permissions')}><Text>权限管理</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["role:view"]}>
+          <Button onPress={() => router.push('/(shop)/roles')}><Text>角色管理</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["menu:view"]}>
+          <Button onPress={() => router.push('/(shop)/menus')}><Text>菜单管理</Text></Button>
+        </PermissionGate>
       </View>
 
       </View>

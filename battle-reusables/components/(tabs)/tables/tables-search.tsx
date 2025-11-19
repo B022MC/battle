@@ -22,6 +22,7 @@ import { shopsTablesPull } from '@/services/shops/tables';
 import { shopsHousesOptions } from '@/services/shops/houses';
 import { TriggerRef } from '@rn-primitives/select';
 import { isWeb } from '@/utils/platform';
+import { useAuthStore } from '@/hooks/use-auth-store';
 
 const searchFormSchema = z.lazy(() =>
   z.object({
@@ -37,6 +38,7 @@ type TablesSearchProps = {
 };
 
 export const TablesSearch = ({ submitButtonProps, onSubmit }: TablesSearchProps) => {
+  const { isAuthenticated } = useAuthStore();
   const {
     control,
     handleSubmit,
@@ -55,7 +57,9 @@ export const TablesSearch = ({ submitButtonProps, onSubmit }: TablesSearchProps)
 
   const { loading, ...restSubmitButtonProps } = submitButtonProps ?? {};
   const { run: pull, loading: pulling } = useRequest(shopsTablesPull, { manual: true });
-  const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const { data: houseOptions } = useRequest(shopsHousesOptions, {
+    manual: !isAuthenticated, // 未登录时不自动加载
+  });
 
   const ref = useRef<TriggerRef>(null);
   function onTouchStart() {

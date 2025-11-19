@@ -48,9 +48,12 @@ export const request = async <T>(
     : process.env.EXPO_PUBLIC_DEV_API_URL ||
       (Platform.OS === 'android' ? 'https://10.0.2.2:8000' : 'https://127.0.0.1:8000');
 
-  // Web 环境下，如果有自定义 host 则使用，否则使用开发环境的 API URL
+  // Web 环境下使用代理前缀，Native 环境使用完整 URL
+  // 临时调试：如果设置了 BYPASS_PROXY 则直接使用完整 URL
   const apiUrl = isWeb
-    ? (hostFromEnv ? `http://${hostFromEnv}:8000` : process.env.EXPO_PUBLIC_DEV_API_URL || 'http://127.0.0.1:8000')
+    ? (process.env.EXPO_PUBLIC_BYPASS_PROXY === 'true' 
+        ? 'http://127.0.0.1:8000' 
+        : (process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB || '/web'))
     : nativeApiUrl;
 
   const query = params ? `?${new URLSearchParams(params).toString()}` : '';
