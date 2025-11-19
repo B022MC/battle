@@ -24,7 +24,7 @@ export function RoleList({
     setLoading(true);
     try {
       const res = await getRoleList({ page_size: 100 });
-      if (res.success && res.data) {
+      if (res.code === 0 && res.data) {
         setRoles(res.data.list);
       }
     } catch (error) {
@@ -57,7 +57,7 @@ export function RoleList({
           onPress: async () => {
             try {
               const res = await deleteRole(role.id);
-              if (res.success) {
+              if (res.code === 0) {
                 showToast('删除成功', 'success');
                 loadRoles();
                 onRefresh?.();

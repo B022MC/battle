@@ -64,13 +64,13 @@ export function AssignPermissionsModal({
     try {
       // 加载所有权限
       const allRes = await getAllPermissions();
-      if (allRes.success && allRes.data) {
+      if (allRes.code === 0 && allRes.data) {
         setAllPermissions(allRes.data);
       }
 
       // 加载角色已有权限
       const roleRes = await getRolePermissions(role.id);
-      if (roleRes.success && roleRes.data) {
+      if (roleRes.code === 0 && roleRes.data) {
         const ids = new Set(roleRes.data.map((p) => p.id));
         setSelectedIds(ids);
       }
@@ -117,12 +117,12 @@ export function AssignPermissionsModal({
         role_id: role.id,
         permission_ids: Array.from(selectedIds),
       });
-      if (res.success) {
+      if (res.code === 0) {
         showToast('分配权限成功', 'success');
         onSuccess();
         onClose();
       } else {
-        showToast(res.message || '分配权限失败', 'error');
+        showToast(res.msg || '分配权限失败', 'error');
       }
     } catch (error) {
       showToast('分配权限失败', 'error');

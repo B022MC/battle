@@ -74,7 +74,7 @@ export function PermissionForm({
           description,
         };
         const res = await updatePermission(data);
-        if (res.success) {
+        if (res.code === 0) {
           showToast('更新成功', 'success');
           onSuccess();
           onClose();
@@ -90,7 +90,7 @@ export function PermissionForm({
           description,
         };
         const res = await createPermission(data);
-        if (res.success) {
+        if (res.code === 0) {
           showToast('创建成功', 'success');
           onSuccess();
           onClose();

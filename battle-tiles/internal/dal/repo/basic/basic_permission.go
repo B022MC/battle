@@ -63,7 +63,7 @@ func (r *permissionRepo) Delete(ctx context.Context, id int32) error {
 func (r *permissionRepo) GetByID(ctx context.Context, id int32) (*basicModel.BasicPermission, error) {
 	db := r.data.GetDBWithContext(ctx)
 	var permission basicModel.BasicPermission
-	if err := db.Where("id = ? AND is_deleted = false", id).First(&permission).Error; err != nil {
+	if err := db.Where("id = ? AND is_deleted = ?", id, false).First(&permission).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -75,7 +75,7 @@ func (r *permissionRepo) GetByID(ctx context.Context, id int32) (*basicModel.Bas
 func (r *permissionRepo) GetByCode(ctx context.Context, code string) (*basicModel.BasicPermission, error) {
 	db := r.data.GetDBWithContext(ctx)
 	var permission basicModel.BasicPermission
-	if err := db.Where("code = ? AND is_deleted = false", code).First(&permission).Error; err != nil {
+	if err := db.Where("code = ? AND is_deleted = ?", code, false).First(&permission).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -130,7 +130,7 @@ func (r *permissionRepo) GetRolePermissions(ctx context.Context, roleID int32) (
 	err := db.Table(basicModel.TableNameBasicPermission+" AS p").
 		Select("p.*").
 		Joins("JOIN "+basicModel.TableNameBasicRolePermissionRel+" AS rpr ON rpr.permission_id = p.id").
-		Where("rpr.role_id = ? AND p.is_deleted = false", roleID).
+		Where("rpr.role_id = ?", roleID).
 		Order("p.category, p.code").
 		Find(&permissions).Error
 
@@ -151,7 +151,7 @@ func (r *permissionRepo) GetRolePermissionCodes(ctx context.Context, roleID int3
 	err := db.Table(basicModel.TableNameBasicPermission+" AS p").
 		Select("p.code").
 		Joins("JOIN "+basicModel.TableNameBasicRolePermissionRel+" AS rpr ON rpr.permission_id = p.id").
-		Where("rpr.role_id = ? AND p.is_deleted = false", roleID).
+		Where("rpr.role_id = ?", roleID).
 		Find(&rows).Error
 
 	if err != nil {
@@ -178,7 +178,7 @@ func (r *permissionRepo) GetUserPermissionsFromTable(ctx context.Context, userID
 		Select("DISTINCT p.code").
 		Joins("JOIN "+basicModel.TableNameBasicRolePermissionRel+" AS rpr ON rpr.role_id = urr.role_id").
 		Joins("JOIN "+basicModel.TableNameBasicPermission+" AS p ON p.id = rpr.permission_id").
-		Where("urr.user_id = ? AND p.is_deleted = false", userID).
+		Where("urr.user_id = ?", userID).
 		Find(&rows).Error
 
 	if err != nil {

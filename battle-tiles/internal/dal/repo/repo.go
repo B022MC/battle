@@ -19,6 +19,7 @@ var ProviderSet = wire.NewSet(
 	basic.NewBaseMenuRepo,
 	basic.NewBaseRoleMenuRelRepo,
 	basic.NewBaseRoleMenuBtnRelRepo,
+	basic.NewPermissionRepo,
 
 	cloud.NewBasePlatformRepo,
 

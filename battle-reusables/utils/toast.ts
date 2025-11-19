@@ -132,3 +132,25 @@ export const toast = {
   },
 };
 
+/**
+ * 显示 Toast 提示（兼容旧版 API）
+ * @param message 提示消息
+ * @param type 提示类型
+ */
+export function showToast(message: string, type: ToastType = 'info') {
+  switch (type) {
+    case 'success':
+      toast.success(message);
+      break;
+    case 'error':
+      toast.error(message);
+      break;
+    case 'warning':
+      toast.warning(message);
+      break;
+    case 'info':
+    default:
+      toast.info(message);
+      break;
+  }
+}

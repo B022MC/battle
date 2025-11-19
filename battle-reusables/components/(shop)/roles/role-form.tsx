@@ -62,7 +62,7 @@ export function RoleForm({ visible, onClose, onSuccess, role }: RoleFormProps) {
           enable,
         };
         const res = await updateRole(data);
-        if (res.success) {
+        if (res.code === 0) {
           showToast('更新成功', 'success');
           onSuccess();
           onClose();
@@ -77,7 +77,7 @@ export function RoleForm({ visible, onClose, onSuccess, role }: RoleFormProps) {
           remark: remark || undefined,
         };
         const res = await createRole(data);
-        if (res.success) {
+        if (res.code === 0) {
           showToast('创建成功', 'success');
           onSuccess();
           onClose();

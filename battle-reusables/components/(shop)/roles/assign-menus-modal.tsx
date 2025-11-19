@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { getRoleMenus, assignMenusToRole } from '@/services/basic/role';
-import { getAllMenus } from '@/services/basic/menu';
+import { getMenuTree } from '@/services/basic/menu';
 import type { Role } from '@/services/basic/role';
 import { showToast } from '@/utils/toast';
 
@@ -49,20 +49,43 @@ export function AssignMenusModal({
     }
   }, [visible, role]);
 
+  const flattenMenus = (menus: any[]): Menu[] => {
+    const result: Menu[] = [];
+    const flatten = (items: any[]) => {
+      items.forEach((item) => {
+        result.push({
+          id: item.id,
+          parent_id: item.parent_id,
+          menu_type: item.menu_type,
+          title: item.title,
+          name: item.name,
+          path: item.path,
+        });
+        if (item.children && item.children.length > 0) {
+          flatten(item.children);
+        }
+      });
+    };
+    flatten(menus);
+    return result;
+  };
+
   const loadData = async () => {
     if (!role) return;
 
     setLoading(true);
     try {
-      // 加载所有菜单
-      const allRes = await getAllMenus();
-      if (allRes.success && allRes.data) {
-        setAllMenus(allRes.data);
+      // 加载所有菜单（树形结构）
+      const allRes: any = await getMenuTree();
+      if (allRes.code === 0 && allRes.data) {
+        // 将树形结构扁平化
+        const flatMenus = flattenMenus(allRes.data);
+        setAllMenus(flatMenus);
       }
 
       // 加载角色已有菜单
       const roleRes = await getRoleMenus(role.id);
-      if (roleRes.success && roleRes.data) {
+      if (roleRes.code === 0 && roleRes.data) {
         setSelectedIds(new Set(roleRes.data.menu_ids));
       }
     } catch (error) {
@@ -110,12 +133,12 @@ export function AssignMenusModal({
         role_id: role.id,
         menu_ids: Array.from(selectedIds),
       });
-      if (res.success) {
+      if (res.code === 0) {
         showToast('分配菜单成功', 'success');
         onSuccess();
         onClose();
       } else {
-        showToast(res.message || '分配菜单失败', 'error');
+        showToast(res.msg || '分配菜单失败', 'error');
       }
     } catch (error) {
       showToast('分配菜单失败', 'error');

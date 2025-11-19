@@ -12,7 +12,7 @@ import {
 import {
   createMenu,
   updateMenu,
-  getAllMenus,
+  getMenuTree,
   type Menu,
   type CreateMenuRequest,
   type UpdateMenuRequest,
@@ -66,10 +66,28 @@ export function MenuForm({ visible, onClose, onSuccess, menu }: MenuFormProps) {
     }
   }, [visible, menu]);
 
+  const flattenMenus = (menus: any[]): Menu[] => {
+    const result: Menu[] = [];
+    const flatten = (items: any[]) => {
+      items.forEach((item) => {
+        result.push(item);
+        if (item.children && item.children.length > 0) {
+          flatten(item.children);
+        }
+      });
+    };
+    flatten(menus);
+    return result;
+  };
+
   const loadParentMenus = async () => {
     try {
-      const response = await getAllMenus();
-      setParentMenus(response.data || []);
+      const response: any = await getMenuTree();
+      if (response.code === 0 && response.data) {
+        // 将树形结构扁平化
+        const flatMenus = flattenMenus(response.data);
+        setParentMenus(flatMenus);
+      }
     } catch (error) {
       console.error('加载父级菜单失败:', error);
     }

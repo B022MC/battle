@@ -1,14 +1,16 @@
 package basic
 
 import (
-	basex "battle-tiles/pkg/plugin/gormx/base"
+	"time"
 )
 
 const TableNameBasicPermission = "basic_permission"
 
 // BasicPermission 基础权限表
 type BasicPermission struct {
-	basex.Model[int32]
+	Id        int32     `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"autoCreateTime;column:created_at;type:timestamp with time zone;not null" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime;column:updated_at;type:timestamp with time zone;not null" json:"updated_at"`
 
 	Code        string `gorm:"column:code;type:varchar(100);not null;comment:权限编码" json:"code"`
 	Name        string `gorm:"column:name;type:varchar(255);not null;comment:权限名称" json:"name"`
@@ -38,7 +40,9 @@ const TableNameBasicMenuButton = "basic_menu_button"
 
 // BasicMenuButton 菜单按钮表
 type BasicMenuButton struct {
-	basex.Model[int32]
+	Id        int32     `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"autoCreateTime;column:created_at;type:timestamp with time zone;not null" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime;column:updated_at;type:timestamp with time zone;not null" json:"updated_at"`
 
 	MenuID          int32  `gorm:"column:menu_id;type:int4;not null;comment:所属菜单ID" json:"menu_id"`
 	ButtonCode      string `gorm:"column:button_code;type:varchar(100);not null;comment:按钮编码" json:"button_code"`

@@ -64,6 +64,10 @@ export async function getAllMenus() {
   return request<Menu[]>({
     url: '/basic/baseMenu/getOption',
     method: 'GET',
+    params: {
+      page: 1,
+      page_size: 1000, // 设置较大值以获取所有菜单
+    },
   });
 }
 

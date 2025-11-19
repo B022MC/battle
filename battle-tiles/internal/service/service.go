@@ -18,6 +18,7 @@ var ProviderSet = wire.NewSet(
 	basic.NewBasicRoleService,
 	basic.NewBasicLoginService,
 	basic.NewBasicMenuService,
+	basic.NewBasicPermissionService,
 
 	game.NewSessionService,
 	game.NewAccountService,
