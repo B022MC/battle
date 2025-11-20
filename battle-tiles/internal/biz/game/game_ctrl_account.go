@@ -85,6 +85,7 @@ func (uc *CtrlAccountUseCase) CreateOrUpdateCtrl(ctx context.Context, mode const
 				Status:        1,
 				LoginMode:     loginMode,
 				CtrlAccountID: &m.Id,
+				GamePlayerID:  fmt.Sprintf("%d", info.GameID), // 设置游戏玩家ID
 			})
 		}
 	}

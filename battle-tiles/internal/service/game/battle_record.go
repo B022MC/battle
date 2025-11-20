@@ -198,59 +198,8 @@ type ListHouseBattlesRequest struct {
 // @Param        in body ListHouseBattlesRequest true "查询参数"
 // @Success      200 {object} response.Body{data=[]model.GameBattleRecord}
 // @Router       /battle-query/group/battles [post]
-func (s *BattleRecordService) ListGroupBattles(c *gin.Context) {
-	var in ListHouseBattlesRequest
-	if err := c.ShouldBindJSON(&in); err != nil {
-		response.Fail(c, ecode.ParamsFailed, err)
-		return
-	}
-
-	// 转换时间参数
-	var start, end *time.Time
-	if in.StartTime != nil {
-		t := time.Unix(*in.StartTime, 0)
-		start = &t
-	}
-	if in.EndTime != nil {
-		t := time.Unix(*in.EndTime, 0)
-		end = &t
-	}
-
-	// 设置默认分页参数
-	if in.Page <= 0 {
-		in.Page = 1
-	}
-	if in.Size <= 0 {
-		in.Size = 20
-	}
-
-	// 查询战绩
-	records, total, err := s.uc.ListHouseBattleRecords(
-		c.Request.Context(),
-		in.HouseGID,
-		in.GroupID,
-		in.GameID,
-		start,
-		end,
-		in.Page,
-		in.Size,
-	)
-	if err != nil {
-		response.Fail(c, ecode.Failed, err)
-		return
-	}
-
-	response.Success(c, gin.H{
-		"list":  records,
-		"total": total,
-		"page":  in.Page,
-		"size":  in.Size,
-	})
-}
-
-// ListHouseBattles 已弃用，使用 ListGroupBattles 替代
-func (s *BattleRecordService) ListHouseBattles(c *gin.Context) {
-	s.ListGroupBattles(c)
+func (s *BattleRecordService) ListGroupBattles(context *gin.Context) {
+	//TODO
 }
 
 // GetPlayerStatsRequest 查询玩家统计请求

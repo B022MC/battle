@@ -19,9 +19,10 @@ type GameAccountRepo interface {
 	GetByIDForUser(ctx context.Context, id int32, userID int32) (*model.GameAccount, error)
 	DeleteByUser(ctx context.Context, userID int32) error
 	CountByCtrl(ctx context.Context, ctrlID int32) (int64, error)
-	ListByGameUserIDEmpty(ctx context.Context) ([]*model.GameAccount, error)            // 查询 game_user_id 为空的记录
-	Update(ctx context.Context, a *model.GameAccount) error                             // 更新记录
-	GetByGameUserID(ctx context.Context, gameUserID string) (*model.GameAccount, error) // 通过游戏账号ID查询
+	ListByGameUserIDEmpty(ctx context.Context) ([]*model.GameAccount, error) // 查询 game_user_id 为空的记录
+	Update(ctx context.Context, a *model.GameAccount) error                  // 更新记录
+	GetByAccount(ctx context.Context, account string) (*model.GameAccount, error)
+	GetByGamePlayerID(ctx context.Context, gamePlayerID string) (*model.GameAccount, error) // 通过game_player_id查询
 }
 
 type gameAccountRepo struct {
@@ -105,13 +106,18 @@ func (r *gameAccountRepo) Update(ctx context.Context, a *model.GameAccount) erro
 		Updates(a).Error
 }
 
-// GetByGameUserID 通过游戏账号ID（game_user_id）查询游戏账号
-// 注意：game_user_id 是游戏服务器返回的账号ID，不是系统内部ID
-func (r *gameAccountRepo) GetByGameUserID(ctx context.Context, gameUserID string) (*model.GameAccount, error) {
+func (r *gameAccountRepo) GetByAccount(ctx context.Context, account string) (*model.GameAccount, error) {
 	var a model.GameAccount
-	err := r.data.GetDBWithContext(ctx).
-		Where("game_user_id = ? AND is_del = 0", gameUserID).
-		First(&a).Error
+	err := r.data.GetDBWithContext(ctx).Where("account = ? AND is_del = 0", account).First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *gameAccountRepo) GetByGamePlayerID(ctx context.Context, gamePlayerID string) (*model.GameAccount, error) {
+	var a model.GameAccount
+	err := r.data.GetDBWithContext(ctx).Where("game_player_id = ? AND is_del = 0", gamePlayerID).First(&a).Error
 	if err != nil {
 		return nil, err
 	}

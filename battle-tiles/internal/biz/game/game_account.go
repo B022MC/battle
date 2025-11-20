@@ -7,11 +7,11 @@ import (
 	repo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/infra/plaza"
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/pkg/errors"
+	"github.com/spf13/cast"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +19,7 @@ type GameAccountUseCase struct {
 	accRepo            repo.GameAccountRepo
 	accCtrlAccountRepo repo.GameCtrlAccountRepo
 	accHouseRepo       repo.GameAccountHouseRepo
+	accountGroupRepo   repo.GameAccountGroupRepo // 用于查询 game_account_group
 	sessRepo           repo.SessionRepo
 	mgr                plaza.Manager
 	log                *log.Helper
@@ -28,6 +29,7 @@ func NewGameAccountUseCase(
 	acc repo.GameAccountRepo,
 	ctrlAcc repo.GameCtrlAccountRepo,
 	accHouse repo.GameAccountHouseRepo,
+	accountGroup repo.GameAccountGroupRepo,
 	sess repo.SessionRepo,
 	mgr plaza.Manager,
 	logger log.Logger,
@@ -36,6 +38,7 @@ func NewGameAccountUseCase(
 		accRepo:            acc,
 		accCtrlAccountRepo: ctrlAcc,
 		accHouseRepo:       accHouse,
+		accountGroupRepo:   accountGroup,
 		sessRepo:           sess,
 		mgr:                mgr,
 		log:                log.NewHelper(log.With(logger, "module", "usecase/game_account")),
@@ -49,27 +52,26 @@ func (uc *GameAccountUseCase) BindSingle(ctx context.Context, userID int32, mode
 	if err != nil {
 		return nil, err
 	}
-	
-	// 普通用户仅允许1条（DB 触发器也兜底）
+
 	if _, err := uc.accRepo.GetOneByUser(ctx, userID); err == nil {
 		return nil, errors.New("you have already bound a game account")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	gameUserID := fmt.Sprintf("%d", info.UserID)
-	
 	// 检查游戏账号是否已存在
-	existingAccount, err := uc.accRepo.GetByGameUserID(ctx, gameUserID)
+	existingAccount, err := uc.accRepo.GetByAccount(ctx, identifier)
 	if err == nil && existingAccount != nil {
 		// 游戏账号已存在
-		if existingAccount.UserID != nil {
+		if existingAccount.UserID != nil && *existingAccount.UserID != 0 {
 			// 已被其他用户绑定
 			return nil, errors.New("this game account is already bound to another user")
 		}
-		// 游戏账号存在但未绑定用户，更新绑定
+		// 游戏账号存在但未绑定用户，更新绑定并同步 GamePlayerID
 		existingAccount.UserID = &userID
 		existingAccount.IsDefault = true
+		existingAccount.GamePlayerID = cast.ToString(info.GameID) // 同步更新 GamePlayerID
+		existingAccount.Nickname = nickname                       // 同步更新昵称
 		if err := uc.accRepo.Update(ctx, existingAccount); err != nil {
 			return nil, err
 		}
@@ -84,14 +86,14 @@ func (uc *GameAccountUseCase) BindSingle(ctx context.Context, userID int32, mode
 		loginMode = "mobile"
 	}
 	a := &model.GameAccount{
-		UserID:     &userID, // 指针类型
-		Account:    strings.TrimSpace(identifier),
-		PwdMD5:     strings.ToUpper(strings.TrimSpace(pwdMD5)),
-		Nickname:   nickname,
-		IsDefault:  true,
-		Status:     1,
-		LoginMode:  loginMode,
-		GameUserID: gameUserID, // 保存游戏用户 ID
+		UserID:       &userID, // 指针类型
+		Account:      strings.TrimSpace(identifier),
+		PwdMD5:       strings.ToUpper(strings.TrimSpace(pwdMD5)),
+		Nickname:     nickname,
+		IsDefault:    true,
+		Status:       1,
+		LoginMode:    loginMode,
+		GamePlayerID: cast.ToString(info.GameID), // 保存游戏账号 ID
 	}
 	if err := uc.accRepo.Create(ctx, a); err != nil {
 		return nil, err
@@ -111,57 +113,40 @@ func (uc *GameAccountUseCase) List(ctx context.Context, userID int32) ([]*model.
 	return uc.accRepo.ListByUser(ctx, userID)
 }
 
-func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) ([]*model.GameAccountHouse, error) {
+func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) (*model.GameAccountHouse, error) {
 	// 先获取用户的游戏账号
 	acc, err := uc.accRepo.GetOneByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	// 获取该账号绑定的所有店铺
-	return uc.accHouseRepo.ListHousesByAccount(ctx, acc.Id)
+
+	// 从 game_account_group 查询店铺信息（一个用户在一个店铺只能加入一个圈子）
+	accountGroups, err := uc.accountGroupRepo.ListByGameAccount(ctx, acc.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(accountGroups) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	// 取第一个激活的圈子关系，转换为 GameAccountHouse 格式
+	for _, ag := range accountGroups {
+		if ag.Status == model.AccountGroupStatusActive {
+			// 转换为 GameAccountHouse 结构（保持 API 响应格式不变）
+			return &model.GameAccountHouse{
+				Id:            ag.Id,
+				GameAccountID: ag.GameAccountID,
+				HouseGID:      ag.HouseGID,
+				IsDefault:     true,
+				Status:        1,
+			}, nil
+		}
+	}
+
+	return nil, gorm.ErrRecordNotFound
 }
 
 func (uc *GameAccountUseCase) Verify(ctx context.Context, mode consts.GameLoginMode, identifier, pwdMD5 string) error {
 	return uc.mgr.ProbeLogin(ctx, mode, identifier, pwdMD5)
-}
-
-// FixEmptyGameUserID 修复空的 game_user_id 字段
-// 这个方法用于修复在修复代码之前注册的用户的 game_user_id
-func (uc *GameAccountUseCase) FixEmptyGameUserID(ctx context.Context) (fixed int64, failed int64, err error) {
-	// 查询所有 game_user_id 为空的记录
-	accounts, err := uc.accRepo.ListByGameUserIDEmpty(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	uc.log.Infof("Found %d accounts with empty game_user_id", len(accounts))
-
-	// 逐个修复
-	for _, acc := range accounts {
-		// 调用 ProbeLoginWithInfo 获取游戏用户信息
-		mode := consts.GameLoginModeAccount
-		if acc.LoginMode == "mobile" {
-			mode = consts.GameLoginModeMobile
-		}
-
-		info, err := uc.mgr.ProbeLoginWithInfo(ctx, mode, acc.Account, acc.PwdMD5)
-		if err != nil {
-			uc.log.Warnf("Failed to get game user info for account %s: %v", acc.Account, err)
-			failed++
-			continue
-		}
-
-		// 更新 game_user_id
-		acc.GameUserID = fmt.Sprintf("%d", info.UserID)
-		if err := uc.accRepo.Update(ctx, acc); err != nil {
-			uc.log.Warnf("Failed to update account %s: %v", acc.Account, err)
-			failed++
-			continue
-		}
-
-		fixed++
-		uc.log.Infof("Fixed account %s with game_user_id %s", acc.Account, acc.GameUserID)
-	}
-
-	return fixed, failed, nil
 }

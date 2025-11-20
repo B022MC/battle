@@ -21,10 +21,10 @@ type CtrlSessionUseCase struct {
 	// 可选：houseRepo 若需要“先连再落库创建店铺”，放开注入后在回调里 Ensure
 	// houseRepo repo.GameHouseRepo
 
-	sessRepo  repo.SessionRepo
-	mgr       plaza.Manager
-	syncMgr   *BattleSyncManager // 战绩同步管理器
-	log       *log.Helper
+	sessRepo repo.SessionRepo
+	mgr      plaza.Manager
+	syncMgr  *BattleSyncManager // 战绩同步管理器
+	log      *log.Helper
 }
 
 func NewCtrlSessionUseCase(
@@ -93,9 +93,9 @@ func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ct
 	// 5) 不再强制关闭旧会话，改为“存在则更新、否则插入”
 
 	// 6) 启动
-	// 若未存 game_user_id，拒绝启动，提示先验证账号
+	// 若未存 game_player_id，拒绝启动，提示先验证账号
 	if strings.TrimSpace(ctrl.GameUserID) == "" {
-		return errors.New("game_user_id not set, please verify account first")
+		return errors.New("game_player_id not set, please verify account first")
 	}
 	gameUID := 0
 	if v, err := strconv.Atoi(ctrl.GameUserID); err == nil {

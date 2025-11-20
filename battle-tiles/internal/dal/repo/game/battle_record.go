@@ -1,4 +1,4 @@
-﻿package game
+package game
 
 import (
 	model "battle-tiles/internal/dal/model/game"
@@ -159,7 +159,7 @@ func (r *battleRecordRepo) ListByPlayer(ctx context.Context, houseGID int32, pla
 // ListByPlayerGameName 按游戏账号查询战绩
 func (r *battleRecordRepo) ListByPlayerGameName(ctx context.Context, houseGID int32, playerGameName string, groupID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error) {
 	db := r.db(ctx).Model(&model.GameBattleRecord{}).
-		Where("house_gid = ? AND player_game_ID = ?", houseGID, playerGameName)
+		Where("house_gid = ? AND player_game_name = ?", houseGID, playerGameName)
 
 	if groupID != nil {
 		db = db.Where("group_id = ?", *groupID)

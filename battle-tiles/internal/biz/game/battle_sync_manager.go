@@ -8,29 +8,27 @@ import (
 	"time"
 
 	model "battle-tiles/internal/dal/model/game"
-	repo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/infra"
-	plazautils "battle-tiles/internal/utils/plaza"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
 
 // BattleSyncManager 管理所有会话的战绩同步
 type BattleSyncManager struct {
-	mu      sync.RWMutex
-	syncers map[string]*battleSyncer // key: "userID:houseGID"
-	repo    repo.BattleRecordRepo
-	data    *infra.Data // 用于记录同步日志
-	logger  *log.Helper
+	mu       sync.RWMutex
+	syncers  map[string]*battleSyncer // key: "userID:houseGID"
+	battleUC *BattleRecordUseCase     // 使用 UseCase 统一处理战绩逻辑
+	data     *infra.Data              // 用于记录同步日志
+	logger   *log.Helper
 }
 
 // NewBattleSyncManager 创建战绩同步管理器
-func NewBattleSyncManager(battleRepo repo.BattleRecordRepo, data *infra.Data, logger log.Logger) *BattleSyncManager {
+func NewBattleSyncManager(battleUC *BattleRecordUseCase, data *infra.Data, logger log.Logger) *BattleSyncManager {
 	return &BattleSyncManager{
-		syncers: make(map[string]*battleSyncer),
-		repo:    battleRepo,
-		data:    data,
-		logger:  log.NewHelper(logger),
+		syncers:  make(map[string]*battleSyncer),
+		battleUC: battleUC,
+		data:     data,
+		logger:   log.NewHelper(logger),
 	}
 }
 
@@ -48,7 +46,7 @@ func (m *BattleSyncManager) StartSync(ctx context.Context, userID int, houseGID 
 	}
 
 	// 创建新的同步器，传入带 platform 的 context
-	syncer := newBattleSyncer(ctx, userID, houseGID, m.repo, m.data, m.logger)
+	syncer := newBattleSyncer(ctx, userID, houseGID, m.battleUC, m.data, m.logger)
 	m.syncers[key] = syncer
 	syncer.start()
 
@@ -87,8 +85,8 @@ type battleSyncer struct {
 	ctx          context.Context // 保存带 platform 的 context
 	userID       int
 	houseGID     int
-	battleRepo   repo.BattleRecordRepo
-	data         *infra.Data // 用于记录同步日志
+	battleUC     *BattleRecordUseCase // 使用 UseCase 处理战绩
+	data         *infra.Data          // 用于记录同步日志
 	logger       *log.Helper
 	stopChan     chan struct{}
 	wg           sync.WaitGroup
@@ -97,12 +95,12 @@ type battleSyncer struct {
 	sessionID    int32 // 会话 ID，用于记录同步日志
 }
 
-func newBattleSyncer(ctx context.Context, userID int, houseGID int, battleRepo repo.BattleRecordRepo, data *infra.Data, logger *log.Helper) *battleSyncer {
+func newBattleSyncer(ctx context.Context, userID int, houseGID int, battleUC *BattleRecordUseCase, data *infra.Data, logger *log.Helper) *battleSyncer {
 	return &battleSyncer{
 		ctx:          ctx, // 保存 context
 		userID:       userID,
 		houseGID:     houseGID,
-		battleRepo:   battleRepo,
+		battleUC:     battleUC,
 		data:         data,
 		logger:       logger,
 		stopChan:     make(chan struct{}),
@@ -142,22 +140,9 @@ func (s *battleSyncer) syncLoop() {
 }
 
 func (s *battleSyncer) syncOnce() {
-	// 使用保存的带 platform 的 context
-	ctx := s.ctx
 	startTime := time.Now()
 
 	// 获取 session_id（用于记录同步日志）
-	if s.sessionID == 0 {
-		var session model.GameSession
-		err := s.data.GetDBWithContext(ctx).
-			Where("user_id = ? AND house_gid = ?", s.userID, s.houseGID).
-			Order("created_at DESC").
-			First(&session).Error
-		if err == nil {
-			s.sessionID = session.Id
-		}
-	}
-
 	// 第一次同步获取最近1小时的数据，之后获取最近3分钟的数据
 	typeid := 0 // 最近3分钟
 	typeDesc := "last 3 minutes"
@@ -169,67 +154,15 @@ func (s *battleSyncer) syncOnce() {
 
 	s.logger.Infof("Fetching battle records for house %d (%s)...", s.houseGID, typeDesc)
 
-	// 从 plaza 获取战绩数据
-	// 使用现有的 HTTP API 函数
+	// 使用 BattleRecordUseCase.PullAndSave 统一处理战绩同步
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	baseURL := "http://phone2.foxuc.com/Ashx/GroService.ashx"
-	battles, err := plazautils.GetGroupNewBattleInfoCtx(ctx, httpClient, baseURL, s.houseGID, typeid)
+
+	saved, err := s.battleUC.PullAndSave(s.ctx, httpClient, baseURL, s.houseGID, 0, typeid)
 	if err != nil {
-		s.logger.Errorf("Failed to fetch battle info for house %d: %v", s.houseGID, err)
+		s.logger.Errorf("Failed to sync battle records for house %d: %v", s.houseGID, err)
 		// 记录失败日志
-		s.recordSyncLog(ctx, startTime, 0, model.SyncStatusFailed, err.Error())
-		return
-	}
-
-	s.logger.Infof("Fetched %d battle records from plaza for house %d", len(battles), s.houseGID)
-
-	if len(battles) == 0 {
-		// 记录成功日志（0条记录）
-		s.recordSyncLog(ctx, startTime, 0, model.SyncStatusSuccess, "")
-		return
-	}
-
-	// 转换为数据库模型
-	records := make([]*model.GameBattleRecord, 0)
-	for _, bi := range battles {
-		// 验证数据完整性：零和游戏的总分应该为0
-		totalScore := 0
-		for _, p := range bi.Players {
-			totalScore += p.Score
-		}
-		if totalScore != 0 {
-			s.logger.Warnf("Invalid battle data: room %d, total score %d != 0", bi.RoomID, totalScore)
-			continue
-		}
-
-		// 为每个玩家创建一条记录
-		for _, player := range bi.Players {
-			playerGameID := int32(player.UserGameID)
-			record := &model.GameBattleRecord{
-				HouseGID:      int32(s.houseGID),
-				GroupID:       int32(s.houseGID), // 使用 houseGID 作为 groupID
-				RoomUID:       int32(bi.RoomID),
-				KindID:        int32(bi.KindID),
-				BaseScore:     int32(bi.BaseScore),
-				BattleAt:      time.Unix(int64(bi.CreateTime), 0),
-				PlayersJSON:   "",            // TODO: 如果需要保存完整玩家列表，可以序列化为 JSON
-				PlayerID:      nil,           // TODO: 需要从 game_user_id 映射到内部 player_id
-				PlayerGameID:  &playerGameID, // 玩家游戏 ID
-				Score:         int32(player.Score),
-				Fee:           0,   // TODO: 根据游戏规则计算手续费
-				Factor:        1.0, // TODO: 根据游戏规则设置倍率
-				PlayerBalance: 0,   // TODO: 需要查询玩家当前余额
-			}
-			records = append(records, record)
-		}
-	}
-
-	// 批量保存到数据库（带去重）
-	saved, err := s.battleRepo.SaveBatchWithDedup(ctx, records)
-	if err != nil {
-		s.logger.Errorf("Failed to save battle records for house %d: %v", s.houseGID, err)
-		// 记录失败日志
-		s.recordSyncLog(ctx, startTime, 0, model.SyncStatusFailed, err.Error())
+		s.recordSyncLog(s.ctx, startTime, 0, model.SyncStatusFailed, err.Error())
 		return
 	}
 
@@ -238,7 +171,7 @@ func (s *battleSyncer) syncOnce() {
 	}
 
 	// 记录成功日志
-	s.recordSyncLog(ctx, startTime, int32(saved), model.SyncStatusSuccess, "")
+	s.recordSyncLog(s.ctx, startTime, int32(saved), model.SyncStatusSuccess, "")
 }
 
 // recordSyncLog 记录同步日志

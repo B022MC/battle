@@ -52,7 +52,7 @@ export const request = async <T>(
   // 临时调试：如果设置了 BYPASS_PROXY 则直接使用完整 URL
   const apiUrl = isWeb
     ? (process.env.EXPO_PUBLIC_BYPASS_PROXY === 'true' 
-        ? 'http://127.0.0.1:8000' 
+        ? (process.env.EXPO_PUBLIC_DEV_API_URL || 'http://127.0.0.1:8000')
         : (process.env.EXPO_PUBLIC_DEV_API_PREFIX_WEB || '/web'))
     : nativeApiUrl;
 

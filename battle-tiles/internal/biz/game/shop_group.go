@@ -13,23 +13,32 @@ import (
 )
 
 type ShopGroupUseCase struct {
-	groupRepo     game.ShopGroupRepo
-	memberRepo    game.ShopGroupMemberRepo
-	shopAdminRepo game.GameShopAdminRepo
-	log           *log.Helper
+	groupRepo        game.ShopGroupRepo
+	memberRepo       game.ShopGroupMemberRepo // 用于查询圈子成员列表
+	shopAdminRepo    game.GameShopAdminRepo
+	gameMemberRepo   game.GameMemberRepo       // 用于操作 game_member 记录
+	accountRepo      game.GameAccountRepo      // 用于查询 game_account
+	accountGroupRepo game.GameAccountGroupRepo // 用于操作 game_account_group 记录（主表）
+	log              *log.Helper
 }
 
 func NewShopGroupUseCase(
 	groupRepo game.ShopGroupRepo,
 	memberRepo game.ShopGroupMemberRepo,
 	shopAdminRepo game.GameShopAdminRepo,
+	gameMemberRepo game.GameMemberRepo,
+	accountRepo game.GameAccountRepo,
+	accountGroupRepo game.GameAccountGroupRepo,
 	logger log.Logger,
 ) *ShopGroupUseCase {
 	return &ShopGroupUseCase{
-		groupRepo:     groupRepo,
-		memberRepo:    memberRepo,
-		shopAdminRepo: shopAdminRepo,
-		log:           log.NewHelper(log.With(logger, "module", "usecase/shop_group")),
+		groupRepo:        groupRepo,
+		memberRepo:       memberRepo,
+		shopAdminRepo:    shopAdminRepo,
+		gameMemberRepo:   gameMemberRepo,
+		accountRepo:      accountRepo,
+		accountGroupRepo: accountGroupRepo,
+		log:              log.NewHelper(log.With(logger, "module", "usecase/shop_group")),
 	}
 }
 
@@ -97,6 +106,11 @@ func (uc *ShopGroupUseCase) UpdateGroup(ctx context.Context, groupID int32, admi
 }
 
 // AddMembersToGroup 添加成员到圈子
+// 当用户被添加到圈子时，需要创建以下记录：
+// 1. game_account_group - 游戏账号圈子关系（主表，用于查询）
+// 2. game_member - 游戏成员业务数据（余额、积分等）
+//
+// 注意：用户必须先绑定游戏账号才能加入圈子
 func (uc *ShopGroupUseCase) AddMembersToGroup(ctx context.Context, groupID int32, adminUserID int32, userIDs []int32) error {
 	// 检查圈子是否属于该管理员
 	group, err := uc.groupRepo.GetByID(ctx, groupID)
@@ -126,19 +140,74 @@ func (uc *ShopGroupUseCase) AddMembersToGroup(ctx context.Context, groupID int32
 		}
 	}
 
-	// 批量添加成员
-	members := make([]*model.GameShopGroupMember, 0, len(userIDs))
+	// 批量添加成员（分别处理每个用户，确保创建所有相关记录）
 	for _, userID := range userIDs {
-		members = append(members, &model.GameShopGroupMember{
-			GroupID: groupID,
-			UserID:  userID,
-		})
+		// 1. 查询用户的游戏账号
+		gameAccount, err := uc.accountRepo.GetOneByUser(ctx, userID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				uc.log.Warnf("用户 %d 没有绑定游戏账号，无法加入圈子", userID)
+				continue
+			}
+			uc.log.Errorf("查询用户 %d 的游戏账号失败: %v", userID, err)
+			continue
+		}
+
+		// 2. 创建 game_account_group 记录（游戏账号圈子关系，主表）
+		accountGroup := &model.GameAccountGroup{
+			GameAccountID:    gameAccount.Id,
+			HouseGID:         group.HouseGID,
+			GroupID:          groupID,
+			GroupName:        group.GroupName,
+			AdminUserID:      adminUserID,
+			ApprovedByUserID: adminUserID,
+			Status:           model.AccountGroupStatusActive,
+		}
+
+		// 检查是否已存在
+		exists, err := uc.accountGroupRepo.ExistsByGameAccountAndHouse(ctx, gameAccount.Id, group.HouseGID)
+		if err != nil {
+			uc.log.Warnf("检查 game_account_group 是否存在失败: %v", err)
+			continue
+		} else if exists {
+			// 更新状态为激活
+			existing, err := uc.accountGroupRepo.GetByGameAccountAndHouse(ctx, gameAccount.Id, group.HouseGID)
+			if err == nil {
+				uc.accountGroupRepo.UpdateStatus(ctx, existing.Id, model.AccountGroupStatusActive)
+			}
+		} else {
+			// 创建新记录
+			if err := uc.accountGroupRepo.Create(ctx, accountGroup); err != nil {
+				uc.log.Errorf("创建 game_account_group 失败: %v", err)
+				continue
+			}
+		}
+
+		// 3. 创建或更新 game_member 记录（业务数据）
+		gameMember := &model.GameMember{
+			HouseGID:  group.HouseGID,
+			GameID:    gameAccount.Id,
+			GameName:  gameAccount.Nickname,
+			GroupID:   &groupID,
+			GroupName: group.GroupName,
+			Balance:   0,
+			Credit:    0,
+			Forbid:    false,
+		}
+		if err := uc.gameMemberRepo.Create(ctx, gameMember); err != nil {
+			uc.log.Warnf("创建 game_member 失败: %v", err)
+		}
+
+		uc.log.Infof("成功添加用户 %d 到圈子 %d 并创建所有关联记录", userID, groupID)
 	}
 
-	return uc.memberRepo.BatchAddMembers(ctx, members)
+	return nil
 }
 
 // RemoveMemberFromGroup 从圈子移除成员
+// 当用户被踢出圈子时，需要清理相关联的记录：
+// 1. game_account_group - 游戏账号圈子关系（主表）
+// 2. game_member - 游戏成员业务数据
 func (uc *ShopGroupUseCase) RemoveMemberFromGroup(ctx context.Context, groupID int32, adminUserID int32, userID int32) error {
 	// 检查圈子是否属于该管理员
 	group, err := uc.groupRepo.GetByID(ctx, groupID)
@@ -149,7 +218,30 @@ func (uc *ShopGroupUseCase) RemoveMemberFromGroup(ctx context.Context, groupID i
 		return fmt.Errorf("无权操作该圈子")
 	}
 
-	return uc.memberRepo.RemoveMember(ctx, groupID, userID)
+	// 1. 查询用户的游戏账号
+	gameAccount, err := uc.accountRepo.GetOneByUser(ctx, userID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			uc.log.Warnf("用户 %d 没有绑定游戏账号，无法移除", userID)
+			return fmt.Errorf("用户没有绑定游戏账号")
+		}
+		return fmt.Errorf("查询游戏账号失败: %w", err)
+	}
+
+	// 2. 删除 game_account_group 记录（游戏账号圈子关系，主表）
+	if err := uc.accountGroupRepo.DeleteByGameAccountAndHouse(ctx, gameAccount.Id, group.HouseGID); err != nil {
+		uc.log.Errorf("删除 game_account_group 失败: %v", err)
+		return fmt.Errorf("移除圈子成员失败: %w", err)
+	}
+
+	// 3. 删除 game_member 记录（游戏成员业务数据）
+	if err := uc.gameMemberRepo.DeleteByGameID(ctx, group.HouseGID, gameAccount.Id); err != nil {
+		uc.log.Warnf("删除 game_member 失败: %v", err)
+		// 不阻塞流程
+	}
+
+	uc.log.Infof("成功移除用户 %d 并清理关联记录", userID)
+	return nil
 }
 
 // ListGroupMembers 获取圈子成员列表

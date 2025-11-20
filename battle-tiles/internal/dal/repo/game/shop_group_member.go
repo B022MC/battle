@@ -61,9 +61,12 @@ func (r *shopGroupMemberRepo) RemoveMember(ctx context.Context, groupID int32, u
 
 func (r *shopGroupMemberRepo) IsMember(ctx context.Context, groupID int32, userID int32) (bool, error) {
 	var cnt int64
+	// 从 game_account_group 查询（通过 game_account 关联）
 	err := r.db(ctx).
-		Model(&model.GameShopGroupMember{}).
-		Where("group_id = ? AND user_id = ?", groupID, userID).
+		Table("game_account ga").
+		Joins("JOIN game_account_group gag ON ga.id = gag.game_account_id").
+		Where("ga.user_id = ? AND gag.group_id = ? AND gag.status = ?", userID, groupID, "active").
+		Unscoped(). // 禁用自动软删除过滤
 		Count(&cnt).Error
 	if err != nil {
 		return false, err
@@ -75,25 +78,28 @@ func (r *shopGroupMemberRepo) ListMembersByGroup(ctx context.Context, groupID in
 	var total int64
 	var users []*basicModel.BasicUser
 
-	// 统计总数
+	// 从 game_account_group 统计总数
 	if err := r.db(ctx).
-		Model(&model.GameShopGroupMember{}).
-		Where("group_id = ?", groupID).
+		Table("game_account_group gag").
+		Joins("JOIN game_account ga ON ga.id = gag.game_account_id").
+		Where("gag.group_id = ? AND gag.status = ? AND ga.user_id IS NOT NULL", groupID, "active").
+		Unscoped(). // 禁用自动软删除过滤
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 查询成员列表
+	// 从 game_account_group 查询成员列表
 	offset := (page - 1) * size
 	err := r.db(ctx).
-		Table("game_shop_group_member gm").
+		Table("game_account_group gag").
 		Select("u.*").
-		Joins("JOIN basic_user u ON u.id = gm.user_id").
-		Where("gm.group_id = ? AND u.is_del = 0", groupID).
-		Order("gm.joined_at DESC").
+		Joins("JOIN game_account ga ON ga.id = gag.game_account_id").
+		Joins("JOIN basic_user u ON u.id = ga.user_id").
+		Where("gag.group_id = ? AND gag.status = ? AND u.is_del = 0", groupID, "active").
+		Order("gag.joined_at DESC").
 		Limit(int(size)).
 		Offset(int(offset)).
-		Unscoped(). // 禁用自动软删除过滤,避免 GORM 在 gm 表上添加 is_del 条件
+		Unscoped(). // 禁用自动软删除过滤
 		Find(&users).Error
 
 	return users, total, err
@@ -101,12 +107,14 @@ func (r *shopGroupMemberRepo) ListMembersByGroup(ctx context.Context, groupID in
 
 func (r *shopGroupMemberRepo) ListGroupsByUser(ctx context.Context, userID int32) ([]*model.GameShopGroup, error) {
 	var groups []*model.GameShopGroup
+	// 从 game_account_group 查询（通过 game_account 关联）
 	err := r.db(ctx).
-		Table("game_shop_group_member gm").
+		Table("game_account ga").
 		Select("g.*").
-		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
-		Where("gm.user_id = ? AND g.is_active = ?", userID, true).
-		Order("gm.joined_at DESC").
+		Joins("JOIN game_account_group gag ON ga.id = gag.game_account_id").
+		Joins("JOIN game_shop_group g ON g.id = gag.group_id").
+		Where("ga.user_id = ? AND gag.status = ? AND g.is_active = ?", userID, "active", true).
+		Order("gag.joined_at DESC").
 		Unscoped(). // 禁用自动软删除过滤
 		Find(&groups).Error
 	return groups, err
@@ -114,12 +122,14 @@ func (r *shopGroupMemberRepo) ListGroupsByUser(ctx context.Context, userID int32
 
 func (r *shopGroupMemberRepo) ListGroupsByUserAndHouse(ctx context.Context, userID int32, houseGID int32) ([]*model.GameShopGroup, error) {
 	var groups []*model.GameShopGroup
+	// 从 game_account_group 查询（通过 game_account 关联）
 	err := r.db(ctx).
-		Table("game_shop_group_member gm").
+		Table("game_account ga").
 		Select("g.*").
-		Joins("JOIN game_shop_group g ON g.id = gm.group_id").
-		Where("gm.user_id = ? AND g.house_gid = ? AND g.is_active = ?", userID, houseGID, true).
-		Order("gm.joined_at DESC").
+		Joins("JOIN game_account_group gag ON ga.id = gag.game_account_id").
+		Joins("JOIN game_shop_group g ON g.id = gag.group_id").
+		Where("ga.user_id = ? AND gag.house_gid = ? AND gag.status = ? AND g.is_active = ?", userID, houseGID, "active", true).
+		Order("gag.joined_at DESC").
 		Unscoped(). // 禁用自动软删除过滤
 		Find(&groups).Error
 	return groups, err
@@ -127,9 +137,11 @@ func (r *shopGroupMemberRepo) ListGroupsByUserAndHouse(ctx context.Context, user
 
 func (r *shopGroupMemberRepo) CountMembers(ctx context.Context, groupID int32) (int64, error) {
 	var cnt int64
+	// 从 game_account_group 统计成员数量
 	err := r.db(ctx).
-		Model(&model.GameShopGroupMember{}).
-		Where("group_id = ?", groupID).
+		Table("game_account_group").
+		Where("group_id = ? AND status = ?", groupID, "active").
+		Unscoped(). // 禁用自动软删除过滤
 		Count(&cnt).Error
 	return cnt, err
 }

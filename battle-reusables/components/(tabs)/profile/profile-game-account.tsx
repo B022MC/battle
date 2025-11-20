@@ -115,20 +115,18 @@ export const ProfileGameAccount = () => {
             <InfoCardRow label="登录方式" value={getLoginModeLabel(me.login_mode as any)} />
             <InfoCardRow label="状态" value={String(me.status ?? '-') } />
 
-            {/* 显示绑定的游戏ID列表 */}
+            {/* 显示绑定的店铺ID */}
             {loadingHouses ? (
-              <Text className="text-muted-foreground text-sm mt-2">加载游戏ID列表...</Text>
-            ) : houses && houses.length > 0 ? (
+              <Text className="text-muted-foreground text-sm mt-2">加载店铺信息...</Text>
+            ) : houses ? (
               <View className="gap-2 mt-2">
-                <Text variant="muted" className="font-semibold">绑定的游戏ID：</Text>
-                {houses.map((house) => (
-                  <View key={house.id} className="flex-row items-center gap-2 pl-2">
-                    <Text className="text-sm">
-                      {house.is_default ? '👌' : '⭕'} 店铺 {house.house_gid}
-                      {house.status === 1 ? ' (启用)' : ' (禁用)'}
-                    </Text>
-                  </View>
-                ))}
+                <Text variant="muted" className="font-semibold">绑定的店铺：</Text>
+                <View className="flex-row items-center gap-2 pl-2">
+                  <Text className="text-sm">
+                    {houses.is_default ? '👌' : '⭕'} 店铺 {houses.house_gid}
+                    {houses.status === 1 ? ' (启用)' : ' (禁用)'}
+                  </Text>
+                </View>
               </View>
             ) : null}
           </View>

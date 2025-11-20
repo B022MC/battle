@@ -23,15 +23,16 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        {/* 暂时使用 AlertProvider，Toast系统待修复 */}
         <AlertProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(shop)" options={{ headerShown: false }} />
-            <Stack.Screen name="auth/index" options={{ headerShown: false }} />
-          </Stack>
-          <PortalHost />
-          <BubbleToastContainer />
+          <ToastProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(shop)" options={{ headerShown: false }} />
+              <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+            </Stack>
+            <PortalHost />
+            <BubbleToastContainer />
+          </ToastProvider>
         </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>

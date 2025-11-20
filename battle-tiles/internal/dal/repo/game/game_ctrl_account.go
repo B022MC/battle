@@ -58,7 +58,7 @@ func (r *gameCtrlAccountRepo) Upsert(ctx context.Context, in *model.GameCtrlAcco
 		Columns: []clause.Column{{Name: "login_mode"}, {Name: "identifier"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"pwd_md5", "status", "last_verify_at", "updated_at",
-			"game_user_id", "game_id",
+			"game_player_id", "game_id", // 改为 game_player_id
 		}),
 	}).Create(in).Error
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *gameCtrlAccountRepo) Update(ctx context.Context, in *model.GameCtrlAcco
 }
 
 func (r *gameCtrlAccountRepo) UpdateGameUserID(ctx context.Context, id int32, gameUserID int32) error {
-	return r.db(ctx).Model(&model.GameCtrlAccount{}).Where("id = ?", id).Update("game_user_id", gameUserID).Error
+	return r.db(ctx).Model(&model.GameCtrlAccount{}).Where("id = ?", id).Update("game_player_id", gameUserID).Error
 }
 
 func (r *gameCtrlAccountRepo) UpdateStatus(ctx context.Context, id int32, status int32) error {

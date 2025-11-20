@@ -2,7 +2,6 @@ package game
 
 import (
 	repo "battle-tiles/internal/dal/repo/game"
-	resp "battle-tiles/internal/dal/resp"
 	gameVO "battle-tiles/internal/dal/vo/game"
 	plazaHTTP "battle-tiles/internal/utils/plaza"
 	"context"
@@ -75,7 +74,7 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 		}
 
 		// 1. 构建玩家圈子映射并验证数据有效性
-		playerGroups, playerUserIDs, validPlayers := uc.buildPlayerGroupMapping(ctx, int32(houseGID), b.Players)
+		playerGroups, playerAccounts, validPlayers := uc.buildPlayerGroupMapping(ctx, int32(houseGID), b.Players)
 		if len(validPlayers) == 0 {
 			uc.log.Warnf("Battle room %d has no valid players, skipping", b.RoomID)
 			continue
@@ -110,7 +109,7 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 
 			userGameID := int32(player.UserGameID)
 			playerGroupID := playerGroups[player.UserGameID]
-			playerUserID := playerUserIDs[player.UserGameID]
+			playerAccountName := playerAccounts[player.UserGameID]
 
 			// 计算玩家应付的费用
 			playerFee := int32(0)
@@ -119,18 +118,18 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 			}
 
 			rec := &model.GameBattleRecord{
-				HouseGID:     int32(houseGID),
-				GroupID:      playerGroupID,
-				RoomUID:      int32(b.RoomID),
-				KindID:       int32(b.KindID),
-				BaseScore:    int32(b.BaseScore),
-				BattleAt:     time.Unix(int64(b.CreateTime), 0),
-				PlayerID:     &playerUserID, // 用户ID（来自 game_account.user_id）
-				PlayerGameID: &userGameID,   // 游戏账号ID
-				PlayersJSON:  string(pbytes),
-				Score:        int32(player.Score),
-				Fee:          playerFee,
-				CreatedAt:    now,
+				HouseGID:       int32(houseGID),
+				GroupID:        playerGroupID,
+				RoomUID:        int32(b.RoomID),
+				KindID:         int32(b.KindID),
+				BaseScore:      int32(b.BaseScore),
+				BattleAt:       time.Unix(int64(b.CreateTime), 0),
+				PlayerGameID:   &userGameID,       // 游戏玩家ID (22953243)
+				PlayerGameName: playerAccountName, // 游戏账号名称 ("1106162940")
+				PlayersJSON:    string(pbytes),
+				Score:          int32(player.Score),
+				Fee:            playerFee,
+				CreatedAt:      now,
 			}
 			batch = append(batch, rec)
 		}
@@ -159,33 +158,33 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 
 // buildPlayerGroupMapping 构建玩家到圈子的映射
 // 验证玩家是否在系统中且有有效圈子
-// 关键流程：游戏账号ID（UserGameID） -> game_account -> game_member -> group_id
+// 关键流程：游戏玩家ID（UserGameID） -> game_account.game_player_id -> game_account.id -> game_member -> group_id
 // 返回：
-//   - playerGroups: 游戏账号ID到圈子ID的映射
-//   - playerUserIDs: 游戏账号ID到用户ID的映射
+//   - playerGroups: 游戏玩家ID到圈子ID的映射
+//   - playerAccounts: 游戏玩家ID到账号名称的映射
 //   - validPlayers: 有效玩家的标记（只有在系统中且有圈子的玩家才是有效的）
 func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 	ctx context.Context,
 	houseGID int32,
 	players []*gameVO.BattleSettle,
-) (map[int]int32, map[int]int32, map[int]bool) {
+) (map[int]int32, map[int]string, map[int]bool) {
 	playerGroups := make(map[int]int32, len(players))
-	playerUserIDs := make(map[int]int32, len(players))
+	playerAccounts := make(map[int]string, len(players))
 	validPlayers := make(map[int]bool, len(players))
 
 	for _, player := range players {
-		gameUserID := fmt.Sprintf("%d", player.UserGameID)
+		gamePlayerID := fmt.Sprintf("%d", player.UserGameID)
 
-		// 第1步：通过游戏账号ID查询 game_account
-		// 注意：player.UserGameID 是游戏服务器返回的账号ID，对应 game_account.game_user_id
-		account, err := uc.accountRepo.GetByGameUserID(ctx, gameUserID)
+		// 第1步：通过游戏玩家ID查询 game_account
+		// player.UserGameID 是Plaza API返回的GameID，对应 game_account.game_player_id
+		account, err := uc.accountRepo.GetByGamePlayerID(ctx, gamePlayerID)
 		if err != nil {
-			uc.log.Warnf("Game account %s not found: %v", gameUserID, err)
+			uc.log.Warnf("Game account with game_player_id=%s not found: %v", gamePlayerID, err)
 			continue // 游戏账号不在系统中，跳过
 		}
 
 		if account == nil {
-			uc.log.Warnf("Game account %s exists but record is nil", gameUserID)
+			uc.log.Warnf("Game account with game_player_id=%s exists but record is nil", gamePlayerID)
 			continue // 数据异常，跳过
 		}
 
@@ -193,8 +192,8 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 		// game_member.game_id 对应 game_account.id（不是游戏账号ID）
 		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, account.Id)
 		if err != nil {
-			uc.log.Warnf("Member not found for account %d (game_user_id=%s) in house %d: %v",
-				account.Id, gameUserID, houseGID, err)
+			uc.log.Warnf("Member not found for account %d (game_player_id=%s) in house %d: %v",
+				account.Id, gamePlayerID, houseGID, err)
 			continue // 玩家不在此店铺中，跳过
 		}
 
@@ -206,23 +205,18 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 		// 第3步：验证圈子
 		if member.GroupID == nil || *member.GroupID == 0 {
 			uc.log.Warnf("Player %s (account_id=%d) has no valid group in house %d",
-				gameUserID, account.Id, houseGID)
+				gamePlayerID, account.Id, houseGID)
 			continue // 没有圈子，费用无法计算，跳过
 		}
 
-		// 玩家有效：游戏账号 -> 系统账号 -> 成员信息 -> 圈子
+		// 玩家有效：游戏玩家ID -> 游戏账号 -> 成员信息 -> 圈子
 		playerGroups[player.UserGameID] = *member.GroupID
-		// account.UserID 现在是指针类型，需要解引用
-		if account.UserID != nil {
-			playerUserIDs[player.UserGameID] = *account.UserID
-		} else {
-			playerUserIDs[player.UserGameID] = 0 // 未绑定用户
-		}
+		playerAccounts[player.UserGameID] = account.Account // 保存账号名称
 		validPlayers[player.UserGameID] = true
 	}
 
 	uc.log.Debugf("Mapped %d valid players out of %d total players", len(validPlayers), len(players))
-	return playerGroups, playerUserIDs, validPlayers
+	return playerGroups, playerAccounts, validPlayers
 }
 
 // saveFeeSettlements 保存费用结算记录
@@ -278,20 +272,6 @@ func (uc *BattleRecordUseCase) saveFeeSettlements(
 	return nil
 }
 
-// List 本地战绩查询
-func (uc *BattleRecordUseCase) List(ctx context.Context, houseGID int32, groupID, gameID *int32, start, end *time.Time, page, size int32) ([]resp.BattleRecordVO, int64, error) {
-	list, total, err := uc.repo.List(ctx, houseGID, groupID, gameID, start, end, page, size)
-	if err != nil {
-		return nil, 0, err
-	}
-	out := make([]resp.BattleRecordVO, 0, len(list))
-	for _, r := range list {
-		// 简化：不展开 players_json，前端可透传或服务端可再解析
-		out = append(out, resp.BattleRecordVO{RoomID: int(r.RoomUID), KindID: int(r.KindID), BaseScore: int(r.BaseScore), Time: int(r.BattleAt.Unix())})
-	}
-	return out, total, nil
-}
-
 // ListMyBattleRecords 用户查看自己的战绩（通过绑定的游戏账号）
 func (uc *BattleRecordUseCase) ListMyBattleRecords(
 	ctx context.Context,
@@ -340,24 +320,6 @@ func (uc *BattleRecordUseCase) GetMyBattleStats(
 
 	// 查询统计（使用游戏账号 account.Account）
 	return uc.repo.GetPlayerStatsByGameName(ctx, houseGID, account.Account, groupID, start, end)
-}
-
-// ListHouseBattleRecords 管理员查看店铺战绩
-func (uc *BattleRecordUseCase) ListHouseBattleRecords(
-	ctx context.Context,
-	houseGID int32,
-	groupID *int32,
-	gameID *int32,
-	start, end *time.Time,
-	page, size int32,
-) ([]*model.GameBattleRecord, int64, error) {
-	// TODO: 添加 groupID 和 gameID 过滤
-	// 目前 repo 层的 ListByPlayer 方法不支持这些过滤条件
-	// 可以在后续扩展 repo 层方法来支持
-
-	// 暂时返回所有店铺的战绩
-	// 需要在 repo 层添加 ListByHouse 方法
-	return nil, 0, fmt.Errorf("ListHouseBattleRecords not implemented yet")
 }
 
 // GetPlayerBattleStats 管理员查看玩家战绩统计

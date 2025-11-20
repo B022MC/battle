@@ -113,7 +113,7 @@ func (uc *BasicLoginUseCase) Register(ctx context.Context, c *gin.Context, req *
 
 	// 为新注册用户绑定普通用户角色（忽略错误，不阻断注册）
 	if uc.authRepo != nil {
-		if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(c.Request.Context(), user.Id, "ordinary-user"); err != nil {
+		if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(c.Request.Context(), user.Id, "user"); err != nil {
 			uc.log.Errorf("EnsureUserHasRoleByCode err: %v", err)
 		}
 	}

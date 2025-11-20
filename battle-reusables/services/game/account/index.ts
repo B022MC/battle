@@ -24,7 +24,7 @@ export function gameAccountMe() {
 }
 
 export function gameAccountMeHouses() {
-  return get<API.GameAccountHouseItem[]>('/game/accounts/me/houses');
+  return get<API.GameAccountHouseItem | null>('/game/accounts/me/houses');
 }
 
 export function gameAccountDelete() {

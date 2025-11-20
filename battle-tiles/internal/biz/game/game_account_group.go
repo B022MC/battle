@@ -33,39 +33,39 @@ func NewGameAccountGroupUseCase(
 	}
 }
 
-// FindOrCreateGameAccount 根据游戏用户ID查找或创建游戏账号
+// FindOrCreateGameAccount 根据游戏玩家ID查找或创建游戏账号
 // 如果游戏账号不存在，创建一个未绑定用户的游戏账号
 func (uc *GameAccountGroupUseCase) FindOrCreateGameAccount(
 	ctx context.Context,
-	gameUserID string,
+	gamePlayerID string,
 	account string,
 	nickname string,
 ) (*model.GameAccount, error) {
 	// 先尝试查找
-	acc, err := uc.accountRepo.GetByGameUserID(ctx, gameUserID)
+	acc, err := uc.accountRepo.GetByGamePlayerID(ctx, gamePlayerID)
 	if err == nil {
 		return acc, nil
 	}
-	
+
 	// 如果不是记录不存在的错误，返回错误
 	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	
+
 	// 创建新的游戏账号（user_id 为 NULL）
 	newAcc := &model.GameAccount{
-		UserID:     nil, // 未绑定用户
-		GameUserID: gameUserID,
-		Account:    account,
-		Nickname:   nickname,
-		Status:     1,
-		LoginMode:  "account",
+		UserID:       nil, // 未绑定用户
+		GamePlayerID: gamePlayerID,
+		Account:      account,
+		Nickname:     nickname,
+		Status:       1,
+		LoginMode:    "account",
 	}
-	
+
 	if err := uc.accountRepo.Create(ctx, newAcc); err != nil {
 		return nil, err
 	}
-	
+
 	return newAcc, nil
 }
 
@@ -81,11 +81,11 @@ func (uc *GameAccountGroupUseCase) EnsureGroupForAdmin(
 	if err == nil {
 		return group, nil
 	}
-	
+
 	if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
-	
+
 	// 创建默认圈子
 	defaultGroupName := fmt.Sprintf("%s的圈子", adminNickname)
 	newGroup := &model.GameShopGroup{
@@ -95,11 +95,11 @@ func (uc *GameAccountGroupUseCase) EnsureGroupForAdmin(
 		Description: "自动创建",
 		IsActive:    true,
 	}
-	
+
 	if err := uc.shopGroupRepo.Create(ctx, newGroup); err != nil {
 		return nil, err
 	}
-	
+
 	return newGroup, nil
 }
 
@@ -118,7 +118,7 @@ func (uc *GameAccountGroupUseCase) AddGameAccountToGroup(
 	if err != nil {
 		return err
 	}
-	
+
 	if exists {
 		// 已存在，更新状态为激活
 		existing, err := uc.accountGroupRepo.GetByGameAccountAndHouse(ctx, gameAccountID, houseGID)
@@ -127,7 +127,7 @@ func (uc *GameAccountGroupUseCase) AddGameAccountToGroup(
 		}
 		return uc.accountGroupRepo.UpdateStatus(ctx, existing.Id, model.AccountGroupStatusActive)
 	}
-	
+
 	// 创建新的游戏账号圈子关系
 	accountGroup := &model.GameAccountGroup{
 		GameAccountID:    gameAccountID,
@@ -138,7 +138,7 @@ func (uc *GameAccountGroupUseCase) AddGameAccountToGroup(
 		ApprovedByUserID: approvedByUserID,
 		Status:           model.AccountGroupStatusActive,
 	}
-	
+
 	return uc.accountGroupRepo.Create(ctx, accountGroup)
 }
 
@@ -172,7 +172,7 @@ func (uc *GameAccountGroupUseCase) ListGroupsByUser(
 		}
 		return nil, err
 	}
-	
+
 	// 2. 查询游戏账号的所有圈子
 	return uc.accountGroupRepo.ListByGameAccount(ctx, gameAccount.Id)
 }
@@ -184,4 +184,3 @@ func (uc *GameAccountGroupUseCase) ListGameAccountsByGroup(
 ) ([]*model.GameAccountGroup, error) {
 	return uc.accountGroupRepo.ListByGroup(ctx, groupID)
 }
-

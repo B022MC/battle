@@ -253,58 +253,63 @@ function ConfirmDialog({ options, onClose }: { options: ConfirmOptions; onClose:
   };
 
   return (
-    <View className="absolute inset-0 z-50 items-center justify-center bg-black/50 px-4">
+    <Pressable 
+      className="absolute inset-0 z-50 items-center justify-center bg-black/50 px-4"
+      onPress={handleCancel}
+    >
       <NativeOnlyAnimatedView entering={FadeIn} exiting={FadeOut}>
-        <View className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-          <View className="mb-4 flex-row items-start gap-3">
-            <Icon as={icon} className={cn('size-6 shrink-0 mt-0.5', getIconClassName(type))} />
-            <View className="flex-1">
-              <Text className="font-semibold text-lg mb-2">{options.title}</Text>
-              {options.description && (
-                <Text className="text-sm text-muted-foreground leading-relaxed">
-                  {options.description}
-                </Text>
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <View className="w-full max-w-xl rounded-xl border border-border bg-card p-8 shadow-xl">
+            <View className="mb-8 flex-row items-start gap-4">
+              <Icon as={icon} className={cn('size-7 shrink-0 mt-0.5', getIconClassName(type))} />
+              <View className="flex-1">
+                <Text className="font-semibold text-xl mb-3">{options.title}</Text>
+                {options.description && (
+                  <Text className="text-base text-muted-foreground leading-relaxed">
+                    {options.description}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View className="flex-row justify-end gap-4">
+              {options.onCancel !== undefined && (
+                <Pressable
+                  onPress={handleCancel}
+                  disabled={loading}
+                  className={cn(
+                    'min-w-[120px] h-11 px-8 py-2.5 flex-row items-center justify-center rounded-md border border-border bg-background shadow-sm active:bg-accent',
+                    loading && 'opacity-50'
+                  )}
+                >
+                  <Text className="text-base font-medium">{options.cancelText ?? '取消'}</Text>
+                </Pressable>
+              )}
+              {options.onConfirm !== undefined && (
+                <Pressable
+                  onPress={handleConfirm}
+                  disabled={loading}
+                  className={cn(
+                    'min-w-[120px] h-11 px-8 py-2.5 flex-row items-center justify-center rounded-md shadow-sm active:opacity-90',
+                    options.confirmVariant === 'destructive'
+                      ? 'bg-destructive dark:bg-destructive/60'
+                      : 'bg-primary',
+                    loading && 'opacity-50'
+                  )}
+                >
+                  <Text className={cn(
+                    'text-base font-medium',
+                    options.confirmVariant === 'destructive' ? 'text-white' : 'text-primary-foreground'
+                  )}>
+                    {loading ? '处理中...' : options.confirmText ?? '确定'}
+                  </Text>
+                </Pressable>
               )}
             </View>
           </View>
-
-          <View className="flex-row justify-end gap-3">
-            {options.onCancel !== undefined && (
-              <Pressable
-                onPress={handleCancel}
-                disabled={loading}
-                className={cn(
-                  'flex-1 h-10 px-4 py-2 flex-row items-center justify-center rounded-md border border-border bg-background shadow-sm active:bg-accent',
-                  loading && 'opacity-50'
-                )}
-              >
-                <Text className="text-sm font-medium">{options.cancelText ?? '取消'}</Text>
-              </Pressable>
-            )}
-            {options.onConfirm !== undefined && (
-              <Pressable
-                onPress={handleConfirm}
-                disabled={loading}
-                className={cn(
-                  'flex-1 h-10 px-4 py-2 flex-row items-center justify-center rounded-md shadow-sm active:opacity-90',
-                  options.confirmVariant === 'destructive'
-                    ? 'bg-destructive dark:bg-destructive/60'
-                    : 'bg-primary',
-                  loading && 'opacity-50'
-                )}
-              >
-                <Text className={cn(
-                  'text-sm font-medium',
-                  options.confirmVariant === 'destructive' ? 'text-white' : 'text-primary-foreground'
-                )}>
-                  {loading ? '处理中...' : options.confirmText ?? '确定'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
+        </Pressable>
       </NativeOnlyAnimatedView>
-    </View>
+    </Pressable>
   );
 }
 
