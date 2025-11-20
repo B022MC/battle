@@ -14,6 +14,7 @@ import {
   removeMemberFromGroup,
   listGroupMembers
 } from '@/services/shops/groups';
+import { shopsMembersList } from '@/services/shops/tables';
 import {
   shopsAdminsAssign,
   shopsAdminsRevoke,
@@ -33,6 +34,7 @@ import {
 import { TriggerRef } from '@rn-primitives/select';
 import { isWeb } from '@/utils/platform';
 import { SetShopAdminModal } from './set-shop-admin-modal';
+import { MembersList } from '@/components/(tabs)/tables/members-list';
 
 export const MembersView = () => {
   const { isSuperAdmin, isStoreAdmin } = usePermission();
@@ -42,7 +44,7 @@ export const MembersView = () => {
   const [keyword, setKeyword] = useState<string>('');
   const [page, setPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'group'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'group' | 'game'>('all');
   const [showSetAdminModal, setShowSetAdminModal] = useState(false);
   const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<{ id: number; name: string } | null>(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | null>(null); // 超级管理员的圈子筛选
@@ -59,6 +61,7 @@ export const MembersView = () => {
   const { data: shopAdmins, run: runListAdmins } = useRequest(shopsAdminsList, { manual: true });
   const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: true }); // 改为手动加载
   const { data: houseOptions } = useRequest(shopsHousesOptions);
+  const { data: gameMembersData, loading: loadingGameMembers, run: runListGameMembers } = useRequest(shopsMembersList, { manual: true });
   const houseRef = useRef<TriggerRef>(null);
 
   function onHouseTouchStart() {
@@ -272,11 +275,65 @@ export const MembersView = () => {
         >
           <Text>我的圈子</Text>
         </Button>
+        <Button
+          variant={activeTab === 'game' ? 'default' : 'outline'}
+          onPress={() => setActiveTab('game')}
+          className="flex-1"
+        >
+          <Text>游戏成员</Text>
+        </Button>
       </View>
 
       {/* 搜索和操作栏 */}
       <View className="px-4 py-3 gap-3 border-b border-border bg-card">
-        {activeTab === 'all' ? (
+        {activeTab === 'game' ? (
+          <>
+            {!isStoreAdmin && (
+              <View className="flex-row gap-2">
+                <Select
+                  value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
+                  onValueChange={(opt) => setHouseGid(String(opt?.value ?? ''))}
+                >
+                  <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
+                    <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>店铺号</SelectLabel>
+                      {(houseOptions ?? []).map((gid) => (
+                        <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
+                          店铺 {gid}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button
+                  onPress={() => {
+                    const gid = Number(houseGid);
+                    if (gid > 0) {
+                      runListGameMembers({ house_gid: gid });
+                    } else {
+                      alert.show({ title: '请选择店铺号', variant: 'error' });
+                    }
+                  }}
+                  disabled={loadingGameMembers}
+                >
+                  <Text>{loadingGameMembers ? '加载中...' : '加载成员'}</Text>
+                </Button>
+              </View>
+            )}
+            {isStoreAdmin && myAdminInfo && myAdminInfo.house_gid && (
+              <Button
+                onPress={() => runListGameMembers({ house_gid: myAdminInfo.house_gid! })}
+                disabled={loadingGameMembers}
+                variant="default"
+              >
+                <Text>{loadingGameMembers ? '加载中...' : '刷新游戏成员'}</Text>
+              </Button>
+            )}
+          </>
+        ) : activeTab === 'all' ? (
           <>
             <View className="flex-row gap-2">
               <Input
@@ -348,18 +405,29 @@ export const MembersView = () => {
         className="flex-1"
         refreshControl={
           <RefreshControl
-            refreshing={loadingUsers || loadingGroupMembers}
+            refreshing={loadingUsers || loadingGroupMembers || loadingGameMembers}
             onRefresh={() => {
               if (activeTab === 'all') {
                 handleLoadUsers();
-              } else if (myGroup) {
+              } else if (activeTab === 'group' && myGroup) {
                 runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
+              } else if (activeTab === 'game') {
+                if (isStoreAdmin && myAdminInfo && myAdminInfo.house_gid) {
+                  runListGameMembers({ house_gid: myAdminInfo.house_gid });
+                } else if (houseGid) {
+                  runListGameMembers({ house_gid: Number(houseGid) });
+                }
               }
             }}
           />
         }
       >
-        {activeTab === 'all' ? (
+        {activeTab === 'game' ? (
+          // 游戏成员列表
+          <View className="p-4">
+            <MembersList loading={loadingGameMembers} data={gameMembersData?.items} />
+          </View>
+        ) : activeTab === 'all' ? (
           // 所有用户列表
           <View className="p-4 gap-2">
             {loadingUsers && !allUsers && (

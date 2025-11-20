@@ -16,6 +16,7 @@ type GameAccountRepo interface {
 	Create(ctx context.Context, a *model.GameAccount) error
 	GetOneByUser(ctx context.Context, userID int32) (*model.GameAccount, error) // 若普通用户仅1条，可直接用
 	ListByUser(ctx context.Context, userID int32) ([]*model.GameAccount, error)
+	GetByID(ctx context.Context, id int32) (*model.GameAccount, error) // 通过ID查询游戏账号
 	GetByIDForUser(ctx context.Context, id int32, userID int32) (*model.GameAccount, error)
 	DeleteByUser(ctx context.Context, userID int32) error
 	CountByCtrl(ctx context.Context, ctrlID int32) (int64, error)
@@ -63,6 +64,17 @@ func (r *gameAccountRepo) ListByUser(ctx context.Context, userID int32) ([]*mode
 		Order("id DESC").
 		Find(&out).Error
 	return out, err
+}
+
+func (r *gameAccountRepo) GetByID(ctx context.Context, id int32) (*model.GameAccount, error) {
+	var a model.GameAccount
+	err := r.data.GetDBWithContext(ctx).
+		Where("id = ?", id).
+		First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
 }
 
 func (r *gameAccountRepo) GetByIDForUser(ctx context.Context, id int32, userID int32) (*model.GameAccount, error) {

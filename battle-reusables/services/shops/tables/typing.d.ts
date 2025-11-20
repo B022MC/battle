@@ -18,4 +18,32 @@ declare namespace API {
   type ShopsTablesDetail = { table?: ShopsTableItem; triggered?: boolean };
 
   type ShopsTablesCheck = ShopsTablesDetail & { exists_in_cache?: boolean };
+
+  type UserInfo = {
+    id: number;
+    username: string;
+    nick_name: string;
+    avatar: string;
+    role: string;
+    introduction: string;
+    created_at: string;
+    updated_at: string;
+  };
+
+  type ShopsMemberItem = {
+    user_id: number;
+    user_status: number;
+    game_id: number;
+    member_id: number;
+    member_type: number;
+    nick_name: string;
+    group_id: number;
+    group_name?: string;
+    // 平台用户关联信息
+    platform_user?: UserInfo;
+    game_account_id?: number;
+    is_bind_platform: boolean;
+  };
+
+  type ShopsMembersList = { items: ShopsMemberItem[] };
 }

@@ -52,16 +52,21 @@ type VerifyAccountResponse struct {
 }
 
 type ShopMemberListItem struct {
-	UserID     uint32  `json:"user_id"`
-	UserStatus int     `json:"user_status"`
-	GameID     uint32  `json:"game_id"`
-	MemberID   uint32  `json:"member_id"`
-	MemberType int     `json:"member_type"`
-	NickName   string  `json:"nick_name"`
+	UserID     uint32 `json:"user_id"`
+	UserStatus int    `json:"user_status"`
+	GameID     uint32 `json:"game_id"`
+	MemberID   uint32 `json:"member_id"`
+	MemberType int    `json:"member_type"`
+	NickName   string `json:"nick_name"`
 	// GroupID 若协议侧提供则填充；当前为 0（未知/未分组）
-	GroupID    int     `json:"group_id"`
+	GroupID int `json:"group_id"`
 	// GroupName 圈子名称（圈主昵称）
-	GroupName  *string `json:"group_name,omitempty"`
+	GroupName *string `json:"group_name,omitempty"`
+
+	// 平台用户信息（关联信息）
+	PlatformUser   *UserInfo `json:"platform_user,omitempty"`   // 绑定的平台用户信息
+	GameAccountID  *uint32   `json:"game_account_id,omitempty"` // 游戏账号ID
+	IsBindPlatform bool      `json:"is_bind_platform"`          // 是否已绑定平台用户
 }
 
 // UserInfo 用户信息响应（过滤敏感字段）

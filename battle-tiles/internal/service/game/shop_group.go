@@ -33,14 +33,15 @@ func NewShopGroupService(
 func (s *ShopGroupService) RegisterRouter(r *gin.RouterGroup) {
 	g := r.Group("/groups").Use(middleware.JWTAuth())
 
-	g.POST("/create", s.CreateGroup)          // 创建圈子
-	g.POST("/my", s.GetMyGroup)               // 获取我的圈子
-	g.POST("/list", s.ListGroupsByHouse)      // 获取店铺圈子列表
-	g.POST("/options", s.GetGroupOptions)     // 获取圈子选项列表（用于下拉框）
-	g.POST("/members/add", s.AddMembers)      // 添加成员到圈子
-	g.POST("/members/remove", s.RemoveMember) // 从圈子移除成员
-	g.POST("/members/list", s.ListMembers)    // 获取圈子成员列表
-	g.POST("/my/list", s.ListMyGroups)        // 获取我加入的圈子
+	g.POST("/create", s.CreateGroup)                // 创建圈子
+	g.POST("/my", s.GetMyGroup)                     // 获取我的圈子
+	g.POST("/list", s.ListGroupsByHouse)            // 获取店铺圈子列表
+	g.POST("/options", s.GetGroupOptions)           // 获取圈子选项列表（用于下拉框）
+	g.POST("/members/add", s.AddMembers)            // 添加成员到圈子（通过平台用户ID）
+	g.POST("/game-accounts/add", s.AddGameAccounts) // 添加游戏账号到圈子（通过游戏账号ID）
+	g.POST("/members/remove", s.RemoveMember)       // 从圈子移除成员
+	g.POST("/members/list", s.ListMembers)          // 获取圈子成员列表
+	g.POST("/my/list", s.ListMyGroups)              // 获取我加入的圈子
 }
 
 // CreateGroupReq 创建圈子请求
@@ -187,6 +188,38 @@ func (s *ShopGroupService) AddMembers(c *gin.Context) {
 	err = s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID, req.UserIDs)
 	if err != nil {
 		s.log.Errorf("add members failed: %v", err)
+		response.Fail(c, ecode.Failed, err.Error())
+		return
+	}
+
+	response.Success(c, "添加成功")
+}
+
+// AddGameAccountsReq 添加游戏账号到圈子请求
+type AddGameAccountsReq struct {
+	GroupID        int32   `json:"group_id" binding:"required"`
+	GameAccountIDs []int32 `json:"game_account_ids" binding:"required"`
+}
+
+// AddGameAccounts 通过游戏账号ID添加成员到圈子（用于添加游戏内的玩家）
+// POST /api/groups/game-accounts/add
+func (s *ShopGroupService) AddGameAccounts(c *gin.Context) {
+	var req AddGameAccountsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, ecode.ParamsFailed, nil)
+		return
+	}
+
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	userID := claims.BaseClaims.UserID
+
+	err = s.groupUC.AddGameAccountsToGroup(c.Request.Context(), req.GroupID, userID, req.GameAccountIDs)
+	if err != nil {
+		s.log.Errorf("add game accounts failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
 		return
 	}

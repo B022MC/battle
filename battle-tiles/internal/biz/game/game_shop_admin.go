@@ -60,16 +60,21 @@ func (uc *ShopAdminUseCase) Assign(ctx context.Context, houseGID int32, targetUs
 		return err
 	}
 
-	// 1. 检查用户是否存在
+	// 1. 检查用户是否存在（必须是已注册的平台用户）
 	user, err := uc.basicUserRepo.SelectOneByPK(ctx, targetUserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("用户不存在")
+			return errors.New("用户不存在，必须是已注册的平台用户")
 		}
 		return errors.Wrap(err, "查询用户失败")
 	}
 
-	// 2. 创建店铺管理员记录
+	// 2. 验证用户角色（不能将超级管理员设置为店铺管理员）
+	if user.IsSuperAdmin() {
+		return errors.New("不能将超级管理员设置为店铺管理员")
+	}
+
+	// 3. 创建店铺管理员记录
 	m := &model.GameShopAdmin{
 		HouseGID: int32(houseGID),
 		UserID:   targetUserID,
@@ -79,15 +84,15 @@ func (uc *ShopAdminUseCase) Assign(ctx context.Context, houseGID int32, targetUs
 		return err
 	}
 
-	// 3. 更新用户角色为店铺管理员
-	// 3.1 更新 basic_user 表的 role 字段（冗余字段）
+	// 4. 更新用户角色为店铺管理员
+	// 4.1 更新 basic_user 表的 role 字段（冗余字段）
 	user.Role = basicModel.UserRoleStoreAdmin
 	if _, err := uc.basicUserRepo.UpdateByPK(ctx, user); err != nil {
 		uc.log.Errorf("更新用户角色失败: %v", err)
 		// 不回滚，因为主要操作已完成
 	}
 
-	// 3.2 更新 RBAC 角色关联（sys_user_role）
+	// 4.2 更新 RBAC 角色关联（sys_user_role）
 	// 注意：RBAC 中的角色 Code 可能是 "shop_admin" 或 "store_admin"，为了兼容性，优先尝试 "shop_admin"
 	// 参考 ShopApplicationService 中的用法
 	if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(ctx, targetUserID, "shop_admin"); err != nil {
@@ -98,7 +103,7 @@ func (uc *ShopAdminUseCase) Assign(ctx context.Context, houseGID int32, targetUs
 		}
 	}
 
-	// 4. 自动创建该管理员的圈子
+	// 5. 自动创建该管理员的圈子
 	groupName := user.NickName + "的圈子"
 	if user.NickName == "" {
 		groupName = user.Username + "的圈子"

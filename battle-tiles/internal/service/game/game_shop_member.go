@@ -19,15 +19,16 @@ import (
 )
 
 type GameShopMemberService struct {
-	mgr   plaza.Manager
-	rule  *biz.MemberRuleUseCase
-	sAdm  gameRepo.GameShopAdminRepo
-	users basicRepo.BasicUserRepo
-	apps  gameRepo.UserApplicationRepo
+	mgr         plaza.Manager
+	rule        *biz.MemberRuleUseCase
+	sAdm        gameRepo.GameShopAdminRepo
+	users       basicRepo.BasicUserRepo
+	apps        gameRepo.UserApplicationRepo
+	gameAccount gameRepo.GameAccountRepo
 }
 
-func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo) *GameShopMemberService {
-	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps}
+func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, gameAccount gameRepo.GameAccountRepo) *GameShopMemberService {
+	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, gameAccount: gameAccount}
 }
 
 func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
@@ -347,18 +348,85 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 	sess.GetGroupMembers()
 	// 返回快照（若无为 nil -> 空数组）
 	mems := sess.ListMembers()
-	// 简单映射（直接透出字段）
+
+	// 构建 GameID 到游戏账号的映射
+	gameIDToAccount := make(map[uint32]*gameModel.GameAccount)
+	if s.gameAccount != nil && len(mems) > 0 {
+		gameIDs := make([]int32, 0, len(mems))
+		for _, m := range mems {
+			gameIDs = append(gameIDs, int32(m.GameID))
+		}
+
+		// 批量查询游戏账号（通过 GamePlayerID）
+		for _, m := range mems {
+			if account, err := s.gameAccount.GetByID(c.Request.Context(), int32(m.GameID)); err == nil && account != nil {
+				gameIDToAccount[m.GameID] = account
+			}
+		}
+	}
+
+	// 收集所有需要查询的平台用户ID
+	userIDSet := make(map[int32]struct{})
+	for _, account := range gameIDToAccount {
+		if account.UserID != nil && *account.UserID > 0 {
+			userIDSet[*account.UserID] = struct{}{}
+		}
+	}
+
+	// 批量查询平台用户信息
+	userIDToInfo := make(map[int32]*resp.UserInfo)
+	if s.users != nil && len(userIDSet) > 0 {
+		userIDs := make([]int32, 0, len(userIDSet))
+		for uid := range userIDSet {
+			userIDs = append(userIDs, uid)
+		}
+
+		if users, err := s.users.SelectByPK(c.Request.Context(), userIDs); err == nil {
+			for _, u := range users {
+				if u != nil {
+					userIDToInfo[u.Id] = &resp.UserInfo{
+						ID:           u.Id,
+						Username:     u.Username,
+						NickName:     u.NickName,
+						Avatar:       u.Avatar,
+						Role:         u.Role,
+						Introduction: u.Introduction,
+						CreatedAt:    u.CreatedAt.Format("2006-01-02 15:04:05"),
+						UpdatedAt:    u.UpdatedAt.Format("2006-01-02 15:04:05"),
+					}
+				}
+			}
+		}
+	}
+
+	// 组装响应（包含平台用户信息）
 	out := make([]resp.ShopMemberListItem, 0, len(mems))
 	for _, m := range mems {
-		out = append(out, resp.ShopMemberListItem{
-			UserID:     m.UserID,
-			UserStatus: m.UserStatus,
-			GameID:     m.GameID,
-			MemberID:   m.MemberID,
-			MemberType: m.MemberType,
-			NickName:   m.NickName,
-			GroupID:    0,
-		})
+		item := resp.ShopMemberListItem{
+			UserID:         m.UserID,
+			UserStatus:     m.UserStatus,
+			GameID:         m.GameID,
+			MemberID:       m.MemberID,
+			MemberType:     m.MemberType,
+			NickName:       m.NickName,
+			GroupID:        0,
+			IsBindPlatform: false,
+		}
+
+		// 添加游戏账号ID和平台用户信息
+		if account, ok := gameIDToAccount[m.GameID]; ok {
+			gameAccountID := uint32(account.Id)
+			item.GameAccountID = &gameAccountID
+
+			if account.UserID != nil && *account.UserID > 0 {
+				item.IsBindPlatform = true
+				if userInfo, exists := userIDToInfo[*account.UserID]; exists {
+					item.PlatformUser = userInfo
+				}
+			}
+		}
+
+		out = append(out, item)
 	}
 	response.Success(c, resp.ShopMemberListResponse{Items: out})
 }

@@ -35,20 +35,30 @@ type TablesSearchParams = z.infer<typeof searchFormSchema>;
 type TablesSearchProps = {
   submitButtonProps?: ButtonProps & { loading?: boolean };
   onSubmit?: (data: API.ShopsTablesListParams) => void;
+  hideSearch?: boolean; // 隐藏搜索框（店铺管理员不需要搜索）
+  defaultHouseGid?: number; // 默认店铺id（店铺管理员自动填充）
 };
 
-export const TablesSearch = ({ submitButtonProps, onSubmit }: TablesSearchProps) => {
+export const TablesSearch = ({ submitButtonProps, onSubmit, hideSearch = false, defaultHouseGid }: TablesSearchProps) => {
   const { isAuthenticated } = useAuthStore();
   const {
     control,
     handleSubmit,
     getValues,
+    setValue,
     formState: { isValid },
   } = useForm<TablesSearchParams>({
     resolver: zodResolver(searchFormSchema),
-    defaultValues: { houseGid: '' },
+    defaultValues: { houseGid: defaultHouseGid ? String(defaultHouseGid) : '' },
     mode: 'all',
   });
+
+  // 店铺管理员自动设置店铺id
+  React.useEffect(() => {
+    if (defaultHouseGid) {
+      setValue('houseGid', String(defaultHouseGid));
+    }
+  }, [defaultHouseGid]);
 
   const handleParms = (params: TablesSearchParams) => {
     const { houseGid } = params;
@@ -74,6 +84,24 @@ export const TablesSearch = ({ submitButtonProps, onSubmit }: TablesSearchProps)
     onSubmit?.({ house_gid });
   };
 
+  // 店铺管理员：只显示刷新按钮
+  if (hideSearch) {
+    return (
+      <View className="flex flex-row items-center justify-end gap-2 border-b border-b-border p-4">
+        <Button
+          onPress={handlePull}
+          disabled={!isValid || pulling}
+          variant="outline"
+          className="px-3"
+        >
+          <Icon as={RefreshCw} />
+          <Text className="font-medium">刷新桌台</Text>
+        </Button>
+      </View>
+    );
+  }
+
+  // 超级管理员：显示搜索功能
   return (
     <View className="flex flex-row items-center gap-2 border-b border-b-border p-4">
       <Controller

@@ -21,3 +21,13 @@ export function shopsTablesCheck(data: API.ShopsTablesItemParams) {
 export function shopsTablesDismiss(data: API.ShopsTablesDismissParams) {
   return post<null>('/shops/tables/dismiss', data);
 }
+
+export async function shopsMembersList(data: API.ShopsTablesListParams) {
+  // 先触发拉取，确保会话服务端刷新了最新成员快照
+  await post<null>('/shops/members/pull', data);
+  return post<API.ShopsMembersList>('/shops/members/list', data);
+}
+
+export function shopsMembersPull(data: API.ShopsTablesListParams) {
+  return post<null>('/shops/members/pull', data);
+}
