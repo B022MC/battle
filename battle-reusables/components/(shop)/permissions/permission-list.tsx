@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import {
   getAllPermissions,
   deletePermission,
   type Permission,
 } from '@/services/basic/permission';
 import { toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 
 interface PermissionListProps {
@@ -58,32 +59,29 @@ export function PermissionList({ onEdit, onRefresh }: PermissionListProps) {
   }, []);
 
   const handleDelete = async (permission: Permission) => {
-    Alert.alert(
-      '确认删除',
-      `确定要删除权限"${permission.name}"吗？删除后将无法恢复。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await deletePermission(permission.id);
-              if (res.code === 0) {
-                toast.success('删除成功');
-                loadPermissions();
-                onRefresh?.();
-              } else {
-                toast.error(res.msg || '删除失败');
-              }
-            } catch (error) {
-              toast.error('删除失败');
-              console.error('Delete permission error:', error);
-            }
-          },
-        },
-      ]
-    );
+    toast.confirm({
+      title: '确认删除',
+      description: `确定要删除权限"${permission.name}"吗？删除后将无法恢复。`,
+      type: 'error',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await deletePermission(permission.id);
+          if (res.code === 0) {
+            showSuccessBubble('删除成功', `权限"${permission.name}"已删除`);
+            loadPermissions();
+            onRefresh?.();
+          } else {
+            toast.error(res.msg || '删除失败');
+          }
+        } catch (error) {
+          toast.error('删除失败');
+          console.error('Delete permission error:', error);
+        }
+      },
+    });
   };
 
   // 过滤权限

@@ -21,6 +21,8 @@ import {
 } from '@/services/game/ctrl-account';
 import { gameAccountVerify } from '@/services/game/account';
 import { alert } from '@/utils/alert';
+import { toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 import { md5Upper } from '@/utils/md5';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { TriggerRef } from '@rn-primitives/select';
@@ -62,7 +64,7 @@ export const ProfileCtrlAccounts = () => {
   const { run: runCreate, loading: creating } = useRequest(createCtrlAccount, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '成功', description: '中控账号已创建' });
+      showSuccessBubble('创建成功', '中控账号已创建');
       setShowAddForm(false);
       setIdentifier('');
       setPassword('');
@@ -75,7 +77,7 @@ export const ProfileCtrlAccounts = () => {
   const { run: runUpdateStatus, loading: updatingStatus } = useRequest(updateCtrlAccountStatus, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '成功', description: '状态已更新' });
+      showSuccessBubble('更新成功', '中控账号状态已更新');
       runListAccounts();
     },
   });
@@ -83,7 +85,7 @@ export const ProfileCtrlAccounts = () => {
   const { run: runDelete, loading: deleting } = useRequest(deleteCtrlAccount, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '成功', description: '中控账号已删除' });
+      showSuccessBubble('删除成功', '中控账号已删除');
       runListAccounts();
     },
   });
@@ -130,20 +132,17 @@ export const ProfileCtrlAccounts = () => {
   };
 
   const onDeleteAccount = async (ctrlId: number, identifier: string) => {
-    const confirmed = await new Promise<boolean>((resolve) => {
-      alert.show({
-        title: '确认删除',
-        description: `确定要删除中控账号 "${identifier}" 吗?此操作不可恢复。`,
-        actions: [
-          { text: '取消', onPress: () => resolve(false) },
-          { text: '删除', onPress: () => resolve(true), style: 'destructive' },
-        ],
-      });
+    toast.confirm({
+      title: '确认删除',
+      description: `确定要删除中控账号 "${identifier}" 吗？此操作不可恢复。`,
+      type: 'error',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        await runDelete(ctrlId);
+      },
     });
-
-    if (confirmed) {
-      await runDelete(ctrlId);
-    }
   };
 
   function onTouchStart() {

@@ -7,6 +7,7 @@ import { useRequest } from '@/hooks/use-request';
 import { shopsMembersKick, shopsMembersLogout, shopsMembersAddToPlatform, shopsMembersRemovePlatform } from '@/services/shops/members';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import { useAuthStore } from '@/hooks/use-auth-store';
+import { toast } from '@/utils/toast';
 import {
   InfoCard,
   InfoCardHeader,
@@ -47,21 +48,59 @@ export const MembersItem = ({ houseId, data }: MembersItemProps) => {
   if (typeof houseId !== 'number' || typeof member_id !== 'number') return <Text>参数错误</Text>;
 
   const handleKick = () => {
-    kickRun({ house_gid: houseId, member_id });
+    toast.confirm({
+      title: '确认踢出',
+      description: `确定要踢出成员 "${nick_name || member_id}" 吗？`,
+      type: 'error',
+      confirmText: '踢出',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        kickRun({ house_gid: houseId, member_id });
+      },
+    });
   };
 
   const handleLogout = () => {
-    logoutRun({ house_gid: houseId, member_id });
+    toast.confirm({
+      title: '确认下线',
+      description: `确定要让成员 "${nick_name || member_id}" 下线吗？`,
+      type: 'warning',
+      confirmText: '下线',
+      cancelText: '取消',
+      onConfirm: async () => {
+        logoutRun({ house_gid: houseId, member_id });
+      },
+    });
   };
 
   const handleAddToGroup = () => {
     if (typeof user_id !== 'number') return;
-    addToGroupRun({ house_gid: houseId, member_user_id: user_id });
+    toast.confirm({
+      title: '确认拉入圈子',
+      description: `确定要将成员 "${nick_name || member_id}" 拉入圈子吗？`,
+      type: 'warning',
+      confirmText: '确定',
+      cancelText: '取消',
+      onConfirm: async () => {
+        addToGroupRun({ house_gid: houseId, member_user_id: user_id });
+      },
+    });
   };
 
   const handleRemoveFromGroup = () => {
     if (typeof user_id !== 'number') return;
-    removeFromGroupRun({ house_gid: houseId, member_user_id: user_id });
+    toast.confirm({
+      title: '确认踢出圈子',
+      description: `确定要将成员 "${nick_name || member_id}" 踢出圈子吗？`,
+      type: 'error',
+      confirmText: '踢出',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        removeFromGroupRun({ house_gid: houseId, member_user_id: user_id });
+      },
+    });
   };
 
   return (

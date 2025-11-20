@@ -18,6 +18,7 @@ type ShopAdminUseCase struct {
 	repo          repo.GameShopAdminRepo
 	shopGroupRepo repo.ShopGroupRepo
 	basicUserRepo basicRepo.BasicUserRepo
+	authRepo      basicRepo.AuthRepo
 	log           *log.Helper
 }
 
@@ -25,12 +26,14 @@ func NewShopAdminUseCase(
 	r repo.GameShopAdminRepo,
 	shopGroupRepo repo.ShopGroupRepo,
 	basicUserRepo basicRepo.BasicUserRepo,
+	authRepo basicRepo.AuthRepo,
 	logger log.Logger,
 ) *ShopAdminUseCase {
 	return &ShopAdminUseCase{
 		repo:          r,
 		shopGroupRepo: shopGroupRepo,
 		basicUserRepo: basicUserRepo,
+		authRepo:      authRepo,
 		log:           log.NewHelper(log.With(logger, "module", "usecase/shop_admin")),
 	}
 }
@@ -77,10 +80,22 @@ func (uc *ShopAdminUseCase) Assign(ctx context.Context, houseGID int32, targetUs
 	}
 
 	// 3. 更新用户角色为店铺管理员
+	// 3.1 更新 basic_user 表的 role 字段（冗余字段）
 	user.Role = basicModel.UserRoleStoreAdmin
 	if _, err := uc.basicUserRepo.UpdateByPK(ctx, user); err != nil {
 		uc.log.Errorf("更新用户角色失败: %v", err)
 		// 不回滚，因为主要操作已完成
+	}
+
+	// 3.2 更新 RBAC 角色关联（sys_user_role）
+	// 注意：RBAC 中的角色 Code 可能是 "shop_admin" 或 "store_admin"，为了兼容性，优先尝试 "shop_admin"
+	// 参考 ShopApplicationService 中的用法
+	if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(ctx, targetUserID, "shop_admin"); err != nil {
+		// 如果 shop_admin 不存在，尝试 store_admin
+		uc.log.Warnf("RBAC角色 shop_admin 设置失败，尝试 store_admin: %v", err)
+		if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(ctx, targetUserID, basicModel.UserRoleStoreAdmin); err != nil {
+			uc.log.Errorf("RBAC角色设置失败: %v", err)
+		}
 	}
 
 	// 4. 自动创建该管理员的圈子
@@ -147,9 +162,15 @@ func (uc *ShopAdminUseCase) Revoke(ctx context.Context, houseGID int32, targetUs
 	// 3. 更新用户角色为普通用户
 	user, err := uc.basicUserRepo.SelectOneByPK(ctx, targetUserID)
 	if err == nil {
+		// 3.1 更新 basic_user 表的 role 字段
 		user.Role = basicModel.UserRoleRegularUser
 		if _, err := uc.basicUserRepo.UpdateByPK(ctx, user); err != nil {
 			uc.log.Errorf("更新用户角色失败: %v", err)
+		}
+
+		// 3.2 更新 RBAC 角色关联（恢复为 user）
+		if err := uc.authRepo.EnsureUserHasOnlyRoleByCode(ctx, targetUserID, "user"); err != nil {
+			uc.log.Errorf("RBAC角色恢复失败: %v", err)
 		}
 	}
 

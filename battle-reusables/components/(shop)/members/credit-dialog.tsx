@@ -3,7 +3,8 @@ import { View, Modal, TextInput, TouchableOpacity, ActivityIndicator } from 'rea
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { showToast } from '@/utils/toast';
+import { showToast, toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 
 type CreditDialogProps = {
   visible: boolean;
@@ -40,45 +41,58 @@ export const CreditDialog = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      // 金额转换为分（cents）
-      const amountInCents = Math.round(amountNum * 100);
-      const bizNo = generateBizNo();
+    // 二次确认
+    toast.confirm({
+      title: type === 'deposit' ? '确认上分' : '确认下分',
+      description: memberName 
+        ? `确定要为 ${memberName} ${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`
+        : `确定要${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`,
+      type: 'warning',
+      confirmText: '确定',
+      cancelText: '取消',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          // 金额转换为分（cents）
+          const amountInCents = Math.round(amountNum * 100);
+          const bizNo = generateBizNo();
 
-      const endpoint = type === 'deposit' 
-        ? '/members/credit/deposit'
-        : '/members/credit/withdraw';
+          const endpoint = type === 'deposit' 
+            ? '/members/credit/deposit'
+            : '/members/credit/withdraw';
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          house_gid: houseGid,
-          member_id: memberId,
-          amount: amountInCents,
-          biz_no: bizNo,
-          reason: reason || (type === 'deposit' ? '上分' : '下分'),
-        }),
-      });
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              house_gid: houseGid,
+              member_id: memberId,
+              amount: amountInCents,
+              biz_no: bizNo,
+              reason: reason || (type === 'deposit' ? '上分' : '下分'),
+            }),
+          });
 
-      const res = await response.json();
-      if (res.code === 0) {
-        showToast(type === 'deposit' ? '上分成功' : '下分成功', 'success');
-        setAmount('');
-        setReason('');
-        onSuccess?.();
-        onClose();
-      } else {
-        showToast(res.msg || '操作失败', 'error');
-      }
-    } catch (error) {
-      showToast('操作失败', 'error');
-    } finally {
-      setLoading(false);
-    }
+          const res = await response.json();
+          if (res.code === 0) {
+            const actionText = type === 'deposit' ? '上分' : '下分';
+            showSuccessBubble(`${actionText}成功`, `已为${memberName || '成员'}${actionText} ${amountNum} 元`);
+            setAmount('');
+            setReason('');
+            onSuccess?.();
+            onClose();
+          } else {
+            showToast(res.msg || '操作失败', 'error');
+          }
+        } catch (error) {
+          showToast('操作失败', 'error');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   const handleCancel = () => {

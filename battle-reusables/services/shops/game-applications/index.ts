@@ -11,7 +11,15 @@ export function listGameApplications(data: GameApplicationListParams) {
 }
 
 /**
- * 通过游戏内申请
+ * 通过游戏内申请（自动处理游戏账号入圈）
+ * 
+ * 后端逻辑：
+ * 1. 发送通过命令到游戏服务器
+ * 2. 查找或创建游戏账号（user_id 为 NULL）
+ * 3. 确保管理员有圈子（如果没有则自动创建）
+ * 4. 将游戏账号加入管理员的圈子
+ * 5. 记录操作日志
+ * 
  * @param data - house_gid, message_id
  * @returns 成功响应
  */

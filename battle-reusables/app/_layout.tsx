@@ -1,5 +1,6 @@
 import { AlertProvider } from '@/components/shared/alert-provider';
 import { ToastProvider } from '@/components/shared/toast-provider';
+import { BubbleToastContainer } from '@/components/ui/bubble-toast-container';
 import '@/global.css';
 
 import { NAV_THEME } from '@/lib/theme';
@@ -30,6 +31,7 @@ export default function RootLayout() {
             <Stack.Screen name="auth/index" options={{ headerShown: false }} />
           </Stack>
           <PortalHost />
+          <BubbleToastContainer />
         </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>

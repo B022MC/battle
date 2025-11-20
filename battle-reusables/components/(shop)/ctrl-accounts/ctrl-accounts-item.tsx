@@ -6,6 +6,7 @@ import { useRequest } from '@/hooks/use-request';
 import { shopsCtrlAccountsUnbind } from '@/services/shops/ctrlAccounts';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import { PermissionGate } from '@/components/auth/PermissionGate';
+import { toast } from '@/utils/toast';
 import {
   InfoCard,
   InfoCardHeader,
@@ -29,7 +30,17 @@ export const CtrlAccountsItem = ({ houseId, data }: CtrlAccountsItemProps) => {
   if (typeof houseId !== 'number' || typeof id !== 'number') return <Text>参数错误</Text>;
 
   const handleUnbind = () => {
-    unbindRun({ ctrl_id: id, house_gid: houseId });
+    toast.confirm({
+      title: '确认解绑',
+      description: `确定要解绑中控账号 "${identifier}" 吗？`,
+      type: 'error',
+      confirmText: '确定解绑',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        unbindRun({ ctrl_id: id, house_gid: houseId });
+      },
+    });
   };
 
   return (

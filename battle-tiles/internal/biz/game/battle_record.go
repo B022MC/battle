@@ -212,7 +212,12 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 
 		// 玩家有效：游戏账号 -> 系统账号 -> 成员信息 -> 圈子
 		playerGroups[player.UserGameID] = *member.GroupID
-		playerUserIDs[player.UserGameID] = account.UserID
+		// account.UserID 现在是指针类型，需要解引用
+		if account.UserID != nil {
+			playerUserIDs[player.UserGameID] = *account.UserID
+		} else {
+			playerUserIDs[player.UserGameID] = 0 // 未绑定用户
+		}
 		validPlayers[player.UserGameID] = true
 	}
 

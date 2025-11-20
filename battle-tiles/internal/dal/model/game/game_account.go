@@ -22,7 +22,7 @@ type GameAccount struct {
 	UpdatedAt     time.Time             `gorm:"autoUpdateTime;column:updated_at;type:timestamp with time zone;not null" json:"updated_at"`
 	DeletedAt     time.Time             `gorm:"column:deleted_at;type:timestamp with time zone" json:"deleted_at"`
 	IsDel         soft_delete.DeletedAt `gorm:"softDelete:flag,DeletedAtField:DeletedAt" json:"is_del"`
-	UserID        int32                 `gorm:"column:user_id;not null" json:"user_id"`
+	UserID        *int32                `gorm:"column:user_id" json:"user_id"` // 可选，用于用户反向查询
 	Account       string                `gorm:"column:account;type:varchar(64);not null" json:"account"`
 	PwdMD5        string                `gorm:"column:pwd_md5;type:varchar(64);not null" json:"pwd_md5"`
 	Nickname      string                `gorm:"column:nickname;type:varchar(64);not null;default:''" json:"nickname"`

@@ -77,7 +77,7 @@ func (uc *CtrlAccountUseCase) CreateOrUpdateCtrl(ctx context.Context, mode const
 				loginMode = "mobile"
 			}
 			_ = uc.accRepo.Create(ctx, &model.GameAccount{
-				UserID:        operatorUserID,
+				UserID:        &operatorUserID, // 指针类型
 				Account:       id,
 				PwdMD5:        md5,
 				Nickname:      "",
@@ -102,7 +102,7 @@ func (uc *CtrlAccountUseCase) BindCtrlToHouse(ctx context.Context, ctrlID int32,
 					loginMode = "mobile"
 				}
 				_ = uc.accRepo.Create(ctx, &model.GameAccount{
-					UserID:        operatorUserID,
+					UserID:        &operatorUserID, // 指针类型
 					Account:       ctrl.Identifier,
 					PwdMD5:        ctrl.PwdMD5,
 					Nickname:      "",

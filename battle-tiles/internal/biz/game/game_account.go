@@ -42,13 +42,14 @@ func NewGameAccountUseCase(
 	}
 }
 
-// 只绑定“我的”账号 普通用户才使用这个方法
+// 只绑定"我的"账号 普通用户才使用这个方法
 func (uc *GameAccountUseCase) BindSingle(ctx context.Context, userID int32, mode consts.GameLoginMode, identifier, pwdMD5, nickname string) (*model.GameAccount, error) {
 	// 探活并获取游戏用户信息
 	info, err := uc.mgr.ProbeLoginWithInfo(ctx, mode, identifier, pwdMD5)
 	if err != nil {
 		return nil, err
 	}
+	
 	// 普通用户仅允许1条（DB 触发器也兜底）
 	if _, err := uc.accRepo.GetOneByUser(ctx, userID); err == nil {
 		return nil, errors.New("you have already bound a game account")
@@ -56,19 +57,41 @@ func (uc *GameAccountUseCase) BindSingle(ctx context.Context, userID int32, mode
 		return nil, err
 	}
 
+	gameUserID := fmt.Sprintf("%d", info.UserID)
+	
+	// 检查游戏账号是否已存在
+	existingAccount, err := uc.accRepo.GetByGameUserID(ctx, gameUserID)
+	if err == nil && existingAccount != nil {
+		// 游戏账号已存在
+		if existingAccount.UserID != nil {
+			// 已被其他用户绑定
+			return nil, errors.New("this game account is already bound to another user")
+		}
+		// 游戏账号存在但未绑定用户，更新绑定
+		existingAccount.UserID = &userID
+		existingAccount.IsDefault = true
+		if err := uc.accRepo.Update(ctx, existingAccount); err != nil {
+			return nil, err
+		}
+		return existingAccount, nil
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	// 游戏账号不存在，创建新账号
 	loginMode := "account"
 	if mode == consts.GameLoginModeMobile {
 		loginMode = "mobile"
 	}
 	a := &model.GameAccount{
-		UserID:     userID,
+		UserID:     &userID, // 指针类型
 		Account:    strings.TrimSpace(identifier),
 		PwdMD5:     strings.ToUpper(strings.TrimSpace(pwdMD5)),
 		Nickname:   nickname,
 		IsDefault:  true,
 		Status:     1,
 		LoginMode:  loginMode,
-		GameUserID: fmt.Sprintf("%d", info.UserID), // 保存游戏用户 ID
+		GameUserID: gameUserID, // 保存游戏用户 ID
 	}
 	if err := uc.accRepo.Create(ctx, a); err != nil {
 		return nil, err

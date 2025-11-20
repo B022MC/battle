@@ -24,6 +24,7 @@ var ProviderSet = wire.NewSet(
 	cloud.NewBasePlatformRepo,
 
 	game.NewGameAccountRepo,
+	game.NewGameAccountGroupRepo, // 新增：游戏账号圈子关系仓库
 	game.NewSessionRepo,
 	game.NewCtrlAccountRepo,
 	game.NewShopAdminRepo,

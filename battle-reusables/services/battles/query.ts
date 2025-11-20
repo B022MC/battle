@@ -15,7 +15,15 @@ import type {
 } from './query-typing';
 
 /**
- * 普通用户 - 查询我的战绩
+ * 普通用户 - 查询我的战绩（通过游戏账号反向查询）
+ * 
+ * 后端逻辑：
+ * 1. 根据用户ID查询绑定的游戏账号
+ * 2. 根据游戏账号查询战绩记录
+ * 3. 返回战绩列表
+ * 
+ * @param data - 查询参数
+ * @returns 战绩列表
  */
 export function listMyBattles(data: ListMyBattlesParams) {
   return post<{

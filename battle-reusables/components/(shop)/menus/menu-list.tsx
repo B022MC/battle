@@ -5,11 +5,11 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { getMenuTree, deleteMenu, type Menu } from '@/services/basic/menu';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 
 interface MenuListProps {
   onEdit: (menu: Menu) => void;
@@ -68,31 +68,28 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
   };
 
   const handleDelete = (menu: Menu) => {
-    Alert.alert(
-      '确认删除',
-      `确定要删除菜单"${menu.title}"吗？`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await deleteMenu(menu.id);
-              if (res.code === 0) {
-                toast.success('删除成功');
-                onRefresh();
-                loadMenus();
-              } else {
-                toast.error(res.msg || '删除失败');
-              }
-            } catch (error: any) {
-              toast.error(error.message || '删除失败');
-            }
-          },
-        },
-      ]
-    );
+    toast.confirm({
+      title: '确认删除',
+      description: `确定要删除菜单"${menu.title}"吗？`,
+      type: 'error',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await deleteMenu(menu.id);
+          if (res.code === 0) {
+            showSuccessBubble('删除成功', `菜单"${menu.title}"已删除`);
+            onRefresh();
+            loadMenus();
+          } else {
+            toast.error(res.msg || '删除失败');
+          }
+        } catch (error: any) {
+          toast.error(error.message || '删除失败');
+        }
+      },
+    });
   };
 
   const toggleExpand = (id: number) => {
@@ -209,5 +206,6 @@ export function MenuList({ onEdit, onRefresh }: MenuListProps) {
     />
   );
 }
+
 
 

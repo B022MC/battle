@@ -74,7 +74,14 @@ export function listGroupMembers(data: API.ListGroupMembersParams) {
 }
 
 /**
- * 列出我加入的所有圈子
+ * 列出我加入的所有圈子（通过游戏账号反向查询）
+ * 
+ * 后端逻辑：
+ * 1. 根据用户ID查询绑定的游戏账号
+ * 2. 根据游戏账号ID查询 game_account_group 表
+ * 3. 返回游戏账号加入的所有圈子
+ * 
+ * @returns 圈子列表
  */
 export function listMyGroups() {
   return post<API.ShopGroup[]>('/groups/my/list', {});

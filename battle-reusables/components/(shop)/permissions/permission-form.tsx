@@ -14,7 +14,8 @@ import {
   type CreatePermissionRequest,
   type UpdatePermissionRequest,
 } from '@/services/basic/permission';
-import { showToast } from '@/utils/toast';
+import { showToast, toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 
 interface PermissionFormProps {
   visible: boolean;
@@ -63,47 +64,59 @@ export function PermissionForm({
       return;
     }
 
-    setLoading(true);
-    try {
-      if (permission) {
-        // 更新
-        const data: UpdatePermissionRequest = {
-          id: permission.id,
-          name,
-          category,
-          description,
-        };
-        const res = await updatePermission(data);
-        if (res.code === 0) {
-          showToast('更新成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '更新失败', 'error');
+    // 二次确认
+    toast.confirm({
+      title: permission ? '确认更新' : '确认创建',
+      description: permission 
+        ? `确定要更新权限"${permission.name}"吗？`
+        : `确定要创建权限"${name}"吗？`,
+      type: 'warning',
+      confirmText: permission ? '更新' : '创建',
+      cancelText: '取消',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          if (permission) {
+            // 更新
+            const data: UpdatePermissionRequest = {
+              id: permission.id,
+              name,
+              category,
+              description,
+            };
+            const res = await updatePermission(data);
+            if (res.code === 0) {
+              showSuccessBubble('更新成功', `权限"${name}"已更新`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '更新失败', 'error');
+            }
+          } else {
+            // 创建
+            const data: CreatePermissionRequest = {
+              code,
+              name,
+              category,
+              description,
+            };
+            const res = await createPermission(data);
+            if (res.code === 0) {
+              showSuccessBubble('创建成功', `权限"${name}"已创建`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '创建失败', 'error');
+            }
+          }
+        } catch (error) {
+          showToast(permission ? '更新失败' : '创建失败', 'error');
+          console.error('Submit permission error:', error);
+        } finally {
+          setLoading(false);
         }
-      } else {
-        // 创建
-        const data: CreatePermissionRequest = {
-          code,
-          name,
-          category,
-          description,
-        };
-        const res = await createPermission(data);
-        if (res.code === 0) {
-          showToast('创建成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '创建失败', 'error');
-        }
-      }
-    } catch (error) {
-      showToast(permission ? '更新失败' : '创建失败', 'error');
-      console.error('Submit permission error:', error);
-    } finally {
-      setLoading(false);
-    }
+      },
+    });
   };
 
   return (

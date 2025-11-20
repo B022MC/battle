@@ -7,6 +7,8 @@ import { InfoCard, InfoCardContent, InfoCardFooter, InfoCardHeader, InfoCardRow,
 import { useRequest } from '@/hooks/use-request';
 import { gameAccountBind, gameAccountDelete, gameAccountMe, gameAccountMeHouses, gameAccountVerify } from '@/services/game/account';
 import { alert } from '@/utils/alert';
+import { toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 import { md5Upper } from '@/utils/md5';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { TriggerRef } from '@rn-primitives/select';
@@ -23,18 +25,11 @@ export const ProfileGameAccount = () => {
   const { run: runVerify, loading: verifying } = useRequest(gameAccountVerify, { manual: true });
   const { run: runBind, loading: binding } = useRequest(gameAccountBind, {
     manual: true,
-    onSuccess: () => {
-      alert.show({ title: '已绑定', description: '游戏账号绑定成功' });
-      runMe();
-      runHouses();
-      setAccount('');
-      setPassword('');
-    },
   });
   const { run: runUnbind, loading: unbinding } = useRequest(gameAccountDelete, {
     manual: true,
     onSuccess: () => {
-      alert.show({ title: '已解绑', description: '已解绑我的游戏账号' });
+      showSuccessBubble('解绑成功', '游戏账号已成功解绑');
       runMe();
       runHouses();
     },
@@ -75,15 +70,33 @@ export const ProfileGameAccount = () => {
       return alert.show({ title: '参数错误', description: '请输入账号与密码' });
     }
     const digest = md5Upper(password);
-    try {
-      const vr = await runVerify({ mode, account, pwd_md5: digest });
-      if (!vr?.ok) {
-        return alert.show({ title: '校验失败', description: '账号或密码不正确' });
-      }
-      await runBind({ mode, account, pwd_md5: digest });
-    } catch (e) {
-      // useRequest 已统一错误提示
-    }
+    
+    toast.confirm({
+      title: '确认绑定',
+      description: `确定要绑定游戏账号 "${account}" 吗？`,
+      onConfirm: async () => {
+        try {
+          const vr = await runVerify({ mode, account, pwd_md5: digest });
+          if (!vr?.ok) {
+            return toast.error('账号或密码不正确');
+          }
+          await runBind({ mode, account, pwd_md5: digest });
+          showSuccessBubble('绑定成功', '游戏账号已成功绑定');
+          runMe();
+          runHouses();
+          setAccount('');
+          setPassword('');
+        } catch (e: any) {
+          // 处理特殊错误
+          if (e?.message?.includes('already bound')) {
+            toast.error('该游戏账号已被其他用户绑定');
+          } else {
+            toast.error(e?.message || '绑定失败');
+          }
+        }
+      },
+      confirmText: '绑定',
+    });
   };
 
   const isBound = !!(me && me.account);
@@ -151,7 +164,23 @@ export const ProfileGameAccount = () => {
       </InfoCardContent>
       <InfoCardFooter>
         {isBound ? (
-          <Button variant="destructive" disabled={unbinding || loadingMe} onPress={() => runUnbind()}>
+          <Button 
+            variant="destructive" 
+            disabled={unbinding || loadingMe} 
+            onPress={() => {
+              toast.confirm({
+                title: '确认解绑',
+                description: `确定要解绑游戏账号 "${me.account}" 吗？`,
+                type: 'error',
+                confirmText: '确定解绑',
+                cancelText: '取消',
+                confirmVariant: 'destructive',
+                onConfirm: async () => {
+                  runUnbind();
+                },
+              });
+            }}
+          >
             <Text>解绑我的账号</Text>
           </Button>
         ) : (

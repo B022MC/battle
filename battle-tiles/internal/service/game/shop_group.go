@@ -12,14 +12,20 @@ import (
 )
 
 type ShopGroupService struct {
-	groupUC *game.ShopGroupUseCase
-	log     *log.Helper
+	groupUC        *game.ShopGroupUseCase
+	accountGroupUC *game.GameAccountGroupUseCase
+	log            *log.Helper
 }
 
-func NewShopGroupService(groupUC *game.ShopGroupUseCase, logger log.Logger) *ShopGroupService {
+func NewShopGroupService(
+	groupUC *game.ShopGroupUseCase,
+	accountGroupUC *game.GameAccountGroupUseCase,
+	logger log.Logger,
+) *ShopGroupService {
 	return &ShopGroupService{
-		groupUC: groupUC,
-		log:     log.NewHelper(log.With(logger, "module", "service/shop_group")),
+		groupUC:        groupUC,
+		accountGroupUC: accountGroupUC,
+		log:            log.NewHelper(log.With(logger, "module", "service/shop_group")),
 	}
 }
 
@@ -258,7 +264,7 @@ func (s *ShopGroupService) ListMembers(c *gin.Context) {
 	})
 }
 
-// ListMyGroups 获取我加入的所有圈子
+// ListMyGroups 获取我加入的所有圈子（通过游戏账号反向查询）
 // POST /api/groups/my/list
 func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
 	claims, err := utils.GetClaims(c)
@@ -268,11 +274,38 @@ func (s *ShopGroupService) ListMyGroups(c *gin.Context) {
 	}
 	userID := claims.BaseClaims.UserID
 
-	groups, err := s.groupUC.ListMyGroups(c.Request.Context(), userID)
+	// 使用新的游戏账号反向查询逻辑
+	accountGroups, err := s.accountGroupUC.ListGroupsByUser(c.Request.Context(), userID)
 	if err != nil {
 		s.log.Errorf("list my groups failed: %v", err)
 		response.Fail(c, ecode.Failed, err.Error())
 		return
+	}
+
+	// 转换为圈子列表（去重）
+	groupMap := make(map[int32]bool)
+	var groupIDs []int32
+	for _, ag := range accountGroups {
+		if !groupMap[ag.GroupID] {
+			groupMap[ag.GroupID] = true
+			groupIDs = append(groupIDs, ag.GroupID)
+		}
+	}
+
+	// 查询圈子详情
+	var groups []map[string]interface{}
+	for _, ag := range accountGroups {
+		if groupMap[ag.GroupID] {
+			groups = append(groups, map[string]interface{}{
+				"id":            ag.GroupID,
+				"house_gid":     ag.HouseGID,
+				"group_name":    ag.GroupName,
+				"admin_user_id": ag.AdminUserID,
+				"status":        ag.Status,
+				"joined_at":     ag.JoinedAt,
+			})
+			delete(groupMap, ag.GroupID) // 避免重复
+		}
 	}
 
 	response.Success(c, groups)

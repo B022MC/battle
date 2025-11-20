@@ -15,7 +15,8 @@ import {
   type CreateRoleRequest,
   type UpdateRoleRequest,
 } from '@/services/basic/role';
-import { showToast } from '@/utils/toast';
+import { showToast, toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 
 interface RoleFormProps {
   visible: boolean;
@@ -51,46 +52,58 @@ export function RoleForm({ visible, onClose, onSuccess, role }: RoleFormProps) {
       return;
     }
 
-    setLoading(true);
-    try {
-      if (role) {
-        // 更新
-        const data: UpdateRoleRequest = {
-          id: role.id,
-          name,
-          remark: remark || undefined,
-          enable,
-        };
-        const res = await updateRole(data);
-        if (res.code === 0) {
-          showToast('更新成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '更新失败', 'error');
+    // 二次确认
+    toast.confirm({
+      title: role ? '确认更新' : '确认创建',
+      description: role 
+        ? `确定要更新角色"${role.name}"吗？`
+        : `确定要创建角色"${name}"吗？`,
+      type: 'warning',
+      confirmText: role ? '更新' : '创建',
+      cancelText: '取消',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          if (role) {
+            // 更新
+            const data: UpdateRoleRequest = {
+              id: role.id,
+              name,
+              remark: remark || undefined,
+              enable,
+            };
+            const res = await updateRole(data);
+            if (res.code === 0) {
+              showSuccessBubble('更新成功', `角色"${name}"已更新`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '更新失败', 'error');
+            }
+          } else {
+            // 创建
+            const data: CreateRoleRequest = {
+              code,
+              name,
+              remark: remark || undefined,
+            };
+            const res = await createRole(data);
+            if (res.code === 0) {
+              showSuccessBubble('创建成功', `角色"${name}"已创建`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '创建失败', 'error');
+            }
+          }
+        } catch (error) {
+          showToast(role ? '更新失败' : '创建失败', 'error');
+          console.error('Submit role error:', error);
+        } finally {
+          setLoading(false);
         }
-      } else {
-        // 创建
-        const data: CreateRoleRequest = {
-          code,
-          name,
-          remark: remark || undefined,
-        };
-        const res = await createRole(data);
-        if (res.code === 0) {
-          showToast('创建成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '创建失败', 'error');
-        }
-      }
-    } catch (error) {
-      showToast(role ? '更新失败' : '创建失败', 'error');
-      console.error('Submit role error:', error);
-    } finally {
-      setLoading(false);
-    }
+      },
+    });
   };
 
   return (

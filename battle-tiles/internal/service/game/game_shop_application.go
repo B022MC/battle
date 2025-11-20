@@ -1,6 +1,7 @@
 package game
 
 import (
+	gameBiz "battle-tiles/internal/biz/game"
 	gameModel "battle-tiles/internal/dal/model/game"
 	basicRepo "battle-tiles/internal/dal/repo/basic"
 	gameRepo "battle-tiles/internal/dal/repo/game"
@@ -11,6 +12,8 @@ import (
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -18,16 +21,33 @@ import (
 )
 
 type ShopApplicationService struct {
-	mgr      plaza.Manager
-	userRepo gameRepo.UserApplicationRepo
-	users    basicRepo.BasicUserRepo
-	auth     basicRepo.AuthRepo
-	sAdm     gameRepo.GameShopAdminRepo
-	logRepo  gameRepo.ShopApplicationLogRepo // 游戏内申请日志
+	mgr              plaza.Manager
+	userRepo         gameRepo.UserApplicationRepo
+	users            basicRepo.BasicUserRepo
+	auth             basicRepo.AuthRepo
+	sAdm             gameRepo.GameShopAdminRepo
+	logRepo          gameRepo.ShopApplicationLogRepo // 游戏内申请日志
+	accountGroupUC   *gameBiz.GameAccountGroupUseCase // 游戏账号圈子业务逻辑
 }
 
-func NewShopApplicationService(mgr plaza.Manager, userRepo gameRepo.UserApplicationRepo, users basicRepo.BasicUserRepo, auth basicRepo.AuthRepo, sAdm gameRepo.GameShopAdminRepo, logRepo gameRepo.ShopApplicationLogRepo) *ShopApplicationService {
-	return &ShopApplicationService{mgr: mgr, userRepo: userRepo, users: users, auth: auth, sAdm: sAdm, logRepo: logRepo}
+func NewShopApplicationService(
+	mgr plaza.Manager,
+	userRepo gameRepo.UserApplicationRepo,
+	users basicRepo.BasicUserRepo,
+	auth basicRepo.AuthRepo,
+	sAdm gameRepo.GameShopAdminRepo,
+	logRepo gameRepo.ShopApplicationLogRepo,
+	accountGroupUC *gameBiz.GameAccountGroupUseCase,
+) *ShopApplicationService {
+	return &ShopApplicationService{
+		mgr:            mgr,
+		userRepo:       userRepo,
+		users:          users,
+		auth:           auth,
+		sAdm:           sAdm,
+		logRepo:        logRepo,
+		accountGroupUC: accountGroupUC,
+	}
 }
 
 func (s *ShopApplicationService) RegisterRouter(r *gin.RouterGroup) {
@@ -567,6 +587,14 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 	// 发送响应命令到游戏服务器
 	sess.RespondApplication(applyInfo, agree)
 
+	// 如果同意申请，执行游戏账号入圈逻辑
+	if agree && s.accountGroupUC != nil {
+		if err := s.handleGameAccountJoinGroup(c.Request.Context(), applyInfo, claims.BaseClaims.UserID, int32(in.HouseGID)); err != nil {
+			// 入圈失败记录日志，但不影响主流程（游戏服务器已经通过）
+			fmt.Printf("游戏账号入圈失败: %v\n", err)
+		}
+	}
+
 	// 记录操作日志到数据库（异步，不影响主流程）
 	if s.logRepo != nil {
 		action := gameModel.ApplicationActionRejected
@@ -589,4 +617,68 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 	}
 
 	response.SuccessWithOK(c)
+}
+
+// handleGameAccountJoinGroup 处理游戏账号入圈逻辑
+func (s *ShopApplicationService) handleGameAccountJoinGroup(
+	ctx context.Context,
+	applyInfo interface{},
+	adminUserID int32,
+	houseGID int32,
+) error {
+	// 类型断言获取申请信息
+	type ApplicationInfo interface {
+		GetApplierGid() int
+		GetApplierGName() string
+	}
+	
+	app, ok := applyInfo.(ApplicationInfo)
+	if !ok {
+		return fmt.Errorf("invalid application info type")
+	}
+	
+	gameUserID := fmt.Sprintf("%d", app.GetApplierGid())
+	
+	// 1. 查找或创建游戏账号
+	gameAccount, err := s.accountGroupUC.FindOrCreateGameAccount(
+		ctx,
+		gameUserID,
+		gameUserID, // 使用游戏ID作为账号
+		app.GetApplierGName(),
+	)
+	if err != nil {
+		return fmt.Errorf("查找或创建游戏账号失败: %w", err)
+	}
+	
+	// 2. 获取管理员昵称
+	adminUser, err := s.users.SelectByPK(ctx, []int32{adminUserID})
+	if err != nil || len(adminUser) == 0 {
+		return fmt.Errorf("获取管理员信息失败: %w", err)
+	}
+	adminNickname := "管理员"
+	if adminUser[0] != nil {
+		adminNickname = adminUser[0].NickName
+	}
+	
+	// 3. 确保管理员有圈子
+	group, err := s.accountGroupUC.EnsureGroupForAdmin(ctx, houseGID, adminUserID, adminNickname)
+	if err != nil {
+		return fmt.Errorf("确保管理员圈子失败: %w", err)
+	}
+	
+	// 4. 将游戏账号加入圈子
+	err = s.accountGroupUC.AddGameAccountToGroup(
+		ctx,
+		gameAccount.Id,
+		houseGID,
+		group.Id,
+		group.GroupName,
+		adminUserID,
+		adminUserID, // 审批人就是管理员
+	)
+	if err != nil {
+		return fmt.Errorf("游戏账号加入圈子失败: %w", err)
+	}
+	
+	return nil
 }

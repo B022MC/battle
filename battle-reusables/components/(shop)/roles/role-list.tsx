@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { getRoleList, deleteRole, type Role } from '@/services/basic/role';
-import { showToast } from '@/utils/toast';
+import { showToast, toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 
 interface RoleListProps {
@@ -46,32 +47,29 @@ export function RoleList({
       return;
     }
 
-    Alert.alert(
-      '确认删除',
-      `确定要删除角色"${role.name}"吗？删除后将无法恢复。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await deleteRole(role.id);
-              if (res.code === 0) {
-                showToast('删除成功', 'success');
-                loadRoles();
-                onRefresh?.();
-              } else {
-                showToast(res.msg || '删除失败', 'error');
-              }
-            } catch (error) {
-              showToast('删除失败', 'error');
-              console.error('Delete role error:', error);
-            }
-          },
-        },
-      ]
-    );
+    toast.confirm({
+      title: '确认删除',
+      description: `确定要删除角色"${role.name}"吗？删除后将无法恢复。`,
+      type: 'error',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await deleteRole(role.id);
+          if (res.code === 0) {
+            showSuccessBubble('删除成功', `角色"${role.name}"已删除`);
+            loadRoles();
+            onRefresh?.();
+          } else {
+            showToast(res.msg || '删除失败', 'error');
+          }
+        } catch (error) {
+          showToast('删除失败', 'error');
+          console.error('Delete role error:', error);
+        }
+      },
+    });
   };
 
   const getRoleBadgeColor = (roleId: number) => {

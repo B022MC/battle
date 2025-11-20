@@ -63,6 +63,15 @@ func (s *Store) GetUserPermCodes(ctx context.Context, userID int32) (map[string]
 	return toSet(codes), nil
 }
 
+// ClearUserCache 清除用户权限缓存
+func (s *Store) ClearUserCache(ctx context.Context, userID int32) error {
+	if s.data.RDB != nil {
+		key := s.cacheKey(ctx, userID)
+		return s.data.RDB.Del(ctx, key).Err()
+	}
+	return nil
+}
+
 // 直接从数据库聚合权限码（同时从菜单auths和权限表获取）
 func (s *Store) queryUserPermCodesDB(ctx context.Context, userID int32) ([]string, error) {
 	db := s.data.GetDBWithContext(ctx)

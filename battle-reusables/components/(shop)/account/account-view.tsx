@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, View, Alert } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { useRequest } from '@/hooks/use-request';
 import { gameAccountMe, gameAccountBind, gameAccountDelete } from '@/services/game/account';
 import { InfoCard, InfoCardHeader, InfoCardTitle, InfoCardRow, InfoCardFooter, InfoCardContent } from '@/components/shared/info-card';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
+import { toast } from '@/utils/toast';
 
 export const AccountView = () => {
   const { getLoginModeLabel } = usePlazaConsts();
@@ -21,51 +22,37 @@ export const AccountView = () => {
   const handleBind = async () => {
     if (!account || !password) return;
     
-    Alert.alert(
-      '确认绑定',
-      `确定要绑定游戏账号 "${account}" 吗？`,
-      [
-        {
-          text: '取消',
-          style: 'cancel'
-        },
-        {
-          text: '确定',
-          onPress: async () => {
-            await bindAccount({
-              mode: 'account',
-              account,
-              pwd_md5: password,
-              nickname: nickname || undefined,
-            });
-            getAccount();
-          }
-        }
-      ],
-      { cancelable: false }
-    );
+    toast.confirm({
+      title: '确认绑定',
+      description: `确定要绑定游戏账号 "${account}" 吗？`,
+      type: 'warning',
+      confirmText: '确定',
+      cancelText: '取消',
+      onConfirm: async () => {
+        await bindAccount({
+          mode: 'account',
+          account,
+          pwd_md5: password,
+          nickname: nickname || undefined,
+        });
+        getAccount();
+      },
+    });
   };
 
   const handleDelete = async () => {
-    Alert.alert(
-      '确认解绑',
-      `确定要解绑游戏账号 "${myAccount?.account}" 吗？解绑后需要重新绑定才能使用。`,
-      [
-        {
-          text: '取消',
-          style: 'cancel'
-        },
-        {
-          text: '确定解绑',
-          onPress: async () => {
-            await deleteAccount();
-            getAccount();
-          },
-          style: 'destructive'
-        }
-      ],
-      { cancelable: false }
-    );
+    toast.confirm({
+      title: '确认解绑',
+      description: `确定要解绑游戏账号 "${myAccount?.account}" 吗？解绑后需要重新绑定才能使用。`,
+      type: 'error',
+      confirmText: '确定解绑',
+      cancelText: '取消',
+      confirmVariant: 'destructive',
+      onConfirm: async () => {
+        await deleteAccount();
+        getAccount();
+      },
+    });
   };
 
   return (

@@ -157,8 +157,10 @@ func (uc *ShopGroupUseCase) ListGroupMembers(ctx context.Context, groupID int32,
 	return uc.memberRepo.ListMembersByGroup(ctx, groupID, page, size)
 }
 
-// ListMyGroups 获取我加入的所有圈子
+// ListMyGroups 获取我加入的所有圈子（通过游戏账号反向查询）
+// 注意：此方法已废弃，请使用 GameAccountGroupUseCase.ListGroupsByUser
 func (uc *ShopGroupUseCase) ListMyGroups(ctx context.Context, userID int32) ([]*model.GameShopGroup, error) {
+	// 保留旧逻辑以兼容
 	return uc.memberRepo.ListGroupsByUser(ctx, userID)
 }
 

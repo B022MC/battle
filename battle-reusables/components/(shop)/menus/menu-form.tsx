@@ -17,7 +17,8 @@ import {
   type CreateMenuRequest,
   type UpdateMenuRequest,
 } from '@/services/basic/menu';
-import { showToast } from '@/utils/toast';
+import { showToast, toast } from '@/utils/toast';
+import { showSuccessBubble } from '@/utils/bubble-toast';
 
 interface MenuFormProps {
   visible: boolean;
@@ -125,63 +126,75 @@ export function MenuForm({ visible, onClose, onSuccess, menu }: MenuFormProps) {
       return;
     }
 
-    try {
-      setLoading(true);
-      
-      if (menu) {
-        // 更新
-        const data: UpdateMenuRequest = {
-          id: menu.id,
-          title,
-          name,
-          path,
-          component,
-          parent_id: parentId,
-          menu_type: menuType,
-          rank: rank || undefined,
-          icon: icon || undefined,
-          auths: auths || undefined,
-          show_link: showLink,
-          show_parent: showParent,
-        };
-        const res = await updateMenu(data);
-        if (res.code === 0) {
-          showToast('更新成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '更新失败', 'error');
+    // 二次确认
+    toast.confirm({
+      title: menu ? '确认更新' : '确认创建',
+      description: menu 
+        ? `确定要更新菜单"${menu.title}"吗？`
+        : `确定要创建菜单"${title}"吗？`,
+      type: 'warning',
+      confirmText: menu ? '更新' : '创建',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          
+          if (menu) {
+            // 更新
+            const data: UpdateMenuRequest = {
+              id: menu.id,
+              title,
+              name,
+              path,
+              component,
+              parent_id: parentId,
+              menu_type: menuType,
+              rank: rank || undefined,
+              icon: icon || undefined,
+              auths: auths || undefined,
+              show_link: showLink,
+              show_parent: showParent,
+            };
+            const res = await updateMenu(data);
+            if (res.code === 0) {
+              showSuccessBubble('更新成功', `菜单"${title}"已更新`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '更新失败', 'error');
+            }
+          } else {
+            // 创建
+            const data: CreateMenuRequest = {
+              title,
+              name,
+              path,
+              component,
+              parent_id: parentId,
+              menu_type: menuType,
+              rank: rank || undefined,
+              icon: icon || undefined,
+              auths: auths || undefined,
+              show_link: showLink,
+              show_parent: showParent,
+            };
+            const res = await createMenu(data);
+            if (res.code === 0) {
+              showSuccessBubble('创建成功', `菜单"${title}"已创建`);
+              onSuccess();
+              onClose();
+            } else {
+              showToast(res.msg || '创建失败', 'error');
+            }
+          }
+        } catch (error: any) {
+          showToast(menu ? '更新失败' : '创建失败', 'error');
+          console.error('Menu form error:', error);
+        } finally {
+          setLoading(false);
         }
-      } else {
-        // 创建
-        const data: CreateMenuRequest = {
-          title,
-          name,
-          path,
-          component,
-          parent_id: parentId,
-          menu_type: menuType,
-          rank: rank || undefined,
-          icon: icon || undefined,
-          auths: auths || undefined,
-          show_link: showLink,
-          show_parent: showParent,
-        };
-        const res = await createMenu(data);
-        if (res.code === 0) {
-          showToast('创建成功', 'success');
-          onSuccess();
-          onClose();
-        } else {
-          showToast(res.msg || '创建失败', 'error');
-        }
-      }
-    } catch (error: any) {
-      showToast(menu ? '更新失败' : '创建失败', 'error');
-      console.error('Menu form error:', error);
-    } finally {
-      setLoading(false);
-    }
+      },
+    });
   };
 
   return (
@@ -376,5 +389,6 @@ export function MenuForm({ visible, onClose, onSuccess, menu }: MenuFormProps) {
     </Modal>
   );
 }
+
 
 

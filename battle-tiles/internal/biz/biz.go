@@ -19,6 +19,7 @@ var ProviderSet = wire.NewSet(
 	cloud.NewPlatformUsecase,
 
 	game.NewGameAccountUseCase,
+	game.NewGameAccountGroupUseCase, // 新增：游戏账号圈子业务逻辑
 	game.NewFundsUseCase,
 	game.NewCtrlAccountUseCase,
 	game.NewShopAdminUseCase,
