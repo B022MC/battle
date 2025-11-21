@@ -7,6 +7,7 @@ import (
 	repo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/infra/plaza"
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -121,7 +122,11 @@ func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) (*m
 	}
 
 	// 从 game_account_group 查询店铺信息（一个用户在一个店铺只能加入一个圈子）
-	accountGroups, err := uc.accountGroupRepo.ListByGameAccount(ctx, acc.Id)
+	// 使用 game_player_id 查询
+	if acc.GamePlayerID == "" {
+		return nil, fmt.Errorf("游戏账号缺少 game_player_id")
+	}
+	accountGroups, err := uc.accountGroupRepo.ListByGamePlayer(ctx, acc.GamePlayerID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +139,10 @@ func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) (*m
 	for _, ag := range accountGroups {
 		if ag.Status == model.AccountGroupStatusActive {
 			// 转换为 GameAccountHouse 结构（保持 API 响应格式不变）
+			// 使用 game_account.id (acc.Id)，而非 GamePlayerID
 			return &model.GameAccountHouse{
 				Id:            ag.Id,
-				GameAccountID: ag.GameAccountID,
+				GameAccountID: acc.Id, // 使用当前 game_account 的 ID
 				HouseGID:      ag.HouseGID,
 				IsDefault:     true,
 				Status:        1,

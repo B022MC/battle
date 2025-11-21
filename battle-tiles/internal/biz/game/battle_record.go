@@ -15,14 +15,15 @@ import (
 )
 
 type BattleRecordUseCase struct {
-	repo         repo.BattleRecordRepo
-	ctrlRepo     repo.GameCtrlAccountRepo
-	linkRepo     repo.GameCtrlAccountHouseRepo
-	accountRepo  repo.GameAccountRepo
-	memberRepo   repo.GameMemberRepo
-	settingsRepo repo.HouseSettingsRepo
-	feeRepo      repo.FeeSettleRepo
-	log          *log.Helper
+	repo             repo.BattleRecordRepo
+	ctrlRepo         repo.GameCtrlAccountRepo
+	linkRepo         repo.GameCtrlAccountHouseRepo
+	accountRepo      repo.GameAccountRepo
+	memberRepo       repo.GameMemberRepo
+	accountGroupRepo repo.GameAccountGroupRepo // 用于查询活跃圈子
+	settingsRepo     repo.HouseSettingsRepo
+	feeRepo          repo.FeeSettleRepo
+	log              *log.Helper
 }
 
 func NewBattleRecordUseCase(
@@ -31,19 +32,21 @@ func NewBattleRecordUseCase(
 	linkRepo repo.GameCtrlAccountHouseRepo,
 	accountRepo repo.GameAccountRepo,
 	memberRepo repo.GameMemberRepo,
+	accountGroupRepo repo.GameAccountGroupRepo,
 	settingsRepo repo.HouseSettingsRepo,
 	feeRepo repo.FeeSettleRepo,
 	logger log.Logger,
 ) *BattleRecordUseCase {
 	return &BattleRecordUseCase{
-		repo:         r,
-		ctrlRepo:     ctrlRepo,
-		linkRepo:     linkRepo,
-		accountRepo:  accountRepo,
-		memberRepo:   memberRepo,
-		settingsRepo: settingsRepo,
-		feeRepo:      feeRepo,
-		log:          log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
+		repo:             r,
+		ctrlRepo:         ctrlRepo,
+		linkRepo:         linkRepo,
+		accountRepo:      accountRepo,
+		memberRepo:       memberRepo,
+		accountGroupRepo: accountGroupRepo,
+		settingsRepo:     settingsRepo,
+		feeRepo:          feeRepo,
+		log:              log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
 	}
 }
 
@@ -175,43 +178,36 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 	for _, player := range players {
 		gamePlayerID := fmt.Sprintf("%d", player.UserGameID)
 
-		// 第1步：通过游戏玩家ID查询 game_account
-		// player.UserGameID 是Plaza API返回的GameID，对应 game_account.game_player_id
-		account, err := uc.accountRepo.GetByGamePlayerID(ctx, gamePlayerID)
+		// 直接通过游戏玩家ID查询活跃圈子（简化！）
+		// 不再需要先查询 game_account，直接用 game_player_id
+		accountGroup, err := uc.accountGroupRepo.GetActiveByGamePlayerAndHouse(ctx, gamePlayerID, houseGID)
 		if err != nil {
-			uc.log.Warnf("Game account with game_player_id=%s not found: %v", gamePlayerID, err)
-			continue // 游戏账号不在系统中，跳过
+			uc.log.Warnf("Active group not found for game_player_id=%s in house %d: %v",
+				gamePlayerID, houseGID, err)
+			continue // 玩家没有活跃圈子，跳过
 		}
 
-		if account == nil {
-			uc.log.Warnf("Game account with game_player_id=%s exists but record is nil", gamePlayerID)
+		if accountGroup == nil {
+			uc.log.Warnf("Account group record is nil for game_player_id=%s", gamePlayerID)
 			continue // 数据异常，跳过
 		}
 
-		// 第2步：通过 game_account.id 查询 game_member
-		// game_member.game_id 对应 game_account.id（不是游戏账号ID）
-		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, account.Id)
-		if err != nil {
-			uc.log.Warnf("Member not found for account %d (game_player_id=%s) in house %d: %v",
-				account.Id, gamePlayerID, houseGID, err)
-			continue // 玩家不在此店铺中，跳过
+		// 验证圈子ID
+		if accountGroup.GroupID == 0 {
+			uc.log.Warnf("Player %s has invalid group_id in house %d",
+				gamePlayerID, houseGID)
+			continue // 圈子ID无效，跳过
 		}
 
-		if member == nil {
-			uc.log.Warnf("Member record is nil for account %d", account.Id)
-			continue // 数据异常，跳过
+		// 尝试获取账号名称（如果有 game_account 绑定）
+		accountName := gamePlayerID // 默认使用 game_player_id
+		if account, err := uc.accountRepo.GetByGamePlayerID(ctx, gamePlayerID); err == nil && account != nil {
+			accountName = account.Account // 使用绑定的账号名称
 		}
 
-		// 第3步：验证圈子
-		if member.GroupID == nil || *member.GroupID == 0 {
-			uc.log.Warnf("Player %s (account_id=%d) has no valid group in house %d",
-				gamePlayerID, account.Id, houseGID)
-			continue // 没有圈子，费用无法计算，跳过
-		}
-
-		// 玩家有效：游戏玩家ID -> 游戏账号 -> 成员信息 -> 圈子
-		playerGroups[player.UserGameID] = *member.GroupID
-		playerAccounts[player.UserGameID] = account.Account // 保存账号名称
+		// 玩家有效：游戏玩家ID -> game_account_group(活跃) -> 圈子
+		playerGroups[player.UserGameID] = accountGroup.GroupID
+		playerAccounts[player.UserGameID] = accountName // 保存账号名称（或game_player_id）
 		validPlayers[player.UserGameID] = true
 	}
 

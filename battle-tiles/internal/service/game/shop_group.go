@@ -33,11 +33,11 @@ func NewShopGroupService(
 func (s *ShopGroupService) RegisterRouter(r *gin.RouterGroup) {
 	g := r.Group("/groups").Use(middleware.JWTAuth())
 
-	g.POST("/create", s.CreateGroup)                // 创建圈子
-	g.POST("/my", s.GetMyGroup)                     // 获取我的圈子
-	g.POST("/list", s.ListGroupsByHouse)            // 获取店铺圈子列表
-	g.POST("/options", s.GetGroupOptions)           // 获取圈子选项列表（用于下拉框）
-	g.POST("/members/add", s.AddMembers)            // 添加成员到圈子（通过平台用户ID）
+	g.POST("/create", s.CreateGroup)      // 创建圈子
+	g.POST("/my", s.GetMyGroup)           // 获取我的圈子
+	g.POST("/list", s.ListGroupsByHouse)  // 获取店铺圈子列表
+	g.POST("/options", s.GetGroupOptions) // 获取圈子选项列表（用于下拉框）
+	// 已删除 /members/add 接口，统一使用 /shops/members/pull-to-group
 	g.POST("/game-accounts/add", s.AddGameAccounts) // 添加游戏账号到圈子（通过游戏账号ID）
 	g.POST("/members/remove", s.RemoveMember)       // 从圈子移除成员
 	g.POST("/members/list", s.ListMembers)          // 获取圈子成员列表
@@ -163,37 +163,8 @@ func (s *ShopGroupService) ListGroupsByHouse(c *gin.Context) {
 	response.Success(c, result)
 }
 
-// AddMembersReq 添加成员请求
-type AddMembersReq struct {
-	GroupID int32   `json:"group_id" binding:"required"`
-	UserIDs []int32 `json:"user_ids" binding:"required"`
-}
-
-// AddMembers 添加成员到圈子
-// POST /api/groups/members/add
-func (s *ShopGroupService) AddMembers(c *gin.Context) {
-	var req AddMembersReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, ecode.ParamsFailed, nil)
-		return
-	}
-
-	claims, err := utils.GetClaims(c)
-	if err != nil {
-		response.Fail(c, ecode.TokenValidateFailed, err)
-		return
-	}
-	userID := claims.BaseClaims.UserID
-
-	err = s.groupUC.AddMembersToGroup(c.Request.Context(), req.GroupID, userID, req.UserIDs)
-	if err != nil {
-		s.log.Errorf("add members failed: %v", err)
-		response.Fail(c, ecode.Failed, err.Error())
-		return
-	}
-
-	response.Success(c, "添加成功")
-}
+// 已删除 AddMembersReq 和 AddMembers 方法
+// 现在统一使用 /shops/members/pull-to-group 接口进行拉圈操作
 
 // AddGameAccountsReq 添加游戏账号到圈子请求
 type AddGameAccountsReq struct {

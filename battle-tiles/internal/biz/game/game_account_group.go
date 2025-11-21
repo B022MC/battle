@@ -113,30 +113,36 @@ func (uc *GameAccountGroupUseCase) AddGameAccountToGroup(
 	adminUserID int32,
 	approvedByUserID int32,
 ) error {
-	// 检查游戏账号是否已在该店铺的圈子中
-	exists, err := uc.accountGroupRepo.ExistsByGameAccountAndHouse(ctx, gameAccountID, houseGID)
+	// 先获取 game_player_id
+	gameAccount, err := uc.accountRepo.GetByID(ctx, gameAccountID)
+	if err != nil || gameAccount == nil || gameAccount.GamePlayerID == "" {
+		return fmt.Errorf("游戏账号 %d 不存在或缺少 game_player_id", gameAccountID)
+	}
+
+	// 检查游戏玩家是否已在该店铺的圈子中
+	exists, err := uc.accountGroupRepo.ExistsByGamePlayerAndHouse(ctx, gameAccount.GamePlayerID, houseGID)
 	if err != nil {
 		return err
 	}
 
 	if exists {
 		// 已存在，更新状态为激活
-		existing, err := uc.accountGroupRepo.GetByGameAccountAndHouse(ctx, gameAccountID, houseGID)
+		existing, err := uc.accountGroupRepo.GetByGamePlayerAndHouse(ctx, gameAccount.GamePlayerID, houseGID)
 		if err != nil {
 			return err
 		}
 		return uc.accountGroupRepo.UpdateStatus(ctx, existing.Id, model.AccountGroupStatusActive)
 	}
 
-	// 创建新的游戏账号圈子关系
+	// 创建新的游戏玩家圈子关系（使用 game_player_id）
+	adminUserIDPtr := &adminUserID
 	accountGroup := &model.GameAccountGroup{
-		GameAccountID:    gameAccountID,
-		HouseGID:         houseGID,
-		GroupID:          groupID,
-		GroupName:        groupName,
-		AdminUserID:      adminUserID,
-		ApprovedByUserID: approvedByUserID,
-		Status:           model.AccountGroupStatusActive,
+		GamePlayerID: gameAccount.GamePlayerID,
+		HouseGID:     houseGID,
+		GroupID:      groupID,
+		GroupName:    groupName,
+		AdminUserID:  adminUserIDPtr,
+		Status:       model.AccountGroupStatusActive,
 	}
 
 	return uc.accountGroupRepo.Create(ctx, accountGroup)
@@ -148,7 +154,12 @@ func (uc *GameAccountGroupUseCase) RemoveGameAccountFromGroup(
 	gameAccountID int32,
 	houseGID int32,
 ) error {
-	return uc.accountGroupRepo.DeleteByGameAccountAndHouse(ctx, gameAccountID, houseGID)
+	// 获取 game_player_id
+	gameAccount, err := uc.accountRepo.GetByID(ctx, gameAccountID)
+	if err != nil || gameAccount == nil || gameAccount.GamePlayerID == "" {
+		return fmt.Errorf("游戏账号 %d 不存在或缺少 game_player_id", gameAccountID)
+	}
+	return uc.accountGroupRepo.DeleteByGamePlayerAndHouse(ctx, gameAccount.GamePlayerID, houseGID)
 }
 
 // ListGroupsByGameAccount 查询游戏账号加入的所有圈子
@@ -156,7 +167,12 @@ func (uc *GameAccountGroupUseCase) ListGroupsByGameAccount(
 	ctx context.Context,
 	gameAccountID int32,
 ) ([]*model.GameAccountGroup, error) {
-	return uc.accountGroupRepo.ListByGameAccount(ctx, gameAccountID)
+	// 获取 game_player_id
+	gameAccount, err := uc.accountRepo.GetByID(ctx, gameAccountID)
+	if err != nil || gameAccount == nil || gameAccount.GamePlayerID == "" {
+		return nil, fmt.Errorf("游戏账号 %d 不存在或缺少 game_player_id", gameAccountID)
+	}
+	return uc.accountGroupRepo.ListByGamePlayer(ctx, gameAccount.GamePlayerID)
 }
 
 // ListGroupsByUser 根据用户ID查询用户绑定的游戏账号的所有圈子（反向查询）
@@ -173,8 +189,11 @@ func (uc *GameAccountGroupUseCase) ListGroupsByUser(
 		return nil, err
 	}
 
-	// 2. 查询游戏账号的所有圈子
-	return uc.accountGroupRepo.ListByGameAccount(ctx, gameAccount.Id)
+	// 2. 查询该游戏账号加入的所有圈子（使用 game_player_id）
+	if gameAccount.GamePlayerID == "" {
+		return nil, fmt.Errorf("游戏账号缺少 game_player_id")
+	}
+	return uc.accountGroupRepo.ListByGamePlayer(ctx, gameAccount.GamePlayerID)
 }
 
 // ListGameAccountsByGroup 查询圈子中的所有游戏账号

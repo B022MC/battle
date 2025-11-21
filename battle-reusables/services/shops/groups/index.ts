@@ -53,13 +53,6 @@ export function listGroupsByHouse(data: API.ListGroupsByHouseParams) {
 }
 
 /**
- * 添加成员到圈子
- */
-export function addMembersToGroup(data: API.AddMembersParams) {
-  return post<{ success: boolean }>('/groups/members/add', data);
-}
-
-/**
  * 从圈子移除成员
  */
 export function removeMemberFromGroup(data: API.RemoveMemberParams) {
@@ -92,4 +85,18 @@ export function listMyGroups() {
  */
 export function getGroupOptions(data: API.GetGroupOptionsParams) {
   return post<API.GroupOption[]>('/groups/options', data);
+}
+
+/**
+ * 拉圈：将游戏成员拉入圈子（通过 game_player_id）
+ */
+export function pullMembersToGroup(data: API.PullMembersToGroupParams) {
+  return post<API.PullMembersToGroupResponse>('/shops/members/pull-to-group', data);
+}
+
+/**
+ * 踢出圈子
+ */
+export function removeFromGroup(data: API.RemoveFromGroupParams) {
+  return post<API.RemoveFromGroupResponse>('/shops/members/remove-from-group', data);
 }

@@ -13,22 +13,27 @@ import (
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
+	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 type GameShopMemberService struct {
-	mgr         plaza.Manager
-	rule        *biz.MemberRuleUseCase
-	sAdm        gameRepo.GameShopAdminRepo
-	users       basicRepo.BasicUserRepo
-	apps        gameRepo.UserApplicationRepo
-	gameAccount gameRepo.GameAccountRepo
+	mgr              plaza.Manager
+	rule             *biz.MemberRuleUseCase
+	sAdm             gameRepo.GameShopAdminRepo
+	users            basicRepo.BasicUserRepo
+	apps             gameRepo.UserApplicationRepo
+	gameAccount      gameRepo.GameAccountRepo
+	gameMember       gameRepo.GameMemberRepo
+	groupUC          *biz.ShopGroupUseCase
+	groupRepo        gameRepo.ShopGroupRepo
+	accountGroupRepo gameRepo.GameAccountGroupRepo // 添加圈子关系 repo
 }
 
-func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, gameAccount gameRepo.GameAccountRepo) *GameShopMemberService {
-	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, gameAccount: gameAccount}
+func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, gameAccount gameRepo.GameAccountRepo, gameMember gameRepo.GameMemberRepo, groupUC *biz.ShopGroupUseCase, groupRepo gameRepo.ShopGroupRepo, accountGroupRepo gameRepo.GameAccountGroupRepo) *GameShopMemberService {
+	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, gameAccount: gameAccount, gameMember: gameMember, groupUC: groupUC, groupRepo: groupRepo, accountGroupRepo: accountGroupRepo}
 }
 
 func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
@@ -38,6 +43,8 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/logout", middleware.RequirePerm("shop:member:logout"), s.Logout)
 	g.POST("/diamond/query", middleware.RequirePerm("shop:member:view"), s.QueryDiamond)
 	g.POST("/members/pull", middleware.RequirePerm("shop:member:view"), s.PullMembers)
+	g.POST("/members/pull-to-group", middleware.RequirePerm("shop:member:update"), s.PullToGroup)
+	g.POST("/members/remove-from-group", middleware.RequirePerm("shop:member:kick"), s.RemoveFromGroup)
 	// 平台侧：按圈主返回“我圈子的成员”（基于已通过的入圈申请）
 	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
 	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
@@ -350,16 +357,13 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 	mems := sess.ListMembers()
 
 	// 构建 GameID 到游戏账号的映射
+	// 注意：m.GameID 是游戏内玩家ID（game_player_id），不是 game_account.id
 	gameIDToAccount := make(map[uint32]*gameModel.GameAccount)
 	if s.gameAccount != nil && len(mems) > 0 {
-		gameIDs := make([]int32, 0, len(mems))
-		for _, m := range mems {
-			gameIDs = append(gameIDs, int32(m.GameID))
-		}
-
 		// 批量查询游戏账号（通过 GamePlayerID）
 		for _, m := range mems {
-			if account, err := s.gameAccount.GetByID(c.Request.Context(), int32(m.GameID)); err == nil && account != nil {
+			gamePlayerID := fmt.Sprintf("%d", m.GameID)
+			if account, err := s.gameAccount.GetByGamePlayerID(c.Request.Context(), gamePlayerID); err == nil && account != nil {
 				gameIDToAccount[m.GameID] = account
 			}
 		}
@@ -402,6 +406,9 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 	// 组装响应（包含平台用户信息）
 	out := make([]resp.ShopMemberListItem, 0, len(mems))
 	for _, m := range mems {
+		// m.GameID 就是 game_player_id
+		gamePlayerID := fmt.Sprintf("%d", m.GameID)
+
 		item := resp.ShopMemberListItem{
 			UserID:         m.UserID,
 			UserStatus:     m.UserStatus,
@@ -411,6 +418,7 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 			NickName:       m.NickName,
 			GroupID:        0,
 			IsBindPlatform: false,
+			GamePlayerID:   gamePlayerID, // 始终返回 game_player_id
 		}
 
 		// 添加游戏账号ID和平台用户信息
@@ -422,6 +430,21 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 				item.IsBindPlatform = true
 				if userInfo, exists := userIDToInfo[*account.UserID]; exists {
 					item.PlatformUser = userInfo
+				}
+			}
+		}
+
+		// 查询当前圈子信息（使用游戏内玩家ID查询，不依赖 game_account）
+		if s.gameMember != nil {
+			// m.GameID 就是游戏内玩家ID，game_member.game_id 存储的也是游戏内玩家ID
+			if member, err := s.gameMember.GetByGameID(c.Request.Context(), int32(in.HouseGID), int32(m.GameID)); err == nil && member != nil {
+				if member.GroupID != nil {
+					// 设置新字段
+					item.CurrentGroupID = member.GroupID
+					item.CurrentGroupName = member.GroupName
+					// 同时设置旧字段（兼容前端）
+					item.GroupID = int(*member.GroupID)
+					item.GroupName = &member.GroupName
 				}
 			}
 		}
@@ -574,4 +597,201 @@ func (s *GameShopMemberService) SetTempRelease(c *gin.Context) {
 		return
 	}
 	response.SuccessWithOK(c)
+}
+
+// PullToGroup 将游戏成员拉入圈子（直接通过游戏内玩家ID）
+// POST /api/shops/members/pull-to-group
+// 注意：此接口会自动创建 game_member 记录，不需要预先创建 game_account
+func (s *GameShopMemberService) PullToGroup(c *gin.Context) {
+	var in struct {
+		HouseGID      int32    `json:"house_gid" binding:"required"`       // 店铺ID
+		GroupID       int32    `json:"group_id" binding:"required"`        // 目标圈子ID
+		GamePlayerIDs []string `json:"game_player_ids" binding:"required"` // game_player_id 列表（游戏内玩家ID）
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	if len(in.GamePlayerIDs) == 0 {
+		response.Fail(c, ecode.ParamsFailed, "请选择要拉入的成员")
+		return
+	}
+
+	// 查询圈子信息
+	group, err := s.groupRepo.GetByID(c.Request.Context(), in.GroupID)
+	if err != nil {
+		response.Fail(c, ecode.Failed, fmt.Sprintf("查询圈子失败: %v", err))
+		return
+	}
+
+	// 验证圈子属于指定店铺
+	if group.HouseGID != in.HouseGID {
+		response.Fail(c, ecode.Failed, "圈子不属于该店铺")
+		return
+	}
+
+	// 从会话获取成员信息
+	sess, ok := s.mgr.GetAnyByHouse(int(in.HouseGID))
+	if !ok || sess == nil {
+		response.Fail(c, ecode.Failed, "店铺会话不存在")
+		return
+	}
+
+	// 触发拉取最新成员列表
+	sess.GetGroupMembers()
+	allMembers := sess.ListMembers()
+
+	// 为每个游戏玩家创建或更新 game_member
+	successCount := 0
+	for _, gamePlayerID := range in.GamePlayerIDs {
+		// 在会话中查找该成员
+		var found bool
+		var memberNickname string
+		var gamePlayerIDInt int32
+
+		for _, m := range allMembers {
+			if fmt.Sprintf("%d", m.GameID) == gamePlayerID {
+				found = true
+				memberNickname = m.NickName
+				gamePlayerIDInt = int32(m.GameID)
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		// 1. 直接更新 game_account_group（使用 game_player_id）
+		// 不再需要查询 game_account，直接用 game_player_id 操作
+		if err := s.accountGroupRepo.UpdateGroupByGamePlayerAndHouse(
+			c.Request.Context(),
+			gamePlayerID, // 直接使用 game_player_id
+			in.HouseGID,
+			in.GroupID,
+			group.GroupName,
+		); err != nil {
+			// game_account_group 更新失败，但继续更新 game_member
+			// 这样至少前端能看到圈子信息
+		}
+
+		// 3. 更新 game_member（用于前端显示，必须更新）
+		existingMember, err := s.gameMember.GetByGameID(c.Request.Context(), in.HouseGID, gamePlayerIDInt)
+		if err != nil || existingMember == nil {
+			// 不存在，创建新记录
+			member := &gameModel.GameMember{
+				HouseGID:  in.HouseGID,
+				GameID:    gamePlayerIDInt, // 直接使用游戏内玩家ID
+				GameName:  memberNickname,
+				GroupID:   &in.GroupID,
+				GroupName: group.GroupName,
+			}
+			if err := s.gameMember.Create(c.Request.Context(), member); err != nil {
+				continue
+			}
+		} else {
+			// 已存在，更新圈子信息
+			if err := s.gameMember.UpdateGroup(c.Request.Context(), in.HouseGID, gamePlayerIDInt, in.GroupID, group.GroupName); err != nil {
+				continue
+			}
+		}
+
+		successCount++
+	}
+
+	if successCount == 0 {
+		response.Fail(c, ecode.Failed, "没有成员被成功拉入圈子")
+		return
+	}
+
+	response.Success(c, map[string]interface{}{
+		"message": "拉圈成功",
+		"count":   successCount,
+	})
+}
+
+// RemoveFromGroup 将游戏成员从圈子中移除
+// POST /api/shops/members/remove-from-group
+func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
+	var in struct {
+		HouseGID      int32    `json:"house_gid" binding:"required"`       // 店铺ID
+		GamePlayerIDs []string `json:"game_player_ids" binding:"required"` // game_player_id 列表（游戏内玩家ID）
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	if len(in.GamePlayerIDs) == 0 {
+		response.Fail(c, ecode.ParamsFailed, "请选择要移除的成员")
+		return
+	}
+
+	// 从会话获取成员信息
+	sess, ok := s.mgr.GetAnyByHouse(int(in.HouseGID))
+	if !ok || sess == nil {
+		response.Fail(c, ecode.Failed, "店铺会话不存在")
+		return
+	}
+
+	// 触发拉取最新成员列表
+	sess.GetGroupMembers()
+	allMembers := sess.ListMembers()
+
+	// 移除成员圈子信息
+	successCount := 0
+	for _, gamePlayerID := range in.GamePlayerIDs {
+		// 在会话中查找该成员
+		var found bool
+		var gamePlayerIDInt int32
+
+		for _, m := range allMembers {
+			if fmt.Sprintf("%d", m.GameID) == gamePlayerID {
+				found = true
+				gamePlayerIDInt = int32(m.GameID)
+				break
+			}
+		}
+
+		if !found {
+			continue
+		}
+
+		// 1. 查询 game_account
+		account, err := s.gameAccount.GetByGamePlayerID(c.Request.Context(), gamePlayerID)
+		if err != nil || account == nil {
+			// 游戏账号不存在，跳过
+			continue
+		}
+
+		// 2. 从 game_account_group 中移除（战绩同步和计费依赖这个表）
+		// 注意：这里需要删除或标记为 inactive，具体取决于业务需求
+		// 暂时跳过 game_account_group 的处理，因为可能需要保留历史记录
+		// TODO: 需要实现 game_account_group 的处理逻辑
+
+		// 3. 更新 game_member（清空圈子信息）
+		existingMember, err := s.gameMember.GetByGameID(c.Request.Context(), in.HouseGID, gamePlayerIDInt)
+		if err != nil || existingMember == nil {
+			// 不存在记录，跳过
+			continue
+		}
+
+		// 清空圈子信息（设置为 0 和空字符串）
+		if err := s.gameMember.UpdateGroup(c.Request.Context(), in.HouseGID, gamePlayerIDInt, 0, ""); err != nil {
+			continue
+		}
+
+		successCount++
+	}
+
+	if successCount == 0 {
+		response.Fail(c, ecode.Failed, "没有成员被成功移除")
+		return
+	}
+
+	response.Success(c, map[string]interface{}{
+		"message": "踢出圈子成功",
+		"count":   successCount,
+	})
 }

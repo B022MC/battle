@@ -67,6 +67,11 @@ type ShopMemberListItem struct {
 	PlatformUser   *UserInfo `json:"platform_user,omitempty"`   // 绑定的平台用户信息
 	GameAccountID  *uint32   `json:"game_account_id,omitempty"` // 游戏账号ID
 	IsBindPlatform bool      `json:"is_bind_platform"`          // 是否已绑定平台用户
+
+	// 拉圈功能字段
+	GamePlayerID     string `json:"game_player_id,omitempty"`     // 游戏玩家ID（用于拉圈，等同于 game_id）
+	CurrentGroupID   *int32 `json:"current_group_id,omitempty"`   // 当前所在圈子ID
+	CurrentGroupName string `json:"current_group_name,omitempty"` // 当前所在圈子名称
 }
 
 // UserInfo 用户信息响应（过滤敏感字段）

@@ -2,14 +2,17 @@ import React from 'react';
 import { View, FlatList } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Loading } from '@/components/shared/loading';
 
 type MembersListProps = {
-  loading?: boolean;
+  loading: boolean;
   data?: API.ShopsMemberItem[];
+  onPullToGroup?: (gamePlayerID: string, memberName: string, currentGroupName?: string) => void;
+  onRemoveFromGroup?: (gamePlayerID: string, memberName: string, currentGroupName: string) => void;
 };
 
-export const MembersList = ({ loading, data }: MembersListProps) => {
+export const MembersList = ({ loading, data, onPullToGroup, onRemoveFromGroup }: MembersListProps) => {
   if (loading) return <Loading text="加载中..." />;
 
   if (!data || data.length === 0) {
@@ -43,11 +46,24 @@ export const MembersList = ({ loading, data }: MembersListProps) => {
                       MemberID: {item.member_id}
                     </Text>
                   </View>
-                  {item.group_name && (
-                    <Text className="mt-1 text-xs text-muted-foreground">
-                      圈子: {item.group_name}
-                    </Text>
-                  )}
+                  {/* 当前圈子状态 */}
+                  <View className="mt-1 flex-row items-center gap-2">
+                    {item.current_group_name ? (
+                      <View className="flex-row items-center gap-1">
+                        <View className="h-2 w-2 rounded-full bg-blue-500" />
+                        <Text className="text-xs text-blue-600 dark:text-blue-400">
+                          {item.current_group_name}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="flex-row items-center gap-1">
+                        <View className="h-2 w-2 rounded-full bg-orange-500" />
+                        <Text className="text-xs text-orange-600 dark:text-orange-400">
+                          无圈子
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <View className="ml-2">
                   {item.member_type === 2 && (
@@ -96,6 +112,44 @@ export const MembersList = ({ loading, data }: MembersListProps) => {
                       该游戏账号尚未绑定平台用户
                     </Text>
                   </View>
+                </View>
+              )}
+
+              {/* 拉圈和踢出圈子按钮 */}
+              {item.game_player_id && (onPullToGroup || onRemoveFromGroup) && (
+                <View className="mt-2 border-t border-border pt-2 flex-row gap-2">
+                  {/* 拉圈按钮 */}
+                  {onPullToGroup && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onPress={() => onPullToGroup(
+                        item.game_player_id!,
+                        item.nick_name || '未命名',
+                        item.current_group_name
+                      )}
+                    >
+                      <Text className="text-xs">
+                        {item.current_group_name ? '转移圈子' : '拉入圈子'}
+                      </Text>
+                    </Button>
+                  )}
+                  {/* 踢出圈子按钮 - 只在已有圈子时显示 */}
+                  {onRemoveFromGroup && item.current_group_name && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1"
+                      onPress={() => onRemoveFromGroup(
+                        item.game_player_id!,
+                        item.nick_name || '未命名',
+                        item.current_group_name!
+                      )}
+                    >
+                      <Text className="text-xs">踢出圈子</Text>
+                    </Button>
+                  )}
                 </View>
               )}
             </View>

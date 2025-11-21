@@ -10,9 +10,10 @@ import { listAllUsers } from '@/services/members';
 import {
   getMyGroup,
   listGroupsByHouse,
-  addMembersToGroup,
   removeMemberFromGroup,
-  listGroupMembers
+  listGroupMembers,
+  pullMembersToGroup,
+  removeFromGroup,
 } from '@/services/shops/groups';
 import { shopsMembersList } from '@/services/shops/tables';
 import {
@@ -54,7 +55,6 @@ export const MembersView = () => {
   const { data: myGroup, loading: loadingMyGroup, run: runGetMyGroup } = useRequest(getMyGroup, { manual: true });
   const { data: allGroups, loading: loadingGroups, run: runListGroups } = useRequest(listGroupsByHouse, { manual: true });
   const { data: groupMembers, loading: loadingGroupMembers, run: runListGroupMembers } = useRequest(listGroupMembers, { manual: true });
-  const { run: runAddMembers, loading: addingMembers } = useRequest(addMembersToGroup, { manual: true });
   const { run: runRemoveMember, loading: removingMember } = useRequest(removeMemberFromGroup, { manual: true });
   const { run: runAssignAdmin, loading: assigningAdmin } = useRequest(shopsAdminsAssign, { manual: true });
   const { run: runRevokeAdmin, loading: revokingAdmin } = useRequest(shopsAdminsRevoke, { manual: true });
@@ -62,6 +62,8 @@ export const MembersView = () => {
   const { data: myAdminInfo, run: runGetMyAdminInfo } = useRequest(shopsAdminsMe, { manual: true }); // 改为手动加载
   const { data: houseOptions } = useRequest(shopsHousesOptions);
   const { data: gameMembersData, loading: loadingGameMembers, run: runListGameMembers } = useRequest(shopsMembersList, { manual: true });
+  const { run: runPullToGroup } = useRequest(pullMembersToGroup, { manual: true });
+  const { run: runRemoveFromGroup } = useRequest(removeFromGroup, { manual: true });
   const houseRef = useRef<TriggerRef>(null);
 
   function onHouseTouchStart() {
@@ -71,6 +73,74 @@ export const MembersView = () => {
   // 加载所有用户
   const handleLoadUsers = async () => {
     await runListUsers({ page, size: 20, keyword: keyword || undefined });
+  };
+
+  // 拉圈处理（店铺管理员拉入自己的圈子）
+  const handlePullToGroup = async (gamePlayerID: string, memberName: string, currentGroupName?: string) => {
+    if (!myGroup) {
+      alert.show({ title: '请先加载圈子信息' });
+      return;
+    }
+
+    const confirmMsg = currentGroupName
+      ? `确定要将 ${memberName} 从「${currentGroupName}」转移到「${myGroup.group_name}」吗？`
+      : `确定要将 ${memberName} 拉入「${myGroup.group_name}」吗？`;
+
+    alert.show({
+      title: '确认拉圈',
+      description: confirmMsg,
+      confirmText: '确定',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          if (!myAdminInfo?.house_gid) {
+            alert.show({ title: '无法获取店铺信息' });
+            return;
+          }
+
+          await runPullToGroup({
+            house_gid: myAdminInfo.house_gid,
+            group_id: myGroup.id,
+            game_player_ids: [gamePlayerID]
+          });
+          alert.show({ title: '拉圈成功' });
+          // 刷新成员列表
+          runListGameMembers({ house_gid: myAdminInfo.house_gid });
+        } catch (err: any) {
+          console.error('拉圈失败:', err);
+          alert.show({ title: '拉圈失败', description: err.message || '未知错误' });
+        }
+      }
+    });
+  };
+
+  // 踢出圈子处理
+  const handleRemoveFromGroup = async (gamePlayerID: string, memberName: string, currentGroupName: string) => {
+    alert.show({
+      title: '确认踢出圈子',
+      description: `确定要将 ${memberName} 从「${currentGroupName}」中移除吗？`,
+      confirmText: '确定',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          if (!myAdminInfo?.house_gid) {
+            alert.show({ title: '无法获取店铺信息' });
+            return;
+          }
+
+          await runRemoveFromGroup({
+            house_gid: myAdminInfo.house_gid,
+            game_player_ids: [gamePlayerID]
+          });
+          alert.show({ title: '踢出圈子成功' });
+          // 刷新成员列表
+          runListGameMembers({ house_gid: myAdminInfo.house_gid });
+        } catch (err: any) {
+          console.error('踢出圈子失败:', err);
+          alert.show({ title: '踢出圈子失败', description: err.message || '未知错误' });
+        }
+      }
+    });
   };
 
   // 店铺管理员自动加载管理员信息和圈子
@@ -133,29 +203,6 @@ export const MembersView = () => {
     }
 
     await runListGroups({ house_gid: gid });
-  };
-
-  // 添加成员到圈子
-  const handleAddMembers = async () => {
-    if (!myGroup) {
-      alert.show({ title: '请先加载圈子', variant: 'error' });
-      return;
-    }
-    if (selectedUsers.length === 0) {
-      alert.show({ title: '请选择要添加的成员', variant: 'error' });
-      return;
-    }
-
-    try {
-      await runAddMembers({ group_id: myGroup.id, user_ids: selectedUsers });
-      alert.show({ title: '添加成功', variant: 'success' });
-      setSelectedUsers([]);
-      // 重新加载圈子成员
-      await runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
-    } catch (error: any) {
-      // 错误已由 request 函数自动显示
-      console.error('添加成员失败:', error);
-    }
   };
 
   // 从圈子移除成员
@@ -222,24 +269,6 @@ export const MembersView = () => {
   // 判断用户是否在圈子中
   const isUserInGroup = (userId: number) => {
     return groupMembers?.items?.some(member => member.id === userId) || false;
-  };
-
-  // 拉入圈子（店铺管理员专用）
-  const handleAddUserToGroup = async (userId: number) => {
-    if (!myGroup) {
-      alert.show({ title: '请先加载圈子', variant: 'error' });
-      return;
-    }
-
-    try {
-      await runAddMembers({ group_id: myGroup.id, user_ids: [userId] });
-      alert.show({ title: '拉入成功', variant: 'success' });
-      // 重新加载圈子成员
-      await runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
-    } catch (error: any) {
-      // 错误已由 request 函数自动显示
-      console.error('拉入圈子失败:', error);
-    }
   };
 
   // 踢出圈子（店铺管理员专用）
@@ -346,11 +375,6 @@ export const MembersView = () => {
                 <Text>{loadingUsers ? '加载中...' : '搜索'}</Text>
               </Button>
             </View>
-            {selectedUsers.length > 0 && myGroup && (
-              <Button onPress={handleAddMembers} disabled={addingMembers} variant="secondary">
-                <Text>添加 {selectedUsers.length} 个成员到圈子</Text>
-              </Button>
-            )}
           </>
         ) : (
           <>
@@ -425,7 +449,20 @@ export const MembersView = () => {
         {activeTab === 'game' ? (
           // 游戏成员列表
           <View className="p-4">
-            <MembersList loading={loadingGameMembers} data={gameMembersData?.items} />
+            {myGroup && (
+              <View className="mb-4 p-3 bg-secondary/50 rounded-lg">
+                <Text className="text-sm font-medium">拉入圈子: {myGroup.group_name}</Text>
+                <Text className="text-xs text-muted-foreground mt-1">
+                  点击成员卡片中的「拉入圈子」按钮即可将成员拉入您的圈子
+                </Text>
+              </View>
+            )}
+            <MembersList 
+              loading={loadingGameMembers} 
+              data={gameMembersData?.items}
+              onPullToGroup={myGroup ? handlePullToGroup : undefined}
+              onRemoveFromGroup={handleRemoveFromGroup}
+            />
           </View>
         ) : activeTab === 'all' ? (
           // 所有用户列表
@@ -485,28 +522,18 @@ export const MembersView = () => {
                       )
                     )}
 
-                    {/* 店铺管理员的拉入/踢出按钮 */}
-                    {isStoreAdmin && myGroup && user.role !== 'super_admin' && user.role !== 'store_admin' && (
-                      isUserInGroup(user.id) ? (
-                        <Button
-                          variant="destructive"
-                          onPress={() => handleKickUserFromGroup(user.id)}
-                          disabled={removingMember}
-                          size="sm"
-                        >
-                          <Text>踢出圈子</Text>
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="default"
-                          onPress={() => handleAddUserToGroup(user.id)}
-                          disabled={addingMembers}
-                          size="sm"
-                        >
-                          <Text>拉入圈子</Text>
-                        </Button>
-                      )
+                    {/* 店铺管理员的踢出按钮 */}
+                    {isStoreAdmin && myGroup && user.role !== 'super_admin' && user.role !== 'store_admin' && isUserInGroup(user.id) && (
+                      <Button
+                        variant="destructive"
+                        onPress={() => handleKickUserFromGroup(user.id)}
+                        disabled={removingMember}
+                        size="sm"
+                      >
+                        <Text>踢出圈子</Text>
+                      </Button>
                     )}
+                    {/* 已删除拉入圈子按钮，请使用游戏成员列表进行拉圈 */}
                   </View>
                 </View>
               </View>

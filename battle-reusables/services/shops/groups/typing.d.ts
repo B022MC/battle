@@ -39,11 +39,6 @@ declare namespace API {
     house_gid: number;
   };
 
-  type AddMembersParams = {
-    group_id: number;
-    user_ids: number[];
-  };
-
   type RemoveMemberParams = {
     group_id: number;
     user_id: number;
@@ -97,4 +92,39 @@ declare namespace API {
     id: number;
     name: string;
   };
+
+  // 拉圈请求参数
+  type PullMembersToGroupParams = {
+    house_gid: number;          // 店铺ID
+    group_id: number;           // 圈子ID
+    game_player_ids: string[];  // game_player_id 列表
+  };
+
+  // 拉圈响应
+  type PullMembersToGroupResponse = {
+    message: string;
+    count: number;
+  };
+
+  // 踢出圈子请求参数
+  type RemoveFromGroupParams = {
+    house_gid: number;          // 店铺ID
+    game_player_ids: string[];  // game_player_id 列表
+  };
+
+  // 踢出圈子响应
+  type RemoveFromGroupResponse = {
+    message: string;
+    count: number;
+  };
+}
+
+// 兼容旧命名空间
+declare namespace Shops {
+  namespace Groups {
+    type PullMembersToGroupParams = API.PullMembersToGroupParams;
+    type PullMembersToGroupResponse = API.PullMembersToGroupResponse;
+    type RemoveFromGroupParams = API.RemoveFromGroupParams;
+    type RemoveFromGroupResponse = API.RemoveFromGroupResponse;
+  }
 }

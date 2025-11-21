@@ -3,14 +3,15 @@ package dbx
 import (
 	"context"
 	"fmt"
-	"github.com/sethvargo/go-retry"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	gormLogger "gorm.io/gorm/logger"
 	llog "log"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/sethvargo/go-retry"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 var (

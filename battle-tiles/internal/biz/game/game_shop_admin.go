@@ -15,26 +15,32 @@ import (
 )
 
 type ShopAdminUseCase struct {
-	repo          repo.GameShopAdminRepo
-	shopGroupRepo repo.ShopGroupRepo
-	basicUserRepo basicRepo.BasicUserRepo
-	authRepo      basicRepo.AuthRepo
-	log           *log.Helper
+	repo             repo.GameShopAdminRepo
+	shopGroupRepo    repo.ShopGroupRepo
+	accountGroupRepo repo.GameAccountGroupRepo // 用于清理圈子成员
+	gameMemberRepo   repo.GameMemberRepo       // 用于清理游戏成员
+	basicUserRepo    basicRepo.BasicUserRepo
+	authRepo         basicRepo.AuthRepo
+	log              *log.Helper
 }
 
 func NewShopAdminUseCase(
 	r repo.GameShopAdminRepo,
 	shopGroupRepo repo.ShopGroupRepo,
+	accountGroupRepo repo.GameAccountGroupRepo,
+	gameMemberRepo repo.GameMemberRepo,
 	basicUserRepo basicRepo.BasicUserRepo,
 	authRepo basicRepo.AuthRepo,
 	logger log.Logger,
 ) *ShopAdminUseCase {
 	return &ShopAdminUseCase{
-		repo:          r,
-		shopGroupRepo: shopGroupRepo,
-		basicUserRepo: basicUserRepo,
-		authRepo:      authRepo,
-		log:           log.NewHelper(log.With(logger, "module", "usecase/shop_admin")),
+		repo:             r,
+		shopGroupRepo:    shopGroupRepo,
+		accountGroupRepo: accountGroupRepo,
+		gameMemberRepo:   gameMemberRepo,
+		basicUserRepo:    basicUserRepo,
+		authRepo:         authRepo,
+		log:              log.NewHelper(log.With(logger, "module", "usecase/shop_admin")),
 	}
 }
 
@@ -145,15 +151,30 @@ func (uc *ShopAdminUseCase) Revoke(ctx context.Context, houseGID int32, targetUs
 		actualHouseGID = admins[0].HouseGID
 	}
 
-	// 1. 删除该管理员的圈子（会级联删除圈子成员）
+	// 1. 删除该管理员的圈子，并清理圈子内所有游戏账号的圈子归属
 	groups, err := uc.shopGroupRepo.ListByAdmin(ctx, targetUserID)
 	if err != nil {
 		uc.log.Errorf("查询管理员圈子失败: %v", err)
 	} else {
 		for _, group := range groups {
 			if group.HouseGID == actualHouseGID {
+				// 1.1 将圈子内所有 game_account_group 记录设为 inactive
+				if err := uc.accountGroupRepo.DeactivateAllByGroup(ctx, group.Id); err != nil {
+					uc.log.Errorf("清理圈子 %d 的 game_account_group 失败: %v", group.Id, err)
+				} else {
+					uc.log.Infof("已将圈子 %d 的所有游戏账号设为无圈子状态", group.Id)
+				}
+
+				// 1.2 将圈子内所有 game_member 的 group_id 设为 NULL
+				if err := uc.gameMemberRepo.ClearGroupForAllMembers(ctx, group.Id); err != nil {
+					uc.log.Errorf("清理圈子 %d 的 game_member 失败: %v", group.Id, err)
+				}
+
+				// 1.3 删除圈子
 				if err := uc.shopGroupRepo.Delete(ctx, group.Id); err != nil {
 					uc.log.Errorf("删除圈子 %d 失败: %v", group.Id, err)
+				} else {
+					uc.log.Infof("已删除圈子 %d", group.Id)
 				}
 			}
 		}
