@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { alert } from '@/utils/alert';
+import { CreditDialog } from '@/components/(shop)/members/credit-dialog';
 import { listAllUsers } from '@/services/members';
 import {
   getMyGroup,
@@ -49,6 +50,7 @@ export const MembersView = () => {
   const [showSetAdminModal, setShowSetAdminModal] = useState(false);
   const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<{ id: number; name: string } | null>(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | null>(null); // 超级管理员的圈子筛选
+  const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; memberId: number; memberName: string; gameId: number } | null>(null);
 
   // API 请求
   const { data: allUsers, loading: loadingUsers, run: runListUsers } = useRequest(listAllUsers, { manual: true });
@@ -460,8 +462,16 @@ export const MembersView = () => {
             <MembersList 
               loading={loadingGameMembers} 
               data={gameMembersData?.items}
+              houseGid={houseGid ? Number(houseGid) : undefined}
               onPullToGroup={myGroup ? handlePullToGroup : undefined}
               onRemoveFromGroup={handleRemoveFromGroup}
+              onCreditChange={() => {
+                // 上分/下分后刷新成员列表
+                const effectiveHouseGid = houseGid || myAdminInfo?.house_gid;
+                if (effectiveHouseGid) {
+                  runListGameMembers({ house_gid: Number(effectiveHouseGid) });
+                }
+              }}
             />
           </View>
         ) : activeTab === 'all' ? (
@@ -565,30 +575,90 @@ export const MembersView = () => {
                 <Text className="text-muted-foreground mt-2">加载中...</Text>
               </View>
             )}
-            {(groupMembers?.items || []).map((user) => (
-              <View
-                key={user.id}
-                className="bg-card rounded-lg border border-border p-4 gap-2"
-              >
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-1">
-                    <Text className="font-semibold">{user.nick_name || user.username}</Text>
-                    <Text className="text-muted-foreground text-sm">ID: {user.id}</Text>
-                    {user.phone && (
-                      <Text className="text-muted-foreground text-sm">手机: {user.phone}</Text>
-                    )}
+            {(groupMembers?.items || []).map((user) => {
+              // 从 introduction 字段提取 game_id (格式: "game_id:21309263")
+              const gameIdMatch = (user as any).introduction?.match(/game_id:(\d+)/);
+              const gameId = gameIdMatch ? parseInt(gameIdMatch[1]) : null;
+              const isUnboundUser = user.id === 0 && gameId; // 未绑定用户标记
+
+              return (
+                <View
+                  key={user.id || `game-${gameId}`}
+                  className="bg-card rounded-lg border border-border p-4 gap-2"
+                >
+                  <View className="gap-2">
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-1">
+                        <Text className="font-semibold">{user.nick_name || user.username}</Text>
+                        {isUnboundUser ? (
+                          <View className="mt-1">
+                            <View className="flex-row items-center gap-2">
+                              <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
+                                <Text className="text-xs text-orange-700 dark:text-orange-400">未绑定平台</Text>
+                              </View>
+                              <Text className="text-xs text-muted-foreground">GameID: {gameId}</Text>
+                            </View>
+                          </View>
+                        ) : (
+                          <View className="mt-1">
+                            <Text className="text-muted-foreground text-sm">ID: {user.id}</Text>
+                            {user.phone && (
+                              <Text className="text-muted-foreground text-sm">手机: {user.phone}</Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    {/* 操作按钮区 */}
+                    <View className="flex-row gap-2 mt-2 border-t border-border pt-2">
+                      {/* 移除按钮 */}
+                      <Button
+                        variant="destructive"
+                        onPress={() => handleRemoveMember(user.id)}
+                        disabled={removingMember}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        <Text className="text-xs">移除</Text>
+                      </Button>
+                      {/* 上分/下分按钮 - 需要 gameId */}
+                      {gameId && myGroup && (
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="flex-1"
+                            onPress={() => setCreditDialog({
+                              visible: true,
+                              type: 'deposit',
+                              memberId: gameId, // 使用 gameId 作为 memberId
+                              memberName: user.nick_name || user.username,
+                              gameId: gameId
+                            })}
+                          >
+                            <Text className="text-xs">上分</Text>
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1"
+                            onPress={() => setCreditDialog({
+                              visible: true,
+                              type: 'withdraw',
+                              memberId: gameId, // 使用 gameId 作为 memberId
+                              memberName: user.nick_name || user.username,
+                              gameId: gameId
+                            })}
+                          >
+                            <Text className="text-xs">下分</Text>
+                          </Button>
+                        </>
+                      )}
+                    </View>
                   </View>
-                  <Button
-                    variant="destructive"
-                    onPress={() => handleRemoveMember(user.id)}
-                    disabled={removingMember}
-                    size="sm"
-                  >
-                    <Text>移除</Text>
-                  </Button>
                 </View>
-              </View>
-            ))}
+              );
+            })}
             {groupMembers && (groupMembers.items?.length || 0) === 0 && (
               <View className="py-8 items-center">
                 <Text className="text-muted-foreground">圈子暂无成员</Text>
@@ -633,6 +703,25 @@ export const MembersView = () => {
         userName={selectedUserForAdmin?.name || ''}
         loading={assigningAdmin}
       />
+
+      {/* 上分/下分对话框 */}
+      {creditDialog && myGroup && (
+        <CreditDialog
+          visible={creditDialog.visible}
+          type={creditDialog.type}
+          houseGid={myGroup.house_gid}
+          memberId={creditDialog.memberId}
+          memberName={creditDialog.memberName}
+          onClose={() => setCreditDialog(null)}
+          onSuccess={() => {
+            setCreditDialog(null);
+            // 刷新圈子成员列表
+            if (myGroup) {
+              runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
+            }
+          }}
+        />
+      )}
     </View>
   );
 };

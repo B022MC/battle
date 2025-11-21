@@ -163,14 +163,14 @@ export const CreditDialog = ({
                 disabled={loading}
                 className="flex-1"
               >
-                取消
+                <Text>取消</Text>
               </Button>
               <Button
                 onPress={handleSubmit}
                 disabled={loading}
                 className="flex-1"
               >
-                {loading ? <ActivityIndicator size="small" color="white" /> : '确定'}
+                {loading ? <ActivityIndicator size="small" color="white" /> : <Text>确定</Text>}
               </Button>
             </View>
           </Card>

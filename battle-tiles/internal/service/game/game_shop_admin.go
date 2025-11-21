@@ -46,12 +46,12 @@ func NewHouseSettingsService(uc *gameBiz.HouseSettingsUseCase) *HouseSettingsSer
 func (s *HouseSettingsService) RegisterRouter(r *gin.RouterGroup) {
 	g := r.Group("/shops").Use(middleware.JWTAuth())
 	g.POST("/fees/get", middleware.RequirePerm("shop:fees:view"), s.Get)
-	g.POST("/fees/set", middleware.RequirePerm("shop:fees:write"), s.SetFees)
+	g.POST("/fees/set", middleware.RequirePerm("shop:fees:update"), s.SetFees)
 	g.POST("/sharefee/set", middleware.RequirePerm("shop:sharefee:write"), s.SetShare)
 	g.POST("/pushcredit/get", middleware.RequirePerm("shop:pushcredit:view"), s.Get)
 	g.POST("/pushcredit/set", middleware.RequirePerm("shop:pushcredit:write"), s.SetPushCredit)
 	// 费用结算（基础）
-	g.POST("/fees/settle/insert", middleware.RequirePerm("shop:fees:write"), s.InsertFeeSettle)
+	g.POST("/fees/settle/insert", middleware.RequirePerm("shop:fees:update"), s.InsertFeeSettle)
 	g.POST("/fees/settle/sum", middleware.RequirePerm("shop:fees:view"), s.SumFeeSettle)
 	g.POST("/fees/settle/payoffs", middleware.RequirePerm("shop:fees:view"), s.ListGroupPayoffs)
 }

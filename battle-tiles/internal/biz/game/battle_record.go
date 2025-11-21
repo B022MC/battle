@@ -176,38 +176,35 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 	validPlayers := make(map[int]bool, len(players))
 
 	for _, player := range players {
-		gamePlayerID := fmt.Sprintf("%d", player.UserGameID)
-
-		// 直接通过游戏玩家ID查询活跃圈子（简化！）
-		// 不再需要先查询 game_account，直接用 game_player_id
-		accountGroup, err := uc.accountGroupRepo.GetActiveByGamePlayerAndHouse(ctx, gamePlayerID, houseGID)
+		// 直接查询 game_member 表获取玩家的圈子信息
+		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, int32(player.UserGameID))
 		if err != nil {
-			uc.log.Warnf("Active group not found for game_player_id=%s in house %d: %v",
-				gamePlayerID, houseGID, err)
-			continue // 玩家没有活跃圈子，跳过
+			uc.log.Debugf("Member not found for game_id=%d in house %d: %v",
+				player.UserGameID, houseGID, err)
+			continue // 玩家不在成员表中，跳过
 		}
 
-		if accountGroup == nil {
-			uc.log.Warnf("Account group record is nil for game_player_id=%s", gamePlayerID)
+		if member == nil {
+			uc.log.Warnf("Member record is nil for game_id=%d", player.UserGameID)
 			continue // 数据异常，跳过
 		}
 
-		// 验证圈子ID
-		if accountGroup.GroupID == 0 {
-			uc.log.Warnf("Player %s has invalid group_id in house %d",
-				gamePlayerID, houseGID)
-			continue // 圈子ID无效，跳过
+		// 验证圈子ID（必须有圈子才参与计费）
+		if member.GroupID == nil || *member.GroupID == 0 {
+			uc.log.Debugf("Player %d has no group in house %d, skipping",
+				player.UserGameID, houseGID)
+			continue // 没有圈子，跳过
 		}
 
-		// 尝试获取账号名称（如果有 game_account 绑定）
-		accountName := gamePlayerID // 默认使用 game_player_id
-		if account, err := uc.accountRepo.GetByGamePlayerID(ctx, gamePlayerID); err == nil && account != nil {
-			accountName = account.Account // 使用绑定的账号名称
+		// 使用成员的游戏名称，如果没有则使用 game_id
+		accountName := member.GameName
+		if accountName == "" {
+			accountName = fmt.Sprintf("%d", player.UserGameID)
 		}
 
-		// 玩家有效：游戏玩家ID -> game_account_group(活跃) -> 圈子
-		playerGroups[player.UserGameID] = accountGroup.GroupID
-		playerAccounts[player.UserGameID] = accountName // 保存账号名称（或game_player_id）
+		// 玩家有效：game_member 表中有记录且有 group_id
+		playerGroups[player.UserGameID] = *member.GroupID
+		playerAccounts[player.UserGameID] = accountName
 		validPlayers[player.UserGameID] = true
 	}
 

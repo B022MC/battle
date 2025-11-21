@@ -39,7 +39,7 @@ func (s *FundsService) RegisterRouter(r *gin.RouterGroup) {
 // 为保持聚合度，将它们放在 /shops 下更合适，但当前文件已引入资金相关 req/resp，复用即可
 func (s *FundsService) registerHouseSettings(r *gin.RouterGroup, hs *HouseSettingsService) {
 	shops := r.Group("/shops").Use(middleware.JWTAuth())
-	shops.POST("/fees/set", middleware.RequirePerm("shop:fees:write"), hs.SetFees)
+	shops.POST("/fees/set", middleware.RequirePerm("shop:fees:update"), hs.SetFees)
 	shops.POST("/fees/get", middleware.RequirePerm("shop:fees:view"), hs.Get)
 	shops.POST("/sharefee/set", middleware.RequirePerm("shop:sharefee:write"), hs.SetShare)
 	shops.POST("/pushcredit/set", middleware.RequirePerm("shop:pushcredit:write"), hs.SetPushCredit)

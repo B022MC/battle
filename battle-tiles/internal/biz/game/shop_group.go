@@ -274,9 +274,15 @@ func (uc *ShopGroupUseCase) RemoveMemberFromGroup(ctx context.Context, groupID i
 	}
 
 	// 3. 删除 game_member 记录（游戏成员业务数据）
-	if err := uc.gameMemberRepo.DeleteByGameID(ctx, group.HouseGID, gameAccount.Id); err != nil {
-		uc.log.Warnf("删除 game_member 失败: %v", err)
-		// 不阻塞流程
+	// 将 game_player_id (string) 转换为 game_id (int32)
+	var gameID int32
+	if _, err := fmt.Sscanf(gameAccount.GamePlayerID, "%d", &gameID); err != nil {
+		uc.log.Warnf("game_player_id %s 转换失败: %v", gameAccount.GamePlayerID, err)
+	} else {
+		if err := uc.gameMemberRepo.DeleteByGameID(ctx, group.HouseGID, gameID); err != nil {
+			uc.log.Warnf("删除 game_member 失败: %v", err)
+			// 不阻塞流程
+		}
 	}
 
 	uc.log.Infof("成功移除用户 %d 并清理关联记录", userID)

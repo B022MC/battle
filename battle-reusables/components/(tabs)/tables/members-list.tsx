@@ -1,18 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, FlatList } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loading } from '@/components/shared/loading';
+import { CreditDialog } from '@/components/(shop)/members/credit-dialog';
 
 type MembersListProps = {
   loading: boolean;
   data?: API.ShopsMemberItem[];
+  houseGid?: number;
   onPullToGroup?: (gamePlayerID: string, memberName: string, currentGroupName?: string) => void;
   onRemoveFromGroup?: (gamePlayerID: string, memberName: string, currentGroupName: string) => void;
+  onCreditChange?: () => void; // 上分/下分后的回调
 };
 
-export const MembersList = ({ loading, data, onPullToGroup, onRemoveFromGroup }: MembersListProps) => {
+export const MembersList = ({ loading, data, houseGid, onPullToGroup, onRemoveFromGroup, onCreditChange }: MembersListProps) => {
+  const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; memberId: number; memberName: string } | null>(null);
+
   if (loading) return <Loading text="加载中..." />;
 
   if (!data || data.length === 0) {
@@ -95,7 +100,7 @@ export const MembersList = ({ loading, data, onPullToGroup, onRemoveFromGroup }:
                         </Text>
                       </View>
                       <Text className="mt-1 text-xs text-muted-foreground">
-                        用户名: {item.platform_user.username} | 角色: {item.platform_user.role}
+                        用户名: {item.platform_user.username}
                       </Text>
                     </View>
                   </View>
@@ -115,40 +120,74 @@ export const MembersList = ({ loading, data, onPullToGroup, onRemoveFromGroup }:
                 </View>
               )}
 
-              {/* 拉圈和踢出圈子按钮 */}
-              {item.game_player_id && (onPullToGroup || onRemoveFromGroup) && (
-                <View className="mt-2 border-t border-border pt-2 flex-row gap-2">
-                  {/* 拉圈按钮 */}
-                  {onPullToGroup && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onPress={() => onPullToGroup(
-                        item.game_player_id!,
-                        item.nick_name || '未命名',
-                        item.current_group_name
+              {/* 操作按钮区 */}
+              {item.game_player_id && (onPullToGroup || onRemoveFromGroup || houseGid) && (
+                <View className="mt-2 border-t border-border pt-2">
+                  {/* 圈子管理按钮 */}
+                  {(onPullToGroup || onRemoveFromGroup) && (
+                    <View className="flex-row gap-2 mb-2">
+                      {onPullToGroup && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onPress={() => onPullToGroup(
+                            item.game_player_id!,
+                            item.nick_name || '未命名',
+                            item.current_group_name
+                          )}
+                        >
+                          <Text className="text-xs">
+                            {item.current_group_name ? '转移圈子' : '拉入圈子'}
+                          </Text>
+                        </Button>
                       )}
-                    >
-                      <Text className="text-xs">
-                        {item.current_group_name ? '转移圈子' : '拉入圈子'}
-                      </Text>
-                    </Button>
+                      {onRemoveFromGroup && item.current_group_name && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1"
+                          onPress={() => onRemoveFromGroup(
+                            item.game_player_id!,
+                            item.nick_name || '未命名',
+                            item.current_group_name!
+                          )}
+                        >
+                          <Text className="text-xs">踢出圈子</Text>
+                        </Button>
+                      )}
+                    </View>
                   )}
-                  {/* 踢出圈子按钮 - 只在已有圈子时显示 */}
-                  {onRemoveFromGroup && item.current_group_name && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex-1"
-                      onPress={() => onRemoveFromGroup(
-                        item.game_player_id!,
-                        item.nick_name || '未命名',
-                        item.current_group_name!
-                      )}
-                    >
-                      <Text className="text-xs">踢出圈子</Text>
-                    </Button>
+                  {/* 资金操作按钮 */}
+                  {houseGid && item.member_id && (
+                    <View className="flex-row gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1"
+                        onPress={() => setCreditDialog({
+                          visible: true,
+                          type: 'deposit',
+                          memberId: item.member_id!,
+                          memberName: item.nick_name || '未命名'
+                        })}
+                      >
+                        <Text className="text-xs">上分</Text>
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1"
+                        onPress={() => setCreditDialog({
+                          visible: true,
+                          type: 'withdraw',
+                          memberId: item.member_id!,
+                          memberName: item.nick_name || '未命名'
+                        })}
+                      >
+                        <Text className="text-xs">下分</Text>
+                      </Button>
+                    </View>
                   )}
                 </View>
               )}
@@ -158,6 +197,22 @@ export const MembersList = ({ loading, data, onPullToGroup, onRemoveFromGroup }:
         keyExtractor={(item) => `${item.user_id}-${item.game_id}-${item.member_id}`}
         scrollEnabled={false}
       />
+      
+      {/* 上分/下分对话框 */}
+      {creditDialog && houseGid && (
+        <CreditDialog
+          visible={creditDialog.visible}
+          type={creditDialog.type}
+          houseGid={houseGid}
+          memberId={creditDialog.memberId}
+          memberName={creditDialog.memberName}
+          onClose={() => setCreditDialog(null)}
+          onSuccess={() => {
+            setCreditDialog(null);
+            onCreditChange?.();
+          }}
+        />
+      )}
     </View>
   );
 };
