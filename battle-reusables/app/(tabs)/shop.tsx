@@ -13,6 +13,13 @@ export default function ShopHubScreen() {
       <View className="gap-4">
         <Text className="text-xl font-bold">店铺</Text>
         <View className="gap-2">
+        <Button onPress={() => router.push('/(shop)/account')}><Text>游戏账号</Text></Button>
+        <PermissionGate anyOf={["shop:admin:view"]}>
+          <Button onPress={() => router.push('/(shop)/admins')}><Text>管理员</Text></Button>
+        </PermissionGate>
+        <PermissionGate anyOf={["game:ctrl:view"]}>
+          <Button onPress={() => router.push('/(shop)/rooms')}><Text>中控账号</Text></Button>
+        </PermissionGate>
         <PermissionGate anyOf={["shop:fees:view"]}>
           <Button onPress={() => router.push('/(shop)/fees')}><Text>费用设置</Text></Button>
         </PermissionGate>
@@ -22,6 +29,10 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/members')}><Text>成员管理</Text></Button>
         </PermissionGate>
+        <PermissionGate anyOf={["game:room_credit:view"]}>
+          <Button onPress={() => router.push('/(shop)/room-credits')}><Text>房间额度</Text></Button>
+        </PermissionGate>
+        <Button onPress={() => router.push('/(shop)/game-applications')}><Text>游戏申请</Text></Button>
 
         {/* 战绩查询功能 */}
         <Text className="text-lg font-semibold mt-4">战绩查询</Text>

@@ -26,6 +26,11 @@ export default function ShopLayout() {
       <Stack.Screen name="my-balances" options={{ title: '我的余额' }} />
       <Stack.Screen name="group-battles" options={{ title: '圈子战绩' }} />
       <Stack.Screen name="group-balances" options={{ title: '圈子余额' }} />
+      <Stack.Screen name="permissions" options={{ title: '权限管理' }} />
+      <Stack.Screen name="roles" options={{ title: '角色管理' }} />
+      <Stack.Screen name="menus" options={{ title: '菜单管理' }} />
+      <Stack.Screen name="game-applications" options={{ title: '游戏申请' }} />
+      <Stack.Screen name="room-credits" options={{ title: '房间额度' }} />
     </Stack>
   );
 }
