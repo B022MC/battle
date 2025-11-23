@@ -1,16 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, X } from 'lucide-react-native';
 import { showToast } from '@/utils/toast';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useHouseSelector } from '@/hooks/use-house-selector';
+import { useRequest } from '@/hooks/use-request';
+import { listGroupsByHouse } from '@/services/shops/groups';
+import { usePlazaConsts } from '@/hooks/use-plaza-consts';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function RoomCreditsView() {
+  const insets = useSafeAreaInsets();
   const {
     houseGid,
     setHouseGid,
@@ -26,10 +40,34 @@ export function RoomCreditsView() {
   const [open, setOpen] = useState(false);
   
   // 额度设置参数
-  const [groupName, setGroupName] = useState('');
-  const [gameKind, setGameKind] = useState('');
+  const [groupName, setGroupName] = useState<string | undefined>(undefined);
+  const [gameKind, setGameKind] = useState<string | undefined>(undefined);
   const [baseScore, setBaseScore] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
+
+  // 获取游戏类型常量
+  const { maps, loading: loadingConsts } = usePlazaConsts();
+  const gameKinds = useMemo(() => {
+    const kinds: { label: string; value: string }[] = [];
+    maps.game_kinds.forEach((label, value) => {
+      kinds.push({ label, value: String(value) });
+    });
+    return kinds;
+  }, [maps]);
+
+  // 获取圈子列表
+  const { data: groupsData, run: loadGroups } = useRequest(listGroupsByHouse, { manual: true });
+
+  // 当店铺ID变化时加载圈子
+  useEffect(() => {
+    if (houseGid) {
+      loadGroups({ house_gid: Number(houseGid) });
+      // 重置选择
+      setGroupName(undefined);
+    }
+  }, [houseGid, loadGroups]);
+
+  const groups = useMemo(() => groupsData || [], [groupsData]);
 
   // 查询房间额度列表
   const handleQuery = async () => {
@@ -55,6 +93,11 @@ export function RoomCreditsView() {
   const handleSetCredit = async () => {
     if (!houseGid) {
       showToast('请输入店铺号', 'error');
+      return;
+    }
+
+    if (!gameKind) {
+      showToast('请选择游戏类型', 'error');
       return;
     }
 
@@ -165,27 +208,62 @@ export function RoomCreditsView() {
           <Card className="mb-4 p-4">
             <Text className="text-base font-semibold mb-3">设置房间额度</Text>
             
-            <View className="mb-3">
+            <View className="mb-3 z-20">
               <Text className="text-sm text-gray-600 mb-1">
-                圈子名称（可选，为空表示全局）
+                圈子名称（可选）
               </Text>
-              <Input
-                placeholder="留空表示全局设置"
-                value={groupName}
-                onChangeText={setGroupName}
-              />
+              <View className="flex-row gap-2">
+                <View className="flex-1">
+                  <Select
+                    value={groupName ? { value: groupName, label: groupName } : undefined}
+                    onValueChange={(option) => setGroupName(option?.value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="选择圈子（留空表示全局）" />
+                    </SelectTrigger>
+                    <SelectContent portalHost="shop-layout-portal">
+                      <SelectGroup>
+                        <SelectLabel>所有圈子</SelectLabel>
+                        {groups.map((g) => (
+                          <SelectItem key={g.id} label={g.group_name} value={g.group_name} />
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </View>
+                {groupName && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="w-10"
+                    onPress={() => setGroupName(undefined)}
+                  >
+                    <Icon as={X} size={16} />
+                  </Button>
+                )}
+              </View>
             </View>
 
-            <View className="mb-3">
+            <View className="mb-3 z-10">
               <Text className="text-sm text-gray-600 mb-1">
-                游戏类型（可选，0表示默认）
+                游戏类型 *
               </Text>
-              <Input
-                placeholder="0"
-                keyboardType="numeric"
-                value={gameKind}
-                onChangeText={setGameKind}
-              />
+              <Select
+                value={gameKind ? { value: gameKind, label: maps.game_kinds.get(Number(gameKind)) || gameKind } : undefined}
+                onValueChange={(option) => setGameKind(option?.value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="请选择游戏类型" />
+                </SelectTrigger>
+                <SelectContent portalHost="shop-layout-portal">
+                  <SelectGroup>
+                    <SelectLabel>游戏列表</SelectLabel>
+                    {gameKinds.map((k) => (
+                      <SelectItem key={k.value} label={k.label} value={k.value} />
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </View>
 
             <View className="mb-3">
@@ -214,7 +292,7 @@ export function RoomCreditsView() {
 
             <Button
               onPress={handleSetCredit}
-              disabled={!houseGid || !creditLimit || loading}
+              disabled={!houseGid || !creditLimit || !gameKind || loading}
             >
               <Text className="text-white">设置额度</Text>
             </Button>
