@@ -10,10 +10,10 @@ import (
 
 // FeeRule 运费规则
 type FeeRule struct {
-	Threshold int    `json:"threshold"` // 阈值（分数）
-	Fee       int    `json:"fee"`       // 费用（单位：分）
-	Kind      string `json:"kind"`      // 玩法（可选）
-	Base      int    `json:"base"`      // 底分（可选）
+	Threshold int `json:"threshold"` // 阈值（分数）
+	Fee       int `json:"fee"`       // 费用（单位：分）
+	Kind      int `json:"kind"`      // 玩法类型ID（可选，0表示所有玩法）
+	Base      int `json:"base"`      // 底分（可选，0表示所有底分）
 }
 
 // FeesConfig 运费配置
@@ -37,6 +37,9 @@ func ParseFeesJSON(feesJSON string) (*FeesConfig, error) {
 
 // CalculateFee 计算运费
 // 根据配置规则和战绩信息计算应收取的运费
+// 匹配优先级：
+//  1. 先查找全局规则 (kind=0, base=0)
+//  2. 如果没有，再查找特定游戏类型和底分的规则
 func CalculateFee(feesJSON string, battle *gameVO.BattleInfo) int32 {
 	config, err := ParseFeesJSON(feesJSON)
 	if err != nil || len(config.Rules) == 0 {
@@ -51,17 +54,31 @@ func CalculateFee(feesJSON string, battle *gameVO.BattleInfo) int32 {
 		}
 	}
 
-	// 按顺序匹配规则（规则应该从严格到宽松排列）
+	// 匹配逻辑与 passing-dragonfly 对齐：
+	// 1. 优先查找全局通用规则 (kind=0 && base=0)
 	for _, rule := range config.Rules {
-		// 如果规则指定了玩法，需要匹配
-		if rule.Kind != "" {
-			// TODO: 玩法匹配逻辑（需要KindID映射）
-			// 暂时跳过玩法特定规则
+		if rule.Kind == 0 && rule.Base == 0 {
+			// 全局规则：检查分数是否达到阈值
+			if maxScore >= rule.Threshold {
+				return int32(rule.Fee)
+			}
+		}
+	}
+
+	// 2. 如果没有全局规则，查找特定游戏类型和底分的规则
+	for _, rule := range config.Rules {
+		// 跳过全局规则（已经处理过）
+		if rule.Kind == 0 && rule.Base == 0 {
 			continue
 		}
 
-		// 检查分数是否达到阈值
-		if maxScore >= rule.Threshold {
+		// 匹配游戏类型
+		kindMatches := (rule.Kind == 0 || rule.Kind == battle.KindID)
+		// 匹配底分
+		baseMatches := (rule.Base == 0 || rule.Base == battle.BaseScore)
+
+		// 同时匹配游戏类型和底分，且分数达到阈值
+		if kindMatches && baseMatches && maxScore >= rule.Threshold {
 			return int32(rule.Fee)
 		}
 	}
@@ -170,23 +187,36 @@ func CalculateFeeDistribution(
 
 	// 3. 计算费用分配
 	if shareFee {
-		// 分运费模式：所有圈子平分
+		// 分运费模式：与 passing-dragonfly 对齐
+		// 逻辑：总运费由所有圈子平分，但赢家圈需要收到差价补偿
 		numGroups := len(groups)
-		if numGroups == 0 {
+		numWinners := len(winners)
+		if numGroups == 0 || numWinners == 0 {
 			return groups
 		}
 
 		// 零除保护
 		sharedFee := int32(0)
+		winnerFee := int32(0)
 		if numGroups > 0 {
-			sharedFee = totalFee / int32(numGroups)
+			sharedFee = totalFee / int32(numGroups) // 每个圈子应分摊的金额
 		}
+		if numWinners > 0 {
+			winnerFee = totalFee / int32(numWinners) // 赢家本应支付的金额
+		}
+		feePayoff := winnerFee - sharedFee // 赢家圈应收到的差价补偿
 
 		for _, g := range groups {
-			g.TotalFee = sharedFee
+			if g.IsWinner {
+				// 赢家圈：支付差价（实际支付少于应付）
+				g.TotalFee = feePayoff
+			} else {
+				// 其他圈：支付平摊金额
+				g.TotalFee = sharedFee
+			}
 			// 圈子内平均分摊到每个玩家
 			if len(g.PlayerIDs) > 0 {
-				g.PlayerFee = sharedFee / int32(len(g.PlayerIDs))
+				g.PlayerFee = g.TotalFee / int32(len(g.PlayerIDs))
 			}
 		}
 	} else {

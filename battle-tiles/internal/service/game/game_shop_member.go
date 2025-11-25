@@ -739,17 +739,21 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 	sess.GetGroupMembers()
 	allMembers := sess.ListMembers()
 
-	// 移除成员圈子信息
+	// 移除成员圈子信息并踢出店铺
 	successCount := 0
+	kickedCount := 0
+
 	for _, gamePlayerID := range in.GamePlayerIDs {
 		// 在会话中查找该成员
 		var found bool
 		var gamePlayerIDInt int32
+		var memberID int
 
 		for _, m := range allMembers {
 			if fmt.Sprintf("%d", m.GameID) == gamePlayerID {
 				found = true
 				gamePlayerIDInt = int32(m.GameID)
+				memberID = int(m.MemberID) // 保存 member_id 用于踢出
 				break
 			}
 		}
@@ -783,6 +787,13 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 		}
 
 		successCount++
+
+		// 4. 踢出店铺：调用游戏服务器命令（类似 passing-dragonfly 的 "踢" 命令）
+		if memberID > 0 {
+			// 发送踢人命令到游戏服务器
+			sess.KickOffMember(int(in.HouseGID), memberID)
+			kickedCount++
+		}
 	}
 
 	if successCount == 0 {
@@ -791,7 +802,8 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 	}
 
 	response.Success(c, map[string]interface{}{
-		"message": "踢出圈子成功",
-		"count":   successCount,
+		"message":      fmt.Sprintf("成功踢出 %d 名成员（已从圈子和店铺中移除）", successCount),
+		"count":        successCount,
+		"kicked_count": kickedCount,
 	})
 }
