@@ -103,6 +103,21 @@ func (data *Data) GetDBWithContext(ctx context.Context) *gorm.DB {
 		db.AddError(err)
 		return db
 	}
+
+	// 检查是否需要静默模式
+	if quiet, ok := ctx.Value(quietDBKey).(bool); ok && quiet {
+		return conn.WithContext(ctx).Session(&gorm.Session{
+			Logger: gormLogger.New(
+				zap.NewStdLog(zap.L()),
+				gormLogger.Config{
+					SlowThreshold: 100 * time.Millisecond,
+					LogLevel:      gormLogger.Silent, // 静默模式，不输出SQL日志
+					Colorful:      false,
+				},
+			),
+		})
+	}
+
 	return conn.WithContext(ctx)
 }
 
@@ -124,26 +139,17 @@ func NewRedis(c *conf.Data) *redis.Client {
 }
 
 // NewPSQL psql 连接实例
-func NewPSQL(c *conf.Data) *gorm.DB {
+func NewPSQL(c *conf.Data, logConf *conf.Log) *gorm.DB {
 	// 全局设置为中国时区，且统一 GORM 的时间来源
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	time.Local = loc
+
 	db, err := gorm.Open(postgres.Open(c.Database.Source), &gorm.Config{
-		//Logger: gormLogger.New(
-		//	llog.New(os.Stdout, "\r\n", llog.LstdFlags), // 日志输出到标准输出
-		//	gormLogger.Config{
-		//		SlowThreshold: 100 * time.Millisecond, // Slow SQL 阈值
-		//		LogLevel:      gormLogger.Info,        // 日志级别
-		//		//LogLevel: gormLogger.Silent, // 日志级别
-		//
-		//		Colorful: true, // 彩色日志输出
-		//	},
-		//),
 		Logger: gormLogger.New(
 			zap.NewStdLog(zap.L()),
 			gormLogger.Config{
 				SlowThreshold: 100 * time.Millisecond,
-				LogLevel:      gormLogger.Info,
+				LogLevel:      gormLogger.Info, // 默认显示所有SQL日志
 				Colorful:      true,
 			},
 		),
@@ -159,8 +165,10 @@ func NewPSQL(c *conf.Data) *gorm.DB {
 	_ = db.Exec("SET TIME ZONE 'Asia/Shanghai'").Error
 	return db
 }
-func NewDBMap(c *conf.Data, logger log.Logger) map[string]*gorm.DB {
+
+func NewDBMap(c *conf.Data, logConf *conf.Log, logger log.Logger) map[string]*gorm.DB {
 	helper := log.NewHelper(logger)
+
 	DBMap := make(map[string]*gorm.DB, len(c.DatabaseList))
 	for _, database := range c.DatabaseList {
 		switch database.Driver {
@@ -169,20 +177,11 @@ func NewDBMap(c *conf.Data, logger log.Logger) map[string]*gorm.DB {
 			loc, _ := time.LoadLocation("Asia/Shanghai")
 			time.Local = loc
 			db, err := gorm.Open(postgres.Open(database.Source), &gorm.Config{
-				//Logger: gormLogger.New(
-				//	llog.New(os.Stdout, "\r\n", llog.LstdFlags), // 日志输出到标准输出
-				//	gormLogger.Config{
-				//		SlowThreshold: 100 * time.Millisecond, // Slow SQL 阈值
-				//		LogLevel:      gormLogger.Info,        // 日志级别
-				//		//LogLevel: gormLogger.Silent, // 日志级别
-				//		Colorful: true, // 彩色日志输出
-				//	},
-				//),
 				Logger: gormLogger.New(
 					zap.NewStdLog(zap.L()),
 					gormLogger.Config{
 						SlowThreshold: 100 * time.Millisecond,
-						LogLevel:      gormLogger.Info,
+						LogLevel:      gormLogger.Info, // 默认显示所有SQL日志
 						Colorful:      false,
 					},
 				),
@@ -241,6 +240,31 @@ func NewRdbMap(c *conf.Data, logger log.Logger) (map[string]*redis.Client, error
 
 	return RDBMap, nil
 }
+
+// quietDBKey 用于在 context 中标记是否使用静默模式
+type contextKey string
+
+const quietDBKey contextKey = "quiet_db"
+
+// WithQuietDB 返回一个带静默标记的 context
+func WithQuietDB(ctx context.Context) context.Context {
+	return context.WithValue(ctx, quietDBKey, true)
+}
+
+// GetDBQuiet 获取一个静默模式的DB（不输出SQL日志），用于定时任务等场景
+func (d *Data) GetDBQuiet(ctx context.Context) *gorm.DB {
+	return d.GetDBWithContext(ctx).Session(&gorm.Session{
+		Logger: gormLogger.New(
+			zap.NewStdLog(zap.L()),
+			gormLogger.Config{
+				SlowThreshold: 100 * time.Millisecond,
+				LogLevel:      gormLogger.Silent, // 静默模式，不输出SQL日志
+				Colorful:      false,
+			},
+		),
+	})
+}
+
 func refreshDBSource() {
 	sb := sqlbuilder.NewSelectBuilder()
 	// 使用 platform 字段作为连接池的别名（与请求头 Platform 一致）

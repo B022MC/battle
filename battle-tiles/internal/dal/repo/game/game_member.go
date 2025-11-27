@@ -10,11 +10,14 @@ import (
 )
 
 type GameMemberRepo interface {
-	// 鏍规嵁 game_id 鍜?group_id 鏌ヨ鎴愬憳
+	// 根据 game_id 和 group_id 查询成员
 	GetByGameIDAndGroup(ctx context.Context, houseGID int32, gameID int32, groupID *int32) (*model.GameMember, error)
 
 	// 根据 game_id 查询成员，取第一个结果
 	GetByGameID(ctx context.Context, houseGID int32, gameID int32) (*model.GameMember, error)
+
+	// 静默模式查询（不输出SQL日志），用于定时任务
+	GetByGameIDQuiet(ctx context.Context, houseGID int32, gameID int32) (*model.GameMember, error)
 
 	// 鏌ヨ鎴愬憳鍦ㄦ墍鏈夊湀瀛愮殑璁板綍
 	ListByGameID(ctx context.Context, houseGID int32, gameID int32) ([]*model.GameMember, error)
@@ -56,7 +59,8 @@ func NewGameMemberRepo(data *infra.Data, logger log.Logger) GameMemberRepo {
 	}
 }
 
-func (r *gameMemberRepo) db(ctx context.Context) *gorm.DB { return r.data.GetDBWithContext(ctx) }
+func (r *gameMemberRepo) db(ctx context.Context) *gorm.DB      { return r.data.GetDBWithContext(ctx) }
+func (r *gameMemberRepo) dbQuiet(ctx context.Context) *gorm.DB { return r.data.GetDBQuiet(ctx) }
 
 // GetByGameIDAndGroup 鏍规嵁 game_id 鍜?group_id 鏌ヨ鎴愬憳
 func (r *gameMemberRepo) GetByGameIDAndGroup(ctx context.Context, houseGID int32, gameID int32, groupID *int32) (*model.GameMember, error) {
@@ -80,6 +84,18 @@ func (r *gameMemberRepo) GetByGameIDAndGroup(ctx context.Context, houseGID int32
 func (r *gameMemberRepo) GetByGameID(ctx context.Context, houseGID int32, gameID int32) (*model.GameMember, error) {
 	var member model.GameMember
 	if err := r.db(ctx).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		First(&member).Error; err != nil {
+		return nil, err
+	}
+
+	return &member, nil
+}
+
+// GetByGameIDQuiet 静默模式查询（不输出SSQL日志），用于定时任务
+func (r *gameMemberRepo) GetByGameIDQuiet(ctx context.Context, houseGID int32, gameID int32) (*model.GameMember, error) {
+	var member model.GameMember
+	if err := r.dbQuiet(ctx).
 		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
 		First(&member).Error; err != nil {
 		return nil, err

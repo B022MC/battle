@@ -49,6 +49,22 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "./configs/config.yaml", "config path, eg: -conf config.yaml")
 }
 
+// parseLogLevel 将日志级别字符串转换为zapcore.Level
+func parseLogLevel(level string) zapcore.Level {
+	switch level {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	default:
+		return zapcore.InfoLevel // 默认使用 info 级别
+	}
+}
+
 func newApp(logger log.Logger, hs *gin.Server, ms transport.Server) *kratos.App {
 	return kratos.New(
 		kratos.ID(id),
@@ -85,8 +101,6 @@ func main() {
 	cfg.EncodeTime = zapcore.TimeEncoderOfLayout(time.DateTime)
 	encoder := zapcore.NewJSONEncoder(cfg)
 
-	logger := kratoszap.NewLogger(zap.New(zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)))
-
 	c := config.New(
 		config.WithSource(
 			file.NewSource(flagconf),
@@ -103,7 +117,15 @@ func main() {
 		panic(err)
 	}
 
-	app, cleanup, err := wireApp(bc.Global, bc.Server, bc.Data, logger)
+	// 从配置中获取日志级别，如果未配置则默认使用 info
+	logLevel := zapcore.InfoLevel
+	if bc.Log != nil && bc.Log.Level != "" {
+		logLevel = parseLogLevel(bc.Log.Level)
+	}
+
+	logger := kratoszap.NewLogger(zap.New(zapcore.NewCore(encoder, writeSyncer, logLevel)))
+
+	app, cleanup, err := wireApp(bc.Global, bc.Server, bc.Data, bc.Log, logger)
 	if err != nil {
 		panic(err)
 	}

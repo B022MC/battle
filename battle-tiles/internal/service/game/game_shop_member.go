@@ -272,6 +272,56 @@ func (s *GameShopMemberService) Kick(c *gin.Context) {
 	}
 	actorUID := int(claims.BaseClaims.UserID)
 
+	// 权限校验：如果不是超级管理员，需要检查被踢成员是否属于自己的圈子
+	if actorUID != 1 {
+		// 1. 获取当前管理员的圈子
+		adminGroup, err := s.groupRepo.GetByAdmin(c.Request.Context(), int32(in.HouseGID), int32(actorUID))
+		if err != nil {
+			response.Fail(c, ecode.CasbinFailed, "您不是该店铺的圈主，无法踢人")
+			return
+		}
+
+		// 2. 获取会话以查找成员的 GameID (KickMemberRequest 只有 member_id)
+		sess, ok := s.mgr.GetAnyByHouse(int(in.HouseGID))
+		if !ok || sess == nil {
+			response.Fail(c, ecode.Failed, "no online session")
+			return
+		}
+
+		// 3. 在会话中查找目标成员
+		var targetGameID int32
+		var found bool
+		members := sess.ListMembers()
+		for _, m := range members {
+			if int(m.MemberID) == in.MemberID {
+				targetGameID = int32(m.GameID)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// 如果内存中没找到，说明成员可能已经下线，直接返回成功或提示
+			// 这里调用 KickMember 也会失败，所以直接返回
+			response.Fail(c, ecode.Failed, "member not found in session")
+			return
+		}
+
+		// 4. 查询成员的圈子归属
+		memberInfo, err := s.gameMember.GetByGameID(c.Request.Context(), int32(in.HouseGID), targetGameID)
+		if err != nil || memberInfo == nil || memberInfo.GroupID == nil {
+			// 成员没有圈子信息（散户），店铺管理员不能踢
+			response.Fail(c, ecode.CasbinFailed, "只能踢出自己圈子下的成员")
+			return
+		}
+
+		// 5. 比较圈子ID
+		if *memberInfo.GroupID != adminGroup.Id {
+			response.Fail(c, ecode.CasbinFailed, "只能踢出自己圈子下的成员")
+			return
+		}
+	}
+
 	if err := s.mgr.KickMember(actorUID, in.HouseGID, in.MemberID); err != nil {
 		if strings.Contains(err.Error(), "session not found") {
 			response.Fail(c, ecode.Failed, "no online session")
@@ -728,6 +778,24 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 		return
 	}
 
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	actorUID := int(claims.BaseClaims.UserID)
+
+	// 权限准备：如果不是超级管理员，获取自己的圈子信息
+	var adminGroup *gameModel.GameShopGroup
+	if actorUID != 1 {
+		var err error
+		adminGroup, err = s.groupRepo.GetByAdmin(c.Request.Context(), int32(in.HouseGID), int32(actorUID))
+		if err != nil {
+			response.Fail(c, ecode.CasbinFailed, "您不是该店铺的圈主，无法操作")
+			return
+		}
+	}
+
 	// 从会话获取成员信息
 	sess, ok := s.mgr.GetAnyByHouse(int(in.HouseGID))
 	if !ok || sess == nil {
@@ -760,6 +828,19 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 
 		if !found {
 			continue
+		}
+
+		// 权限校验：非超管只能移除自己圈子的成员
+		if actorUID != 1 {
+			memberInfo, err := s.gameMember.GetByGameID(c.Request.Context(), int32(in.HouseGID), gamePlayerIDInt)
+			if err != nil || memberInfo == nil || memberInfo.GroupID == nil {
+				// 无法获取成员信息或成员无圈子，跳过
+				continue
+			}
+			if *memberInfo.GroupID != adminGroup.Id {
+				// 成员不属于当前管理员的圈子，跳过
+				continue
+			}
 		}
 
 		// 1. 查询 game_account

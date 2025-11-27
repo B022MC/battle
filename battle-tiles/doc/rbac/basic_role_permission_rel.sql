@@ -64,6 +64,9 @@ INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 44);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 45);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 46);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 47);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 48);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 49);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 1);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 2);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 3);
@@ -76,6 +79,9 @@ INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 52);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (1, 53);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 50);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 47);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 48);
+INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 49);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 51);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 52);
 INSERT INTO "basic_role_permission_rel" ("role_id", "permission_id") VALUES (2, 53);

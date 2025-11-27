@@ -10,6 +10,7 @@ message Bootstrap {
   Server server = 1;
   Data data = 2;
   Global global = 3;
+  Log log = 4;
 }
 
 /* ============== Server ============== */
@@ -77,4 +78,10 @@ message Global {
 
   RSA rsa = 1;   // YAML: global.rsa
   Game game = 2; // YAML: global.game
+}
+
+/* ============== Log ============== */
+message Log {
+  string level = 1; // 日志级别: debug, info, warn, error (默认: info)
+  bool verbose_task_log = 2; // 是否显示详细的定时任务日志 (默认: false)
 }

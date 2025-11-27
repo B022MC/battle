@@ -1,8 +1,10 @@
 package game
 
 import (
+	"battle-tiles/internal/conf"
 	repo "battle-tiles/internal/dal/repo/game"
 	gameVO "battle-tiles/internal/dal/vo/game"
+	"battle-tiles/internal/infra"
 	plazaHTTP "battle-tiles/internal/utils/plaza"
 	"context"
 	"encoding/json"
@@ -24,6 +26,7 @@ type BattleRecordUseCase struct {
 	settingsRepo     repo.HouseSettingsRepo
 	feeRepo          repo.FeeSettleRepo
 	log              *log.Helper
+	verboseTaskLog   bool // 是否显示详细的任务日志
 }
 
 func NewBattleRecordUseCase(
@@ -35,8 +38,13 @@ func NewBattleRecordUseCase(
 	accountGroupRepo repo.GameAccountGroupRepo,
 	settingsRepo repo.HouseSettingsRepo,
 	feeRepo repo.FeeSettleRepo,
+	logConf *conf.Log,
 	logger log.Logger,
 ) *BattleRecordUseCase {
+	verboseTaskLog := false
+	if logConf != nil && logConf.VerboseTaskLog {
+		verboseTaskLog = true
+	}
 	return &BattleRecordUseCase{
 		repo:             r,
 		ctrlRepo:         ctrlRepo,
@@ -47,11 +55,17 @@ func NewBattleRecordUseCase(
 		settingsRepo:     settingsRepo,
 		feeRepo:          feeRepo,
 		log:              log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
+		verboseTaskLog:   verboseTaskLog,
 	}
 }
 
 // PullAndSave 拉取 foxuc 战绩并入库
 func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.HTTPDoer, base string, houseGID, groupID, typeid int) (int, error) {
+	// 如果不显示详细日志，则使用静默模式
+	if !uc.verboseTaskLog {
+		ctx = infra.WithQuietDB(ctx)
+	}
+
 	list, err := plazaHTTP.GetGroupBattleInfoCtx(ctx, httpc, base, groupID, typeid)
 	if err != nil {
 		return 0, err
@@ -79,7 +93,9 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 		// 1. 构建玩家圈子映射并验证数据有效性
 		playerGroups, playerAccounts, validPlayers := uc.buildPlayerGroupMapping(ctx, int32(houseGID), b.Players)
 		if len(validPlayers) == 0 {
-			uc.log.Warnf("Battle room %d has no valid players, skipping", b.RoomID)
+			if uc.verboseTaskLog {
+				uc.log.Warnf("Battle room %d has no valid players, skipping", b.RoomID)
+			}
 			continue
 		}
 
@@ -177,10 +193,13 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 
 	for _, player := range players {
 		// 直接查询 game_member 表获取玩家的圈子信息
+		// ctx 已经包含静默标记，会自动使用静默模式
 		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, int32(player.UserGameID))
 		if err != nil {
-			uc.log.Debugf("Member not found for game_id=%d in house %d: %v",
-				player.UserGameID, houseGID, err)
+			if uc.verboseTaskLog {
+				uc.log.Debugf("Member not found for game_id=%d in house %d: %v",
+					player.UserGameID, houseGID, err)
+			}
 			continue // 玩家不在成员表中，跳过
 		}
 
@@ -191,8 +210,10 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 
 		// 验证圈子ID（必须有圈子才参与计费）
 		if member.GroupID == nil || *member.GroupID == 0 {
-			uc.log.Debugf("Player %d has no group in house %d, skipping",
-				player.UserGameID, houseGID)
+			if uc.verboseTaskLog {
+				uc.log.Debugf("Player %d has no group in house %d, skipping",
+					player.UserGameID, houseGID)
+			}
 			continue // 没有圈子，跳过
 		}
 
@@ -208,7 +229,9 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 		validPlayers[player.UserGameID] = true
 	}
 
-	uc.log.Debugf("Mapped %d valid players out of %d total players", len(validPlayers), len(players))
+	if uc.verboseTaskLog {
+		uc.log.Debugf("Mapped %d valid players out of %d total players", len(validPlayers), len(players))
+	}
 	return playerGroups, playerAccounts, validPlayers
 }
 

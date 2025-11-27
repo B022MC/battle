@@ -50,7 +50,9 @@ func (m *BattleSyncManager) StartSync(ctx context.Context, userID int, houseGID 
 	m.syncers[key] = syncer
 	syncer.start()
 
-	m.logger.Infof("Started battle syncer for user %d, house %d", userID, houseGID)
+	if syncer.verboseTaskLog {
+		m.logger.Infof("Started battle syncer for user %d, house %d", userID, houseGID)
+	}
 }
 
 // StopSync 停止战绩同步
@@ -61,9 +63,12 @@ func (m *BattleSyncManager) StopSync(userID int, houseGID int) {
 	defer m.mu.Unlock()
 
 	if syncer, exists := m.syncers[key]; exists {
+		verbose := syncer.verboseTaskLog
 		syncer.stop()
 		delete(m.syncers, key)
-		m.logger.Infof("Stopped battle syncer for user %d, house %d", userID, houseGID)
+		if verbose {
+			m.logger.Infof("Stopped battle syncer for user %d, house %d", userID, houseGID)
+		}
 	}
 }
 
@@ -82,35 +87,39 @@ func (m *BattleSyncManager) StopAll() {
 
 // battleSyncer 单个会话的战绩同步器
 type battleSyncer struct {
-	ctx          context.Context // 保存带 platform 的 context
-	userID       int
-	houseGID     int
-	battleUC     *BattleRecordUseCase // 使用 UseCase 处理战绩
-	data         *infra.Data          // 用于记录同步日志
-	logger       *log.Helper
-	stopChan     chan struct{}
-	wg           sync.WaitGroup
-	syncInterval time.Duration
-	isFirstSync  bool
-	sessionID    int32 // 会话 ID，用于记录同步日志
+	ctx            context.Context // 保存带 platform 的 context
+	userID         int
+	houseGID       int
+	battleUC       *BattleRecordUseCase // 使用 UseCase 处理战绩
+	data           *infra.Data          // 用于记录同步日志
+	logger         *log.Helper
+	stopChan       chan struct{}
+	wg             sync.WaitGroup
+	syncInterval   time.Duration
+	isFirstSync    bool
+	sessionID      int32 // 会话 ID，用于记录同步日志
+	verboseTaskLog bool  // 是否显示详细的任务日志
 }
 
 func newBattleSyncer(ctx context.Context, userID int, houseGID int, battleUC *BattleRecordUseCase, data *infra.Data, logger *log.Helper) *battleSyncer {
 	return &battleSyncer{
-		ctx:          ctx, // 保存 context
-		userID:       userID,
-		houseGID:     houseGID,
-		battleUC:     battleUC,
-		data:         data,
-		logger:       logger,
-		stopChan:     make(chan struct{}),
-		syncInterval: 10 * time.Second, // 改为10秒一次
-		isFirstSync:  true,
+		ctx:            ctx, // 保存 context
+		userID:         userID,
+		houseGID:       houseGID,
+		battleUC:       battleUC,
+		data:           data,
+		logger:         logger,
+		stopChan:       make(chan struct{}),
+		syncInterval:   10 * time.Second, // 改为10秒一次
+		isFirstSync:    true,
+		verboseTaskLog: battleUC.verboseTaskLog, // 使用 UseCase 的配置
 	}
 }
 
 func (s *battleSyncer) start() {
-	s.logger.Infof("Starting battle syncer for house %d, isFirstSync=%v", s.houseGID, s.isFirstSync)
+	if s.verboseTaskLog {
+		s.logger.Infof("Starting battle syncer for house %d, isFirstSync=%v", s.houseGID, s.isFirstSync)
+	}
 	s.wg.Add(1)
 	go s.syncLoop()
 }
@@ -152,7 +161,9 @@ func (s *battleSyncer) syncOnce() {
 		s.isFirstSync = false
 	}
 
-	s.logger.Infof("Fetching battle records for house %d (%s)...", s.houseGID, typeDesc)
+	if s.verboseTaskLog {
+		s.logger.Infof("Fetching battle records for house %d (%s)...", s.houseGID, typeDesc)
+	}
 
 	// 使用 BattleRecordUseCase.PullAndSave 统一处理战绩同步
 	httpClient := &http.Client{Timeout: 10 * time.Second}
@@ -166,7 +177,7 @@ func (s *battleSyncer) syncOnce() {
 		return
 	}
 
-	if saved > 0 {
+	if saved > 0 && s.verboseTaskLog {
 		s.logger.Infof("Synced %d battle records for house %d", saved, s.houseGID)
 	}
 

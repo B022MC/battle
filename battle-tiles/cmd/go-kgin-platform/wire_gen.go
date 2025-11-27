@@ -33,10 +33,10 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
+func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, confLog *conf.Log, logger log.Logger) (*kratos.App, func(), error) {
 	client := infra.NewRedis(data)
-	db := infra.NewPSQL(data)
-	v := infra.NewDBMap(data, logger)
+	db := infra.NewPSQL(data, confLog)
+	v := infra.NewDBMap(data, confLog, logger)
 	v2, err := infra.NewRdbMap(data, logger)
 	if err != nil {
 		return nil, nil, err
@@ -75,7 +75,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logg
 	gameMemberRepo := game.NewGameMemberRepo(infraData, logger)
 	houseSettingsRepo := game.NewHouseSettingsRepo(infraData, logger)
 	feeSettleRepo := game.NewFeeSettleRepo(infraData, logger)
-	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, logger)
+	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, confLog, logger)
 	battleSyncManager := game2.NewBattleSyncManager(battleRecordUseCase, infraData, logger)
 	ctrlSessionUseCase := game2.NewCtrlSessionUseCase(gameCtrlAccountRepo, gameCtrlAccountHouseRepo, sessionRepo, manager, battleSyncManager, logger)
 	sessionService := game3.NewSessionService(ctrlSessionUseCase)
@@ -122,7 +122,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logg
 	platformService := service.NewPlatformService(platformUsecase)
 	rootRouter := router.NewRootRouter(basicRouter, gameRouter, opsRouter, platformService)
 	ginServer := server.NewHTTPServer(confServer, logger, rootRouter, infraData)
-	sessionMonitor := service.NewSessionMonitor(logger, manager, basePlatformRepo, gameCtrlAccountHouseRepo, sessionRepo, gameCtrlAccountRepo, battleSyncManager, ctrlSessionUseCase)
+	sessionMonitor := service.NewSessionMonitor(confLog, logger, manager, basePlatformRepo, gameCtrlAccountHouseRepo, sessionRepo, gameCtrlAccountRepo, battleSyncManager, ctrlSessionUseCase)
 	transportServer := server.NewMonitorServer(sessionMonitor)
 	app := newApp(logger, ginServer, transportServer)
 	return app, func() {

@@ -26,10 +26,10 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
+func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, confLog *conf.Log, logger log.Logger) (*kratos.App, func(), error) {
 	client := infra.NewRedis(data)
-	db := infra.NewPSQL(data)
-	v := infra.NewDBMap(data, logger)
+	db := infra.NewPSQL(data, confLog)
+	v := infra.NewDBMap(data, confLog, logger)
 	v2, err := infra.NewRdbMap(data, logger)
 	if err != nil {
 		return nil, nil, err

@@ -104,6 +104,17 @@ func (r *permissionRepo) ListAll(ctx context.Context) ([]*basicModel.BasicPermis
 func (r *permissionRepo) AssignPermissionsToRole(ctx context.Context, roleID int32, permissionIDs []int32) error {
 	db := r.data.GetDBWithContext(ctx)
 
+	// 先删除该角色的所有权限关联，然后重新插入
+	// 这样可以确保权限列表完全替换，而不是累加
+	if err := db.Where("role_id = ?", roleID).Delete(&basicModel.BasicRolePermissionRel{}).Error; err != nil {
+		return err
+	}
+
+	// 如果没有权限需要分配，直接返回
+	if len(permissionIDs) == 0 {
+		return nil
+	}
+
 	// 构建批量插入数据
 	rels := make([]*basicModel.BasicRolePermissionRel, 0, len(permissionIDs))
 	for _, permID := range permissionIDs {
@@ -113,8 +124,8 @@ func (r *permissionRepo) AssignPermissionsToRole(ctx context.Context, roleID int
 		})
 	}
 
-	// 使用 ON CONFLICT DO NOTHING 避免重复
-	return db.Clauses().Create(&rels).Error
+	// 批量插入新的权限关联
+	return db.Create(&rels).Error
 }
 
 func (r *permissionRepo) RemovePermissionsFromRole(ctx context.Context, roleID int32, permissionIDs []int32) error {
