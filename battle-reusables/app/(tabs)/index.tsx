@@ -6,15 +6,62 @@ import { useAuthStore } from '@/hooks/use-auth-store';
 import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
 import { AnnouncementsCard } from '@/components/(tabs)/home/announcements-card';
-import { GroupBattlesCard } from '@/components/(tabs)/home/group-battles-card';
+import { HouseStatsCard } from '@/components/(tabs)/home/house-stats-card';
 import { MembersOnlineCard } from '@/components/(tabs)/home/members-online-card';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { getMyGroupInfo, getGroupMembers } from '@/services/home';
 import { shopsAdminsMe } from '@/services/shops/admins';
+import { shopsHousesOptions } from '@/services/shops/houses';
+import { getHouseStats } from '@/services/battles/query';
+import type { HouseStats } from '@/services/battles/query-typing';
+
+/**
+ * 获取时间范围
+ */
+function getTimeRange(type: 'today' | 'yesterday' | 'thisWeek' | 'lastWeek'): { start_time: number; end_time: number } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  if (type === 'today') {
+    // 今日：今天0点到现在
+    return {
+      start_time: Math.floor(today.getTime() / 1000),
+      end_time: Math.floor(now.getTime() / 1000)
+    };
+  } else if (type === 'yesterday') {
+    // 昨日：昨天0点到今天0点
+    const yesterdayStart = new Date(today);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    return {
+      start_time: Math.floor(yesterdayStart.getTime() / 1000),
+      end_time: Math.floor(today.getTime() / 1000)
+    };
+  } else if (type === 'thisWeek') {
+    // 本周：本周一0点到现在
+    const dayOfWeek = today.getDay() || 7; // 0是周日，转为7
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(thisWeekStart.getDate() - dayOfWeek + 1); // 周一
+    return {
+      start_time: Math.floor(thisWeekStart.getTime() / 1000),
+      end_time: Math.floor(now.getTime() / 1000)
+    };
+  } else {
+    // 上周：上周一0点到上周日24点
+    const dayOfWeek = today.getDay() || 7;
+    const lastWeekStart = new Date(today);
+    lastWeekStart.setDate(lastWeekStart.getDate() - dayOfWeek - 6); // 上周一
+    const lastWeekEnd = new Date(lastWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() + 7); // 上周一+7天
+    return {
+      start_time: Math.floor(lastWeekStart.getTime() / 1000),
+      end_time: Math.floor(lastWeekEnd.getTime() / 1000)
+    };
+  }
+}
 
 export default function Screen() {
   const { isAuthenticated, user, perms } = useAuthStore();
-  const { isStoreAdmin } = usePermission();
+  const { isSuperAdmin, isStoreAdmin } = usePermission();
   const [refreshing, setRefreshing] = useState(false);
 
   // 获取店铺管理员信息
@@ -25,6 +72,19 @@ export default function Screen() {
   
   // 获取圈子成员
   const { data: groupMembers, loading: loadingMembers, run: runGetGroupMembers } = useRequest(getGroupMembers, { manual: true });
+
+  // 店铺统计（店铺管理员）
+  const [shopTodayStats, setShopTodayStats] = useState<HouseStats | null>(null);
+  const [shopYesterdayStats, setShopYesterdayStats] = useState<HouseStats | null>(null);
+  const [shopLastWeekStats, setShopLastWeekStats] = useState<HouseStats | null>(null);
+  const [loadingShopStats, setLoadingShopStats] = useState(false);
+
+  // 全平台统计（超级管理员）
+  const [allHouses, setAllHouses] = useState<number[]>([]);
+  const [houseTodayStats, setHouseTodayStats] = useState<HouseStats[]>([]);
+  const [houseYesterdayStats, setHouseYesterdayStats] = useState<HouseStats[]>([]);
+  const [houseLastWeekStats, setHouseLastWeekStats] = useState<HouseStats[]>([]);
+  const [loadingHouseStats, setLoadingHouseStats] = useState(false);
 
   console.log('[Index Screen] isAuthenticated:', isAuthenticated);
 
@@ -66,12 +126,17 @@ export default function Screen() {
 
   // 初始化加载数据
   useEffect(() => {
-    if (isAuthenticated && isStoreAdmin) {
-      loadData();
+    if (isAuthenticated) {
+      if (isSuperAdmin) {
+        loadSuperAdminData();
+      } else if (isStoreAdmin) {
+        loadStoreAdminData();
+      }
     }
-  }, [isAuthenticated, isStoreAdmin]);
+  }, [isAuthenticated, isSuperAdmin, isStoreAdmin]);
 
-  const loadData = async () => {
+  // 店铺管理员加载数据
+  const loadStoreAdminData = async () => {
     try {
       // 获取管理员信息
       const adminInfo = await runGetMyAdminInfo();
@@ -84,15 +149,110 @@ export default function Screen() {
         if (group && group.id) {
           await runGetGroupMembers({ group_id: group.id, page: 1, size: 100 });
         }
+        
+        // 加载店铺统计（今日、昨日、上周）
+        await loadShopStats(adminInfo.house_gid);
       }
     } catch (error) {
-      console.error('[Index] Load data failed:', error);
+      console.error('[Index] Load store admin data failed:', error);
+    }
+  };
+
+  // 超级管理员加载数据
+  const loadSuperAdminData = async () => {
+    try {
+      // 获取所有店铺列表
+      const housesResponse = await shopsHousesOptions();
+      const houses = housesResponse.data || [];
+      setAllHouses(houses);
+      
+      if (houses.length > 0) {
+        // 加载全平台统计
+        await loadAllHousesStats(houses);
+      }
+    } catch (error) {
+      console.error('[Index] Load super admin data failed:', error);
+    }
+  };
+
+  // 加载店铺统计数据
+  const loadShopStats = async (houseGid: number) => {
+    setLoadingShopStats(true);
+    try {
+      // 并发请求三个时间段的统计
+      const [today, yesterday, lastWeek] = await Promise.all([
+        getHouseStats({
+          house_gid: houseGid,
+          ...getTimeRange('today')
+        }),
+        getHouseStats({
+          house_gid: houseGid,
+          ...getTimeRange('yesterday')
+        }),
+        getHouseStats({
+          house_gid: houseGid,
+          ...getTimeRange('lastWeek')
+        })
+      ]);
+
+      setShopTodayStats(today.data || null);
+      setShopYesterdayStats(yesterday.data || null);
+      setShopLastWeekStats(lastWeek.data || null);
+    } catch (error) {
+      console.error('[Index] Load shop stats failed:', error);
+    } finally {
+      setLoadingShopStats(false);
+    }
+  };
+
+  // 加载全平台统计数据
+  const loadAllHousesStats = async (houses: number[]) => {
+    setLoadingHouseStats(true);
+    try {
+      // 为每个店铺并发请求三个时间段的统计
+      const allRequests = houses.flatMap(houseGid => [
+        getHouseStats({ house_gid: houseGid, ...getTimeRange('today') }),
+        getHouseStats({ house_gid: houseGid, ...getTimeRange('yesterday') }),
+        getHouseStats({ house_gid: houseGid, ...getTimeRange('lastWeek') })
+      ]);
+
+      const results = await Promise.all(allRequests);
+      
+      // 分类结果
+      const todayResults: HouseStats[] = [];
+      const yesterdayResults: HouseStats[] = [];
+      const lastWeekResults: HouseStats[] = [];
+      
+      results.forEach((result, index) => {
+        const periodIndex = index % 3;
+        if (result.data) {
+          if (periodIndex === 0) {
+            todayResults.push(result.data);
+          } else if (periodIndex === 1) {
+            yesterdayResults.push(result.data);
+          } else {
+            lastWeekResults.push(result.data);
+          }
+        }
+      });
+
+      setHouseTodayStats(todayResults);
+      setHouseYesterdayStats(yesterdayResults);
+      setHouseLastWeekStats(lastWeekResults);
+    } catch (error) {
+      console.error('[Index] Load all houses stats failed:', error);
+    } finally {
+      setLoadingHouseStats(false);
     }
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    if (isSuperAdmin) {
+      await loadSuperAdminData();
+    } else if (isStoreAdmin) {
+      await loadStoreAdminData();
+    }
     setRefreshing(false);
   };
 
@@ -131,21 +291,29 @@ export default function Screen() {
           onViewAll={() => console.log('View all announcements')}
         />
 
-        {/* 圈子战绩 - 普通用户可见 */}
+        {/* 超级管理员 - 全平台统计 */}
+        {isSuperAdmin && (
+          <HouseStatsCard
+            title="全平台统计"
+            subtitle="所有店铺数据汇总"
+            todayStats={houseTodayStats}
+            yesterdayStats={houseYesterdayStats}
+            lastWeekStats={houseLastWeekStats}
+            loading={loadingHouseStats}
+            onViewDetails={() => console.log('View all houses details')}
+          />
+        )}
+
+        {/* 店铺管理员 - 店铺统计 */}
         {isStoreAdmin && (
-          <GroupBattlesCard
-            groupName={myGroup?.group_name}
-            stats={myGroup ? {
-              today_battles: 0,  // TODO: 需要后端API支持
-              today_wins: 0,
-              today_losses: 0,
-              week_battles: 0,
-              week_wins: 0,
-              week_winrate: 0,
-              total_battles: 0
-            } : undefined}
-            loading={loadingGroup}
-            onViewDetails={() => console.log('View battle details')}
+          <HouseStatsCard
+            title="店铺统计"
+            subtitle={myAdminInfo ? `店铺 ID: ${myAdminInfo.house_gid}` : undefined}
+            todayStats={shopTodayStats ? [shopTodayStats] : undefined}
+            yesterdayStats={shopYesterdayStats ? [shopYesterdayStats] : undefined}
+            lastWeekStats={shopLastWeekStats ? [shopLastWeekStats] : undefined}
+            loading={loadingShopStats}
+            onViewDetails={() => console.log('View shop details')}
           />
         )}
 

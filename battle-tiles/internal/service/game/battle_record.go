@@ -190,16 +190,79 @@ type ListHouseBattlesRequest struct {
 	Size      int32  `json:"size"`
 }
 
+// ListGroupBattlesRequest 查询圈子战绩请求
+type ListGroupBattlesRequest struct {
+	HouseGID     int32  `json:"house_gid" binding:"required"`
+	GroupID      int32  `json:"group_id" binding:"required"`
+	PlayerGameID *int32 `json:"player_game_id"` // 可选：指定玩家的游戏ID
+	StartTime    *int64 `json:"start_time"`     // Unix timestamp
+	EndTime      *int64 `json:"end_time"`       // Unix timestamp
+	Page         int32  `json:"page"`
+	Size         int32  `json:"size"`
+}
+
 // ListGroupBattles
 // @Summary      查询圈子战绩（管理员）
 // @Tags         战绩
 // @Accept       json
 // @Produce      json
-// @Param        in body ListHouseBattlesRequest true "查询参数"
-// @Success      200 {object} response.Body{data=[]model.GameBattleRecord}
+// @Param        in body ListGroupBattlesRequest true "查询参数"
+// @Success      200 {object} response.Body{data=object}
 // @Router       /battle-query/group/battles [post]
-func (s *BattleRecordService) ListGroupBattles(context *gin.Context) {
-	//TODO
+func (s *BattleRecordService) ListGroupBattles(c *gin.Context) {
+	var in ListGroupBattlesRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	// 从 JWT 中获取用户信息（用于日志记录）
+	_, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+
+	// 转换时间参数
+	var start, end *time.Time
+	if in.StartTime != nil {
+		t := time.Unix(*in.StartTime, 0)
+		start = &t
+	}
+	if in.EndTime != nil {
+		t := time.Unix(*in.EndTime, 0)
+		end = &t
+	}
+
+	// 设置默认分页参数
+	if in.Page <= 0 {
+		in.Page = 1
+	}
+	if in.Size <= 0 || in.Size > 100 {
+		in.Size = 10
+	}
+
+	// 调用业务层查询战绩
+	list, total, err := s.uc.ListGroupBattles(
+		c.Request.Context(),
+		in.HouseGID,
+		in.GroupID,
+		in.PlayerGameID,
+		start,
+		end,
+		in.Page,
+		in.Size,
+	)
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+
+	// 返回结果
+	response.Success(c, gin.H{
+		"list":  list,
+		"total": total,
+	})
 }
 
 // GetPlayerStatsRequest 查询玩家统计请求

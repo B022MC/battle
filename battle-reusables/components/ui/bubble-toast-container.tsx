@@ -77,9 +77,8 @@ export function BubbleToastContainer() {
 
   return (
     <View
-      className="absolute top-0 left-0 right-0 z-[100]"
+      className="absolute top-0 left-0 right-0 z-[100] pt-[60px]"
       pointerEvents="box-none"
-      style={{ paddingTop: 60 }} // 留出状态栏空间
     >
       {toasts.map((toast) => (
         <BubbleToast

@@ -149,12 +149,26 @@ export interface GroupStats {
 }
 
 /**
+ * 圈子间转账记录
+ */
+export interface GroupPayoff {
+  group: string;
+  value: number; // 正值表示收入，负值表示支出
+}
+
+/**
  * 店铺统计
  */
 export interface HouseStats {
   house_gid: number;
-  total_games: number;
-  total_score: number;
-  total_fee: number;
+  total_games: number;         // 总局数（笔数）
+  total_score: number;         // 总得分（成绩，分）
+  total_fee: number;           // 总手续费（金额，分）
+  recharge_shang: number;      // 上分（分）
+  recharge_xia: number;        // 下分（分）
+  balance_pay: number;         // 待提（正余额，分）
+  balance_take: number;        // 欠费（负余额，分）
+  balance_payoffs: GroupPayoff[]; // 圈子间转账
+  fee_payoffs: GroupPayoff[];     // 运费分成
 }
 

@@ -115,21 +115,18 @@ export const CreditDialog = ({
       >
         <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
           <Card className="w-80 max-w-full p-6">
-            <Text className="text-xl font-semibold mb-4">
-              {type === 'deposit' ? '上分' : '下分'}
-            </Text>
-
-            {memberName && (
+            <Text className="text-xl font-semibold mb-4">{type === 'deposit' ? '上分' : '下分'}</Text>
+            {memberName ? (
               <View className="mb-4">
                 <Text className="text-sm text-muted-foreground mb-1">用户</Text>
                 <Text className="text-base">{memberName}</Text>
               </View>
-            )}
-
+            ) : null}
             <View className="mb-4">
-              <Text className="text-sm text-muted-foreground mb-2">
-                金额（元）<Text className="text-red-500">*</Text>
-              </Text>
+              <View className="flex-row mb-2">
+                <Text className="text-sm text-muted-foreground">金额（元）</Text>
+                <Text className="text-sm text-red-500">*</Text>
+              </View>
               <TextInput
                 className="border border-gray-300 rounded px-3 py-2"
                 placeholder="请输入金额"
@@ -138,11 +135,8 @@ export const CreditDialog = ({
                 onChangeText={setAmount}
                 editable={!loading}
               />
-              <Text className="text-xs text-muted-foreground mt-1">
-                1 元 = 100 分
-              </Text>
+              <Text className="text-xs text-muted-foreground mt-1">1 元 = 100 分</Text>
             </View>
-
             <View className="mb-6">
               <Text className="text-sm text-muted-foreground mb-2">原因</Text>
               <TextInput
@@ -155,7 +149,6 @@ export const CreditDialog = ({
                 editable={!loading}
               />
             </View>
-
             <View className="flex-row gap-3">
               <Button
                 variant="outline"

@@ -313,6 +313,24 @@ func (uc *BattleRecordUseCase) ListMyBattleRecords(
 	return uc.repo.ListByPlayerGameName(ctx, houseGID, account.Account, GroupID, start, end, page, size)
 }
 
+// ListGroupBattles 查询圈子成员战绩（管理员）
+func (uc *BattleRecordUseCase) ListGroupBattles(
+	ctx context.Context,
+	houseGID int32,
+	groupID int32,
+	playerGameID *int32,
+	start, end *time.Time,
+	page, size int32,
+) ([]*model.GameBattleRecord, int64, error) {
+	// 如果指定了玩家ID，查询该玩家的战绩
+	if playerGameID != nil && *playerGameID > 0 {
+		return uc.repo.ListByPlayer(ctx, houseGID, *playerGameID, &groupID, start, end, page, size)
+	}
+
+	// 否则查询整个圈子的战绩
+	return uc.repo.List(ctx, houseGID, &groupID, nil, start, end, page, size)
+}
+
 // GetMyBattleStats 获取用户的战绩统计
 func (uc *BattleRecordUseCase) GetMyBattleStats(
 	ctx context.Context,
@@ -406,22 +424,17 @@ func (uc *BattleRecordUseCase) GetGroupStats(
 	}, nil
 }
 
-// GetHouseStats 查询店铺统计
+// GetHouseStats 查询店铺完整统计（包括充值、余额、圈子间转账等）
 func (uc *BattleRecordUseCase) GetHouseStats(
 	ctx context.Context,
 	houseGID int32,
 	start, end *time.Time,
 ) (interface{}, error) {
-	totalGames, totalScore, totalFee, err := uc.repo.GetHouseStats(ctx, houseGID, start, end)
+	stats, err := uc.repo.GetHouseStatsDetail(ctx, houseGID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
-		"house_gid":   houseGID,
-		"total_games": totalGames,
-		"total_score": totalScore,
-		"total_fee":   totalFee,
-	}, nil
+	return stats, nil
 }
 
 // parseGameUserID 解析 game_user_id 字符串为整数

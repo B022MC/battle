@@ -349,7 +349,6 @@ export const MembersView = () => {
 
   return (
     <View className="flex-1 bg-background">
-      {/* 顶部标签切换 */}
       <View className="flex-row items-center gap-2 px-4 py-3 border-b border-border bg-card">
         <Button
           variant={activeTab === 'all' ? 'default' : 'outline'}
@@ -373,12 +372,10 @@ export const MembersView = () => {
           <Text>游戏成员</Text>
         </Button>
       </View>
-
-      {/* 搜索和操作栏 */}
       <View className="px-4 py-3 gap-3 border-b border-border bg-card">
         {activeTab === 'game' ? (
           <>
-            {!isStoreAdmin && (
+            {!isStoreAdmin ? (
               <View className="flex-row gap-2">
                 <Select
                   value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
@@ -392,7 +389,7 @@ export const MembersView = () => {
                       <SelectLabel>店铺号</SelectLabel>
                       {(houseOptions ?? []).map((gid) => (
                         <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
-                          店铺 {gid}
+                          {`店铺 ${gid}`}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -414,8 +411,8 @@ export const MembersView = () => {
                   <Text>{loadingGameMembers ? '加载中...' : '加载成员'}</Text>
                 </Button>
               </View>
-            )}
-            {isStoreAdmin && myAdminInfo && myAdminInfo.house_gid && (
+            ) : null}
+            {isStoreAdmin && myAdminInfo && myAdminInfo.house_gid ? (
               <Button
                 onPress={() => {
                   runListGameMembers({ house_gid: myAdminInfo.house_gid! }).then(data => {
@@ -427,7 +424,7 @@ export const MembersView = () => {
               >
                 <Text>{loadingGameMembers ? '加载中...' : '刷新游戏成员'}</Text>
               </Button>
-            )}
+            ) : null}
           </>
         ) : activeTab === 'all' ? (
           <>
@@ -445,8 +442,7 @@ export const MembersView = () => {
           </>
         ) : (
           <>
-            {/* 店铺管理员不需要输入店铺号 */}
-            {!isStoreAdmin && (
+            {!isStoreAdmin ? (
               <View className="flex-row gap-2">
                 <Select
                   value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
@@ -460,7 +456,7 @@ export const MembersView = () => {
                       <SelectLabel>店铺号</SelectLabel>
                       {(houseOptions ?? []).map((gid) => (
                         <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
-                          店铺 {gid}
+                          {`店铺 ${gid}`}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -470,28 +466,23 @@ export const MembersView = () => {
                   <Text>{loadingMyGroup ? '加载中...' : '加载圈子'}</Text>
                 </Button>
               </View>
-            )}
-            {isSuperAdmin && (
+            ) : null}
+            {isSuperAdmin ? (
               <Button onPress={handleLoadAllGroups} disabled={loadingGroups} variant="outline">
                 <Text>查看所有圈子</Text>
               </Button>
-            )}
+            ) : null}
           </>
         )}
       </View>
-
-      {/* 圈子信息 */}
-      {myGroup && activeTab === 'group' && (
+      {myGroup && activeTab === 'group' ? (
         <View className="px-4 py-3 bg-secondary border-b border-border">
           <Text className="font-semibold text-lg">{myGroup.group_name}</Text>
           <Text className="text-muted-foreground text-sm mt-1">{myGroup.description || '暂无描述'}</Text>
-          <Text className="text-muted-foreground text-sm mt-1">
-            成员数量: {myGroup.member_count || groupMembers?.total || 0}
-          </Text>
+          <Text className="text-muted-foreground text-sm mt-1">{`成员数量: ${myGroup.member_count || groupMembers?.total || 0}`}</Text>
         </View>
-      )}
+      ) : null}
 
-      {/* 内容区域 */}
       <ScrollView
         className="flex-1"
         refreshControl={
@@ -507,7 +498,6 @@ export const MembersView = () => {
                   ? myAdminInfo.house_gid 
                   : (houseGid ? Number(houseGid) : null);
                 if (effectiveHouseGid) {
-                  // 下拉刷新时：显示loading并更新数据
                   runListGameMembers({ house_gid: effectiveHouseGid }).then(data => {
                     if (data) setSilentMembersData(data);
                   });
@@ -518,16 +508,13 @@ export const MembersView = () => {
         }
       >
         {activeTab === 'game' ? (
-          // 游戏成员列表
           <View className="p-4">
-            {myGroup && (
+            {myGroup ? (
               <View className="mb-4 p-3 bg-secondary/50 rounded-lg">
-                <Text className="text-sm font-medium">拉入圈子: {myGroup.group_name}</Text>
-                <Text className="text-xs text-muted-foreground mt-1">
-                  点击成员卡片中的「拉入圈子」按钮即可将成员拉入您的圈子
-                </Text>
+                <Text className="text-sm font-medium">{`拉入圈子: ${myGroup.group_name}`}</Text>
+                <Text className="text-xs text-muted-foreground mt-1">点击成员卡片中的「拉入圈子」按钮即可将成员拉入您的圈子</Text>
               </View>
-            )}
+            ) : null}
             <MembersList 
               loading={loadingGameMembers && !silentMembersData} 
               data={(silentMembersData || gameMembersData)?.items}
@@ -540,7 +527,6 @@ export const MembersView = () => {
               onPullToGroup={myGroup ? handlePullToGroup : undefined}
               onRemoveFromGroup={handleRemoveFromGroup}
               onCreditChange={async () => {
-                // 上分/下分后静默刷新成员列表
                 const effectiveHouseGid = houseGid || myAdminInfo?.house_gid;
                 if (effectiveHouseGid) {
                   const response = await shopsMembersList({ house_gid: Number(effectiveHouseGid) });
@@ -550,14 +536,13 @@ export const MembersView = () => {
             />
           </View>
         ) : activeTab === 'all' ? (
-          // 所有用户列表
           <View className="p-4 gap-2">
-            {loadingUsers && !allUsers && (
+            {loadingUsers && !allUsers ? (
               <View className="py-8 items-center">
                 <ActivityIndicator size="large" />
                 <Text className="text-muted-foreground mt-2">加载中...</Text>
               </View>
-            )}
+            ) : null}
             {(allUsers?.items || []).map((user) => (
               <View
                 key={user.id}
@@ -567,25 +552,24 @@ export const MembersView = () => {
                   <View className="flex-1">
                     <View className="flex-row items-center gap-2">
                       <Text className="font-semibold">{user.nick_name || user.username}</Text>
-                      {user.role === 'store_admin' && (
+                      {user.role === 'store_admin' ? (
                         <View className="bg-primary px-2 py-0.5 rounded">
                           <Text className="text-primary-foreground text-xs">店铺管理员</Text>
                         </View>
-                      )}
-                      {user.role === 'super_admin' && (
+                      ) : null}
+                      {user.role === 'super_admin' ? (
                         <View className="bg-destructive px-2 py-0.5 rounded">
                           <Text className="text-destructive-foreground text-xs">超级管理员</Text>
                         </View>
-                      )}
+                      ) : null}
                     </View>
-                    <Text className="text-muted-foreground text-sm">ID: {user.id}</Text>
-                    {user.phone && (
-                      <Text className="text-muted-foreground text-sm">手机: {user.phone}</Text>
-                    )}
+                    <Text className="text-muted-foreground text-sm">{`ID: ${user.id}`}</Text>
+                    {user.phone ? (
+                      <Text className="text-muted-foreground text-sm">{`手机: ${user.phone}`}</Text>
+                    ) : null}
                   </View>
                   <View className="gap-2">
-                    {/* 超级管理员的管理员操作按钮 */}
-                    {isSuperAdmin && user.role !== 'super_admin' && (
+                    {isSuperAdmin && user.role !== 'super_admin' ? (
                       user.role === 'store_admin' ? (
                         <Button
                           variant="destructive"
@@ -605,10 +589,8 @@ export const MembersView = () => {
                           <Text>设为管理员</Text>
                         </Button>
                       )
-                    )}
-
-                    {/* 店铺管理员的踢出按钮 */}
-                    {isStoreAdmin && myGroup && user.role !== 'super_admin' && user.role !== 'store_admin' && isUserInGroup(user.id) && (
+                    ) : null}
+                    {isStoreAdmin && myGroup && user.role !== 'super_admin' && user.role !== 'store_admin' && isUserInGroup(user.id) ? (
                       <Button
                         variant="destructive"
                         onPress={() => handleKickUserFromGroup(user.id)}
@@ -617,18 +599,17 @@ export const MembersView = () => {
                       >
                         <Text>踢出圈子</Text>
                       </Button>
-                    )}
-                    {/* 已删除拉入圈子按钮，请使用游戏成员列表进行拉圈 */}
+                    ) : null}
                   </View>
                 </View>
               </View>
             ))}
-            {allUsers && (allUsers.items?.length || 0) === 0 && (
+            {allUsers && (allUsers.items?.length || 0) === 0 ? (
               <View className="py-8 items-center">
                 <Text className="text-muted-foreground">暂无用户</Text>
               </View>
-            )}
-            {allUsers && allUsers.total > (allUsers.items?.length || 0) && (
+            ) : null}
+            {allUsers && allUsers.total > (allUsers.items?.length || 0) ? (
               <Button
                 variant="outline"
                 onPress={() => {
@@ -639,23 +620,20 @@ export const MembersView = () => {
               >
                 <Text>加载更多</Text>
               </Button>
-            )}
+            ) : null}
           </View>
         ) : (
-          // 圈子成员列表
           <View className="p-4 gap-2">
-            {loadingGroupMembers && !groupMembers && (
+            {loadingGroupMembers && !groupMembers ? (
               <View className="py-8 items-center">
                 <ActivityIndicator size="large" />
                 <Text className="text-muted-foreground mt-2">加载中...</Text>
               </View>
-            )}
+            ) : null}
             {(groupMembers?.items || []).map((user) => {
-              // 从 introduction 字段提取 game_id (格式: "game_id:21309263")
               const gameIdMatch = (user as any).introduction?.match(/game_id:(\d+)/);
               const gameId = gameIdMatch ? parseInt(gameIdMatch[1]) : null;
-              const isUnboundUser = user.id === 0 && gameId; // 未绑定用户标记
-
+              const isUnboundUser = user.id === 0 && gameId;
               return (
                 <View
                   key={user.id || `game-${gameId}`}
@@ -671,22 +649,20 @@ export const MembersView = () => {
                               <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
                                 <Text className="text-xs text-orange-700 dark:text-orange-400">未绑定平台</Text>
                               </View>
-                              <Text className="text-xs text-muted-foreground">GameID: {gameId}</Text>
+                              <Text className="text-xs text-muted-foreground">{`GameID: ${gameId}`}</Text>
                             </View>
                           </View>
                         ) : (
                           <View className="mt-1">
-                            <Text className="text-muted-foreground text-sm">ID: {user.id}</Text>
-                            {user.phone && (
-                              <Text className="text-muted-foreground text-sm">手机: {user.phone}</Text>
-                            )}
+                            <Text className="text-muted-foreground text-sm">{`ID: ${user.id}`}</Text>
+                            {user.phone ? (
+                              <Text className="text-muted-foreground text-sm">{`手机: ${user.phone}`}</Text>
+                            ) : null}
                           </View>
                         )}
                       </View>
                     </View>
-                    {/* 操作按钮区 */}
                     <View className="flex-row gap-2 mt-2 border-t border-border pt-2">
-                      {/* 移除按钮 */}
                       <Button
                         variant="destructive"
                         onPress={() => handleRemoveMember(user.id)}
@@ -696,8 +672,7 @@ export const MembersView = () => {
                       >
                         <Text className="text-xs">移除</Text>
                       </Button>
-                      {/* 上分/下分按钮 - 需要 gameId */}
-                      {gameId && myGroup && (
+                      {gameId && myGroup ? (
                         <>
                           <Button
                             variant="default"
@@ -706,7 +681,7 @@ export const MembersView = () => {
                             onPress={() => setCreditDialog({
                               visible: true,
                               type: 'deposit',
-                              memberId: gameId, // 使用 gameId 作为 memberId
+                              memberId: gameId,
                               memberName: user.nick_name || user.username,
                               gameId: gameId
                             })}
@@ -720,7 +695,7 @@ export const MembersView = () => {
                             onPress={() => setCreditDialog({
                               visible: true,
                               type: 'withdraw',
-                              memberId: gameId, // 使用 gameId 作为 memberId
+                              memberId: gameId,
                               memberName: user.nick_name || user.username,
                               gameId: gameId
                             })}
@@ -728,27 +703,25 @@ export const MembersView = () => {
                             <Text className="text-xs">下分</Text>
                           </Button>
                         </>
-                      )}
+                      ) : null}
                     </View>
                   </View>
                 </View>
               );
             })}
-            {groupMembers && (groupMembers.items?.length || 0) === 0 && (
+            {groupMembers && (groupMembers.items?.length || 0) === 0 ? (
               <View className="py-8 items-center">
                 <Text className="text-muted-foreground">圈子暂无成员</Text>
               </View>
-            )}
-            {!myGroup && !loadingMyGroup && (
+            ) : null}
+            {!myGroup && !loadingMyGroup ? (
               <View className="py-8 items-center">
                 <Text className="text-muted-foreground">请先加载圈子</Text>
               </View>
-            )}
+            ) : null}
           </View>
         )}
-
-        {/* 超级管理员查看所有圈子 */}
-        {isSuperAdmin && activeTab === 'group' && allGroups && allGroups.length > 0 && (
+        {isSuperAdmin && activeTab === 'group' && allGroups && allGroups.length > 0 ? (
           <View className="p-4 gap-2 border-t border-border">
             <Text className="font-semibold text-lg mb-2">所有圈子</Text>
             {(allGroups || []).map((group) => (
@@ -758,16 +731,12 @@ export const MembersView = () => {
               >
                 <Text className="font-semibold">{group.group_name}</Text>
                 <Text className="text-muted-foreground text-sm">{group.description || '暂无描述'}</Text>
-                <Text className="text-muted-foreground text-sm">
-                  管理员ID: {group.admin_user_id} | 成员: {group.member_count || 0}
-                </Text>
+                <Text className="text-muted-foreground text-sm">{`管理员ID: ${group.admin_user_id} | 成员: ${group.member_count || 0}`}</Text>
               </View>
             ))}
           </View>
-        )}
+        ) : null}
       </ScrollView>
-
-      {/* 设置店铺管理员弹框 */}
       <SetShopAdminModal
         visible={showSetAdminModal}
         onClose={() => {
@@ -778,9 +747,7 @@ export const MembersView = () => {
         userName={selectedUserForAdmin?.name || ''}
         loading={assigningAdmin}
       />
-
-      {/* 上分/下分对话框 */}
-      {creditDialog && myGroup && (
+      {creditDialog && myGroup ? (
         <CreditDialog
           visible={creditDialog.visible}
           type={creditDialog.type}
@@ -790,13 +757,12 @@ export const MembersView = () => {
           onClose={() => setCreditDialog(null)}
           onSuccess={() => {
             setCreditDialog(null);
-            // 刷新圈子成员列表
             if (myGroup) {
               runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
             }
           }}
         />
-      )}
+      ) : null}
     </View>
   );
 };
