@@ -3,20 +3,47 @@ import { View, FlatList } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Loading } from '@/components/shared/loading';
 import { CreditDialog } from '@/components/(shop)/members/credit-dialog';
+import { shopsMembersUpdateRemark } from '@/services/shops/members';
+import { useRequest } from '@/hooks/use-request';
 
 type MembersListProps = {
   loading: boolean;
   data?: API.ShopsMemberItem[];
   houseGid?: number;
+  myGroupId?: number; // 店铺管理员的圈子ID，用于判断是否可以上分下分
   onPullToGroup?: (gamePlayerID: string, memberName: string, currentGroupName?: string) => void;
   onRemoveFromGroup?: (gamePlayerID: string, memberName: string, currentGroupName: string) => void;
   onCreditChange?: () => void; // 上分/下分后的回调
 };
 
-export const MembersList = ({ loading, data, houseGid, onPullToGroup, onRemoveFromGroup, onCreditChange }: MembersListProps) => {
+export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup, onRemoveFromGroup, onCreditChange }: MembersListProps) => {
   const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; memberId: number; memberName: string } | null>(null);
+  const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
+  const [remarkValues, setRemarkValues] = useState<Record<string, string>>({});
+  const { run: updateRemarkRun } = useRequest(shopsMembersUpdateRemark, { manual: true });
+
+  // 处理备注编辑
+  const handleEditRemark = (gamePlayerId: string, currentRemark: string) => {
+    setEditingRemarkId(gamePlayerId);
+    setRemarkValues(prev => ({ ...prev, [gamePlayerId]: currentRemark || '' }));
+  };
+
+  // 保存备注
+  const handleSaveRemark = async (gamePlayerId: string) => {
+    if (!houseGid) return;
+    const remark = remarkValues[gamePlayerId] || '';
+    await updateRemarkRun({ house_gid: houseGid, game_player_id: gamePlayerId, remark });
+    setEditingRemarkId(null);
+    onCreditChange?.(); // 刷新列表
+  };
+
+  // 取消编辑
+  const handleCancelRemark = () => {
+    setEditingRemarkId(null);
+  };
 
   if (loading) return <Loading text="加载中..." />;
 
@@ -69,6 +96,14 @@ export const MembersList = ({ loading, data, houseGid, onPullToGroup, onRemoveFr
                       </View>
                     )}
                   </View>
+                  {/* 备注显示 */}
+                  {item.remark && (
+                    <View className="mt-1">
+                      <Text className="text-xs text-muted-foreground">
+                        💬 {item.remark}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View className="ml-2">
                   {item.member_type === 2 && (
@@ -120,6 +155,51 @@ export const MembersList = ({ loading, data, houseGid, onPullToGroup, onRemoveFr
                 </View>
               )}
 
+              {/* 备注编辑区 - 独立显示 */}
+              {item.game_player_id && houseGid && (
+                <View className="mt-2 border-t border-border pt-2">
+                  {editingRemarkId === item.game_player_id ? (
+                    <View className="mb-2 gap-2">
+                      <Input
+                        value={remarkValues[item.game_player_id] || ''}
+                        onChangeText={(text) => setRemarkValues(prev => ({ ...prev, [item.game_player_id!]: text }))}
+                        placeholder="输入备注"
+                      />
+                      <View className="flex-row gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1"
+                          onPress={() => handleSaveRemark(item.game_player_id!)}
+                        >
+                          <Text className="text-xs">保存备注</Text>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onPress={handleCancelRemark}
+                        >
+                          <Text className="text-xs">取消</Text>
+                        </Button>
+                      </View>
+                    </View>
+                  ) : (
+                    <View className="mb-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onPress={() => handleEditRemark(item.game_player_id!, item.remark || '')}
+                      >
+                        <Text className="text-xs">
+                          {item.remark ? '✏️ 编辑备注' : '➕ 添加备注'}
+                        </Text>
+                      </Button>
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* 操作按钮区 */}
               {item.game_player_id && (onPullToGroup || onRemoveFromGroup || houseGid) && (
                 <View className="mt-2 border-t border-border pt-2">
@@ -158,8 +238,8 @@ export const MembersList = ({ loading, data, houseGid, onPullToGroup, onRemoveFr
                       )}
                     </View>
                   )}
-                  {/* 资金操作按钮 */}
-                  {houseGid && item.member_id && (
+                  {/* 资金操作按钮 - 只对自己圈子的成员显示 */}
+                  {houseGid && item.member_id && myGroupId && item.current_group_id === myGroupId && (
                     <View className="flex-row gap-2">
                       <Button
                         variant="default"

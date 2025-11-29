@@ -23,25 +23,30 @@ export const GameApplicationList = ({ houseGid }: GameApplicationListProps) => {
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   // 加载申请列表
-  const loadApplications = async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
+  const loadApplications = async (isRefresh = false, isSilent = false) => {
+    // 静默刷新时不显示任何loading状态
+    if (!isSilent) {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
     }
 
     try {
       const res = await listGameApplications({ house_gid: houseGid });
-      if (res.code === 0) {
-        setApplications(res.data || []);
-      } else {
-        showToast(res.msg || '加载失败', 'error');
+      // request 函数在 code !== 0 时会抛异常，所以这里能执行到说明一定成功
+      setApplications(res.data || []);
+    } catch (error: any) {
+      if (!isSilent) {
+        showToast(error.message || '加载失败', 'error');
       }
-    } catch (error) {
-      showToast('加载失败', 'error');
+      console.error('加载申请列表失败:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!isSilent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -49,19 +54,16 @@ export const GameApplicationList = ({ houseGid }: GameApplicationListProps) => {
   const handleApprove = async (messageId: number) => {
     setProcessingId(messageId);
     try {
-      const res = await approveGameApplication({
+      await approveGameApplication({
         house_gid: houseGid,
         message_id: messageId,
       });
-      if (res.code === 0) {
-        showToast('已通过申请', 'success');
-        // 立即刷新列表
-        loadApplications(true);
-      } else {
-        showToast(res.msg || '操作失败', 'error');
-      }
-    } catch (error) {
-      showToast('操作失败', 'error');
+      // request 函数在 code !== 0 时会抛异常，所以执行到这里说明成功
+      showToast('已通过申请', 'success');
+      // 静默刷新列表（不显示loading）
+      await loadApplications(false, true);
+    } catch (error: any) {
+      showToast(error.message || '操作失败', 'error');
     } finally {
       setProcessingId(null);
     }
@@ -71,19 +73,16 @@ export const GameApplicationList = ({ houseGid }: GameApplicationListProps) => {
   const handleReject = async (messageId: number) => {
     setProcessingId(messageId);
     try {
-      const res = await rejectGameApplication({
+      await rejectGameApplication({
         house_gid: houseGid,
         message_id: messageId,
       });
-      if (res.code === 0) {
-        showToast('已拒绝申请', 'success');
-        // 立即刷新列表
-        loadApplications(true);
-      } else {
-        showToast(res.msg || '操作失败', 'error');
-      }
-    } catch (error) {
-      showToast('操作失败', 'error');
+      // request 函数在 code !== 0 时会抛异常，所以执行到这里说明成功
+      showToast('已拒绝申请', 'success');
+      // 静默刷新列表（不显示loading）
+      await loadApplications(false, true);
+    } catch (error: any) {
+      showToast(error.message || '操作失败', 'error');
     } finally {
       setProcessingId(null);
     }

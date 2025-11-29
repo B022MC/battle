@@ -67,6 +67,10 @@ export const MembersView = () => {
   const { run: runPullToGroup } = useRequest(pullMembersToGroup, { manual: true });
   const { run: runRemoveFromGroup } = useRequest(removeFromGroup, { manual: true });
   const houseRef = useRef<TriggerRef>(null);
+  
+  // 无感刷新：独立管理成员数据
+  const [silentMembersData, setSilentMembersData] = useState<API.ShopsMembersList | undefined>(undefined);
+  const isInitialLoadRef = useRef(true); // 跟踪是否是首次加载
 
   function onHouseTouchStart() {
     isWeb && houseRef.current?.open();
@@ -93,6 +97,9 @@ export const MembersView = () => {
       description: confirmMsg,
       confirmText: '确定',
       cancelText: '取消',
+      onCancel: () => {
+        // 用户取消操作
+      },
       onConfirm: async () => {
         try {
           if (!myAdminInfo?.house_gid) {
@@ -106,8 +113,9 @@ export const MembersView = () => {
             game_player_ids: [gamePlayerID]
           });
           alert.show({ title: '拉圈成功' });
-          // 刷新成员列表
-          runListGameMembers({ house_gid: myAdminInfo.house_gid });
+          // 静默刷新成员列表
+          const response = await shopsMembersList({ house_gid: myAdminInfo.house_gid });
+          if (response?.data) setSilentMembersData(response.data);
         } catch (err: any) {
           console.error('拉圈失败:', err);
           alert.show({ title: '拉圈失败', description: err.message || '未知错误' });
@@ -123,6 +131,9 @@ export const MembersView = () => {
       description: `确定要将 ${memberName} 从「${currentGroupName}」中移除吗？`,
       confirmText: '确定',
       cancelText: '取消',
+      onCancel: () => {
+        // 用户取消操作
+      },
       onConfirm: async () => {
         try {
           if (!myAdminInfo?.house_gid) {
@@ -135,8 +146,9 @@ export const MembersView = () => {
             game_player_ids: [gamePlayerID]
           });
           alert.show({ title: '踢出圈子成功' });
-          // 刷新成员列表
-          runListGameMembers({ house_gid: myAdminInfo.house_gid });
+          // 静默刷新成员列表
+          const response = await shopsMembersList({ house_gid: myAdminInfo.house_gid });
+          if (response?.data) setSilentMembersData(response.data);
         } catch (err: any) {
           console.error('踢出圈子失败:', err);
           alert.show({ title: '踢出圈子失败', description: err.message || '未知错误' });
@@ -168,15 +180,62 @@ export const MembersView = () => {
     }
   }, [isStoreAdmin]); // 只依赖 isStoreAdmin，避免重复调用
 
+  // "所有用户"标签页自动加载
+  React.useEffect(() => {
+    if (activeTab === 'all') {
+      // 进入"所有用户"标签时自动加载
+      handleLoadUsers();
+    }
+  }, [activeTab]);
+
+  // 游戏成员列表自动刷新（每10秒）- 无感刷新
+  React.useEffect(() => {
+    if (activeTab !== 'game') return;
+
+    const effectiveHouseGid = isStoreAdmin && myAdminInfo?.house_gid 
+      ? myAdminInfo.house_gid 
+      : (houseGid ? Number(houseGid) : null);
+
+    if (!effectiveHouseGid) return;
+
+    // 首次加载：显示loading状态
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      runListGameMembers({ house_gid: effectiveHouseGid }).then((data) => {
+        if (data) setSilentMembersData(data);
+      });
+    }
+
+    // 设置定时静默刷新（每10秒）
+    const intervalId = setInterval(async () => {
+      try {
+        // 静默刷新：直接调用API，不触发loading
+        const response = await shopsMembersList({ house_gid: effectiveHouseGid });
+        if (response?.data) {
+          setSilentMembersData(response.data);
+        }
+      } catch (error) {
+        // 静默失败，不显示错误提示
+        console.error('Silent refresh failed:', error);
+      }
+    }, 10000);
+
+    // 清理定时器
+    return () => {
+      clearInterval(intervalId);
+      isInitialLoadRef.current = true; // 重置标志
+    };
+  }, [activeTab, houseGid, myAdminInfo?.house_gid, isStoreAdmin]);
+
   // 加载我的圈子（手动触发，用于超级管理员）
   const handleLoadMyGroup = async () => {
     if (!houseGid) {
-      alert.show({ title: '请输入店铺号', variant: 'error' });
+      alert.show({ title: '请输入店铺号' });
       return;
     }
     const gid = Number(houseGid);
     if (isNaN(gid) || gid <= 0) {
-      alert.show({ title: '店铺号格式错误', variant: 'error' });
+      alert.show({ title: '店铺号格式错误' });
       return;
     }
 
@@ -195,12 +254,12 @@ export const MembersView = () => {
   // 加载所有圈子（超级管理员）
   const handleLoadAllGroups = async () => {
     if (!houseGid) {
-      alert.show({ title: '请输入店铺号', variant: 'error' });
+      alert.show({ title: '请输入店铺号' });
       return;
     }
     const gid = Number(houseGid);
     if (isNaN(gid) || gid <= 0) {
-      alert.show({ title: '店铺号格式错误', variant: 'error' });
+      alert.show({ title: '店铺号格式错误' });
       return;
     }
 
@@ -213,7 +272,7 @@ export const MembersView = () => {
 
     try {
       await runRemoveMember({ group_id: myGroup.id, user_id: userId });
-      alert.show({ title: '移除成功', variant: 'success' });
+      alert.show({ title: '移除成功' });
       // 重新加载圈子成员
       await runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
     } catch (error: any) {
@@ -234,7 +293,7 @@ export const MembersView = () => {
 
     try {
       await runAssignAdmin({ house_gid: houseGid, user_id: selectedUserForAdmin.id, role: 'admin' });
-      alert.show({ title: '设置成功', variant: 'success' });
+      alert.show({ title: '设置成功' });
       setShowSetAdminModal(false);
       setSelectedUserForAdmin(null);
       // 重新加载用户列表
@@ -250,7 +309,7 @@ export const MembersView = () => {
     try {
       // 不传 house_gid，后端会自动查找
       await runRevokeAdmin({ house_gid: 0, user_id: userId });
-      alert.show({ title: '移除成功', variant: 'success' });
+      alert.show({ title: '移除成功' });
       // 重新加载用户列表
       await handleLoadUsers();
     } catch (error: any) {
@@ -279,7 +338,7 @@ export const MembersView = () => {
 
     try {
       await runRemoveMember({ group_id: myGroup.id, user_id: userId });
-      alert.show({ title: '踢出成功', variant: 'success' });
+      alert.show({ title: '踢出成功' });
       // 重新加载圈子成员
       await runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
     } catch (error: any) {
@@ -343,9 +402,11 @@ export const MembersView = () => {
                   onPress={() => {
                     const gid = Number(houseGid);
                     if (gid > 0) {
-                      runListGameMembers({ house_gid: gid });
+                      runListGameMembers({ house_gid: gid }).then(data => {
+                        if (data) setSilentMembersData(data);
+                      });
                     } else {
-                      alert.show({ title: '请选择店铺号', variant: 'error' });
+                      alert.show({ title: '请选择店铺号' });
                     }
                   }}
                   disabled={loadingGameMembers}
@@ -356,7 +417,11 @@ export const MembersView = () => {
             )}
             {isStoreAdmin && myAdminInfo && myAdminInfo.house_gid && (
               <Button
-                onPress={() => runListGameMembers({ house_gid: myAdminInfo.house_gid! })}
+                onPress={() => {
+                  runListGameMembers({ house_gid: myAdminInfo.house_gid! }).then(data => {
+                    if (data) setSilentMembersData(data);
+                  });
+                }}
                 disabled={loadingGameMembers}
                 variant="default"
               >
@@ -432,16 +497,20 @@ export const MembersView = () => {
         refreshControl={
           <RefreshControl
             refreshing={loadingUsers || loadingGroupMembers || loadingGameMembers}
-            onRefresh={() => {
+            onRefresh={async () => {
               if (activeTab === 'all') {
                 handleLoadUsers();
               } else if (activeTab === 'group' && myGroup) {
                 runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
               } else if (activeTab === 'game') {
-                if (isStoreAdmin && myAdminInfo && myAdminInfo.house_gid) {
-                  runListGameMembers({ house_gid: myAdminInfo.house_gid });
-                } else if (houseGid) {
-                  runListGameMembers({ house_gid: Number(houseGid) });
+                const effectiveHouseGid = isStoreAdmin && myAdminInfo?.house_gid 
+                  ? myAdminInfo.house_gid 
+                  : (houseGid ? Number(houseGid) : null);
+                if (effectiveHouseGid) {
+                  // 下拉刷新时：显示loading并更新数据
+                  runListGameMembers({ house_gid: effectiveHouseGid }).then(data => {
+                    if (data) setSilentMembersData(data);
+                  });
                 }
               }
             }}
@@ -460,16 +529,22 @@ export const MembersView = () => {
               </View>
             )}
             <MembersList 
-              loading={loadingGameMembers} 
-              data={gameMembersData?.items}
-              houseGid={houseGid ? Number(houseGid) : undefined}
+              loading={loadingGameMembers && !silentMembersData} 
+              data={(silentMembersData || gameMembersData)?.items}
+              houseGid={
+                isStoreAdmin && myAdminInfo?.house_gid 
+                  ? myAdminInfo.house_gid 
+                  : (houseGid ? Number(houseGid) : undefined)
+              }
+              myGroupId={myGroup?.id}
               onPullToGroup={myGroup ? handlePullToGroup : undefined}
               onRemoveFromGroup={handleRemoveFromGroup}
-              onCreditChange={() => {
-                // 上分/下分后刷新成员列表
+              onCreditChange={async () => {
+                // 上分/下分后静默刷新成员列表
                 const effectiveHouseGid = houseGid || myAdminInfo?.house_gid;
                 if (effectiveHouseGid) {
-                  runListGameMembers({ house_gid: Number(effectiveHouseGid) });
+                  const response = await shopsMembersList({ house_gid: Number(effectiveHouseGid) });
+                  if (response?.data) setSilentMembersData(response.data);
                 }
               }}
             />

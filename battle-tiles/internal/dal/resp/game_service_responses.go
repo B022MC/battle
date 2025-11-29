@@ -72,6 +72,13 @@ type ShopMemberListItem struct {
 	GamePlayerID     string `json:"game_player_id,omitempty"`     // 游戏玩家ID（用于拉圈，等同于 game_id）
 	CurrentGroupID   *int32 `json:"current_group_id,omitempty"`   // 当前所在圈子ID
 	CurrentGroupName string `json:"current_group_name,omitempty"` // 当前所在圈子名称
+
+	// 置顶和排序字段
+	IsPinned bool  `json:"is_pinned"` // 是否置顶
+	PinOrder int32 `json:"pin_order"` // 置顶排序（数字越小越靠前）
+
+	// 管理员备注
+	Remark string `json:"remark"` // 管理员对该成员的备注
 }
 
 // UserInfo 用户信息响应（过滤敏感字段）

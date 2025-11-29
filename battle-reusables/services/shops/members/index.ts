@@ -43,3 +43,15 @@ export function shopsMembersRulesMulti(data: API.ShopsMembersRulesMultiParams) {
 export function shopsMembersRulesTempRelease(data: API.ShopsMembersRulesTempReleaseParams) {
   return post<null>('/shops/members/rules/temp_release', data);
 }
+
+export function shopsMembersPin(data: API.ShopsMembersPinParams) {
+  return post<null>('/shops/members/pin', data);
+}
+
+export function shopsMembersUnpin(data: API.ShopsMembersUnpinParams) {
+  return post<null>('/shops/members/unpin', data);
+}
+
+export function shopsMembersUpdateRemark(data: API.ShopsMembersUpdateRemarkParams) {
+  return post<null>('/shops/members/update-remark', data);
+}

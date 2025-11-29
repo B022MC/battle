@@ -3,7 +3,6 @@ import {
   CircleDashedIcon,
   HomeIcon,
   UsersIcon,
-  WalletIcon,
   UserCircleIcon,
   StoreIcon
 } from 'lucide-react-native';
@@ -27,7 +26,6 @@ export default function TabLayout() {
   const canViewStats = hasAny(['stats:view']);
   const canViewTables = hasAny(['shop:table:view']);
   const canViewMembers = hasAny(['shop:member:view']);
-  const canViewFunds = hasAny(['fund:wallet:view']);
 
   return (
     <Tabs
@@ -63,15 +61,6 @@ export default function TabLayout() {
           tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="成员" />,
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={UsersIcon} />,
           href: canViewMembers ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="funds"
-        options={{
-          title: '资金',
-          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="资金" />,
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={WalletIcon} />,
-          href: canViewFunds ? undefined : null,
         }}
       />
       <Tabs.Screen

@@ -19,6 +19,9 @@ type GameMember struct {
 	Recommender  string    `gorm:"column:recommender;type:varchar(64);default:''" json:"recommender"`
 	UseMultiGids bool      `gorm:"column:use_multi_gids;default:false" json:"use_multi_gids"`
 	ActiveGid    *int32    `gorm:"column:active_gid" json:"active_gid"`
+	IsPinned     bool      `gorm:"column:is_pinned;default:false;index:idx_game_member_pinned" json:"is_pinned"` // 是否置顶
+	PinOrder     int32     `gorm:"column:pin_order;default:0;index:idx_game_member_pin_order" json:"pin_order"`  // 置顶排序（数字越小越靠前）
+	Remark       string    `gorm:"column:remark;type:varchar(255);default:''" json:"remark"`                     // 管理员备注
 	CreatedAt    time.Time `gorm:"autoCreateTime;column:created_at;type:timestamp with time zone;not null" json:"created_at"`
 	UpdatedAt    time.Time `gorm:"autoUpdateTime;column:updated_at;type:timestamp with time zone;not null" json:"updated_at"`
 }

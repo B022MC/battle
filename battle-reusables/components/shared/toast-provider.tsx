@@ -273,7 +273,8 @@ function ConfirmDialog({ options, onClose }: { options: ConfirmOptions; onClose:
             </View>
 
             <View className="flex-row justify-end gap-4">
-              {options.onCancel !== undefined && (
+              {/* 只要有确认按钮，就显示取消按钮 */}
+              {options.onConfirm !== undefined && (
                 <Pressable
                   onPress={handleCancel}
                   disabled={loading}

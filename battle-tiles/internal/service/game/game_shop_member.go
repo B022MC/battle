@@ -14,6 +14,7 @@ import (
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,9 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/pull", middleware.RequirePerm("shop:member:view"), s.PullMembers)
 	g.POST("/members/pull-to-group", middleware.RequirePerm("shop:member:update"), s.PullToGroup)
 	g.POST("/members/remove-from-group", middleware.RequirePerm("shop:member:kick"), s.RemoveFromGroup)
+	g.POST("/members/pin", middleware.RequirePerm("shop:member:update"), s.PinMember)
+	g.POST("/members/unpin", middleware.RequirePerm("shop:member:update"), s.UnpinMember)
+	g.POST("/members/update-remark", middleware.RequirePerm("shop:member:update"), s.UpdateRemark)
 	// 平台侧：按圈主返回“我圈子的成员”（基于已通过的入圈申请）
 	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
 	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
@@ -496,11 +500,41 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 					item.GroupID = int(*member.GroupID)
 					item.GroupName = &member.GroupName
 				}
+				// 设置置顶信息
+				item.IsPinned = member.IsPinned
+				item.PinOrder = member.PinOrder
+				// 设置备注信息
+				item.Remark = member.Remark
 			}
 		}
 
 		out = append(out, item)
 	}
+
+	// 多级排序：置顶 > 在线状态 > 圈子ID
+	sort.Slice(out, func(i, j int) bool {
+		// 1. 置顶优先（置顶的在前面）
+		if out[i].IsPinned != out[j].IsPinned {
+			return out[i].IsPinned // true > false
+		}
+		// 2. 如果都是置顶，按置顶顺序排序（数字越小越靠前）
+		if out[i].IsPinned && out[j].IsPinned {
+			if out[i].PinOrder != out[j].PinOrder {
+				return out[i].PinOrder < out[j].PinOrder
+			}
+		}
+		// 3. 在线状态优先（UserStatus: 0=离线, 1=在线）
+		if out[i].UserStatus != out[j].UserStatus {
+			return out[i].UserStatus > out[j].UserStatus
+		}
+		// 4. 按圈子ID排序（同一个圈子的成员聚在一起）
+		if out[i].GroupID != out[j].GroupID {
+			return out[i].GroupID < out[j].GroupID
+		}
+		// 5. 最后按成员ID排序（保持稳定性）
+		return out[i].MemberID < out[j].MemberID
+	})
+
 	response.Success(c, resp.ShopMemberListResponse{Items: out})
 }
 
@@ -887,4 +921,61 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 		"count":        successCount,
 		"kicked_count": kickedCount,
 	})
+}
+
+// PinMember 置顶成员
+// POST /api/shops/members/pin
+func (s *GameShopMemberService) PinMember(c *gin.Context) {
+	var in struct {
+		HouseGID     int32  `json:"house_gid" binding:"required"`      // 店铺ID
+		GamePlayerID string `json:"game_player_id" binding:"required"` // 游戏玩家ID
+		PinOrder     int32  `json:"pin_order"`                         // 置顶顺序（可选，默认为0）
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	// 转换 GamePlayerID 为 int32
+	var gameID int32
+	if _, err := fmt.Sscanf(in.GamePlayerID, "%d", &gameID); err != nil {
+		response.Fail(c, ecode.ParamsFailed, "invalid game_player_id")
+		return
+	}
+
+	// 设置置顶状态
+	if err := s.gameMember.SetPinStatus(c.Request.Context(), in.HouseGID, gameID, true, in.PinOrder); err != nil {
+		response.Fail(c, ecode.Failed, fmt.Sprintf("设置置顶失败: %v", err))
+		return
+	}
+
+	response.SuccessWithOK(c)
+}
+
+// UnpinMember 取消置顶成员
+// POST /api/shops/members/unpin
+func (s *GameShopMemberService) UnpinMember(c *gin.Context) {
+	var in struct {
+		HouseGID     int32  `json:"house_gid" binding:"required"`      // 店铺ID
+		GamePlayerID string `json:"game_player_id" binding:"required"` // 游戏玩家ID
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	// 转换 GamePlayerID 为 int32
+	var gameID int32
+	if _, err := fmt.Sscanf(in.GamePlayerID, "%d", &gameID); err != nil {
+		response.Fail(c, ecode.ParamsFailed, "invalid game_player_id")
+		return
+	}
+
+	// 取消置顶状态
+	if err := s.gameMember.SetPinStatus(c.Request.Context(), in.HouseGID, gameID, false, 0); err != nil {
+		response.Fail(c, ecode.Failed, fmt.Sprintf("取消置顶失败: %v", err))
+		return
+	}
+
+	response.SuccessWithOK(c)
 }

@@ -54,7 +54,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
                 ) : null}
                 {(current.onConfirm || current.onCancel) && (
                   <View className="mt-3 flex-row justify-end gap-2">
-                    {current.onCancel && (
+                    {/* 只要有确认按钮，就显示取消按钮 */}
+                    {current.onConfirm && (
                       <Pressable
                         className="rounded-md border border-border px-3 py-2 active:bg-accent"
                         onPress={() => {

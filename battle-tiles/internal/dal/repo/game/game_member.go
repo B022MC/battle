@@ -45,6 +45,12 @@ type GameMemberRepo interface {
 
 	// 删除成员（通过 game_id 删除）
 	DeleteByGameID(ctx context.Context, houseGID int32, gameID int32) error
+
+	// 设置成员置顶状态
+	SetPinStatus(ctx context.Context, houseGID int32, gameID int32, isPinned bool, pinOrder int32) error
+
+	// 更新成员备注
+	UpdateRemark(ctx context.Context, houseGID int32, gameID int32, remark string) error
 }
 
 type gameMemberRepo struct {
@@ -252,4 +258,21 @@ func (r *gameMemberRepo) DeleteByGameID(ctx context.Context, houseGID int32, gam
 	return r.db(ctx).
 		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
 		Delete(&model.GameMember{}).Error
+}
+
+// SetPinStatus 设置成员置顶状态
+func (r *gameMemberRepo) SetPinStatus(ctx context.Context, houseGID int32, gameID int32, isPinned bool, pinOrder int32) error {
+	return r.db(ctx).Model(&model.GameMember{}).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		Updates(map[string]interface{}{
+			"is_pinned": isPinned,
+			"pin_order": pinOrder,
+		}).Error
+}
+
+// UpdateRemark 更新成员备注
+func (r *gameMemberRepo) UpdateRemark(ctx context.Context, houseGID int32, gameID int32, remark string) error {
+	return r.db(ctx).Model(&model.GameMember{}).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		Update("remark", remark).Error
 }

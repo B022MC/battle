@@ -20,6 +20,11 @@ declare namespace API {
     game_player_id?: string; // 游戏玩家ID（用于拉圈）
     current_group_id?: number; // 当前所在圈子ID
     current_group_name?: string; // 当前所在圈子名称
+    // 置顶功能字段
+    is_pinned?: boolean; // 是否置顶
+    pin_order?: number; // 置顶排序（数字越小越靠前）
+    // 备注功能字段
+    remark?: string; // 管理员备注
   };
 
   type ShopsMembersList = { items?: ShopsMemberItem[] };
@@ -42,5 +47,22 @@ declare namespace API {
     house_gid: number;
     member_id: number;
     limit: number;
+  };
+
+  type ShopsMembersPinParams = {
+    house_gid: number;
+    game_player_id: string;
+    pin_order?: number; // 置顶顺序（可选，默认为0）
+  };
+
+  type ShopsMembersUnpinParams = {
+    house_gid: number;
+    game_player_id: string;
+  };
+
+  type ShopsMembersUpdateRemarkParams = {
+    house_gid: number;
+    game_player_id: string;
+    remark: string; // 备注内容
   };
 }
