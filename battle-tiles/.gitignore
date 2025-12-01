@@ -32,6 +32,9 @@ Thumbs.db
 *.log
 bin/
 
+# Config files with sensitive data
+configs/config.yaml
+
 # Develop tools
 .vscode/
 .idea/
