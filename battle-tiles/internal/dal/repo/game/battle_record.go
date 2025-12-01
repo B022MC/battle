@@ -405,21 +405,28 @@ func (r *battleRecordRepo) GetHouseStatsDetail(ctx context.Context, houseGID int
 	stats.RechargeXia = rechargeXia.Total
 
 	// 3. 获取余额统计（待提/欠费）
+	// 从每个玩家最新的战绩记录中获取余额
+	// 使用子查询获取每个玩家的最新战绩记录ID
+	subQuery := r.db(ctx).Model(&model.GameBattleRecord{}).
+		Select("MAX(id) as latest_id").
+		Where("house_gid = ?", houseGID).
+		Group("player_game_id")
+
 	// 待提：正余额总和
 	var balancePay struct{ Total int }
-	if err := r.db(ctx).Model(&model.GameAccount{}).
-		Where("house_gid = ? AND balance > 0", houseGID).
-		Select("COALESCE(SUM(balance), 0) as total").
+	if err := r.db(ctx).Model(&model.GameBattleRecord{}).
+		Where("id IN (?) AND player_balance > 0", subQuery).
+		Select("COALESCE(SUM(player_balance), 0) as total").
 		Scan(&balancePay).Error; err != nil {
 		return nil, err
 	}
 	stats.BalancePay = balancePay.Total
 
-	// 欠费：负余额总和
+	// 欠费：负余额总和（取绝对值）
 	var balanceTake struct{ Total int }
-	if err := r.db(ctx).Model(&model.GameAccount{}).
-		Where("house_gid = ? AND balance < 0", houseGID).
-		Select("COALESCE(SUM(balance), 0) as total").
+	if err := r.db(ctx).Model(&model.GameBattleRecord{}).
+		Where("id IN (?) AND player_balance < 0", subQuery).
+		Select("COALESCE(SUM(ABS(player_balance)), 0) as total").
 		Scan(&balanceTake).Error; err != nil {
 		return nil, err
 	}
@@ -548,14 +555,14 @@ func (r *battleRecordRepo) calculateGroupFeePayoffs(ctx context.Context, houseGI
 
 	feeDB := r.db(ctx).Model(&model.GameFeeSettle{}).
 		Where("house_gid = ?", houseGID).
-		Select("play_group, COALESCE(SUM(fee_amount), 0) as total_fee").
+		Select("play_group, COALESCE(SUM(amount), 0) as total_fee").
 		Group("play_group")
 
 	if start != nil {
-		feeDB = feeDB.Where("settled_at >= ?", *start)
+		feeDB = feeDB.Where("feed_at >= ?", *start)
 	}
 	if end != nil {
-		feeDB = feeDB.Where("settled_at < ?", *end)
+		feeDB = feeDB.Where("feed_at < ?", *end)
 	}
 
 	if err := feeDB.Find(&results).Error; err != nil {

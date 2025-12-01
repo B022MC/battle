@@ -16,16 +16,24 @@ const config = {
             target: 'http://127.0.0.1:8000',
             changeOrigin: true,
             pathRewrite: { '^/web': '/' },
+            timeout: 30000, // 30秒超时
+            proxyTimeout: 30000,
+            followRedirects: true,
             onProxyReq: (proxyReq, req, res) => {
               console.log(`[Proxy] Forwarding to: ${proxyReq.path}`);
+              // 设置请求头，防止连接过早关闭
+              proxyReq.setHeader('Connection', 'keep-alive');
             },
             onProxyRes: (proxyRes, req, res) => {
               console.log(`[Proxy] Response status: ${proxyRes.statusCode}`);
             },
             onError: (err, req, res) => {
               console.error('[Proxy] Error:', err.message);
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ code: -1, msg: `Proxy error: ${err.message}` }));
+              // 检查响应是否已经发送
+              if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ code: -1, msg: `Proxy error: ${err.message}` }));
+              }
             },
           })(req, res, next);
         }
