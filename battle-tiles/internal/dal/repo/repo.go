@@ -40,6 +40,7 @@ var ProviderSet = wire.NewSet(
 	game.NewBattleRecordRepo,
 	game.NewShopGroupRepo,
 	game.NewShopGroupMemberRepo,
+	game.NewRoomCreditLimitRepo, // 保留：用于玩家坐下时检查额度
 	game.NewGameMemberRepo,
 	game.NewShopApplicationLogRepo,
 	rbac.NewStore,

@@ -39,7 +39,7 @@ func (r *houseSettingsRepo) Upsert(ctx context.Context, in *model.GameHouseSetti
 
 func (r *houseSettingsRepo) Get(ctx context.Context, houseGID int32) (*model.GameHouseSettings, error) {
 	var m model.GameHouseSettings
-	if err := r.db(ctx).Where("house_gid = ?", houseGID).First(&m).Error; err != nil {
+	if err := r.db(ctx).Where("house_gid = ?", houseGID).First(&m).Error; err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 	return &m, nil

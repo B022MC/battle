@@ -19,14 +19,12 @@ echo "======================================${NC}"
 
 cd /Users/b022mc/project/battle/battle-reusables
 
-# 1. 检查构建产物
-if [ ! -d "web-build" ]; then
-    echo -e "${YELLOW}构建产物不存在，开始构建...${NC}"
-    npm install
-    npm run build:web
-fi
+# 1. 强制重新构建（确保部署最新代码）
+echo -e "${YELLOW}开始构建最新代码...${NC}"
+rm -rf web-build
+npm run build:web
 
-echo -e "${GREEN}✓ 构建产物已准备${NC}"
+echo -e "${GREEN}✓ 构建完成${NC}"
 
 # 2. 打包
 echo ""

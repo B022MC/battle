@@ -24,15 +24,30 @@ func (uc *HouseSettingsUseCase) Get(ctx context.Context, houseGID int32) (*model
 }
 
 func (uc *HouseSettingsUseCase) SetFees(ctx context.Context, opUser int32, houseGID int32, feesJSON string) error {
-	return uc.repo.Upsert(ctx, &model.GameHouseSettings{HouseGID: houseGID, FeesJSON: feesJSON, UpdatedBy: opUser})
+	return uc.repo.Upsert(ctx, &model.GameHouseSettings{
+		HouseGID:  houseGID,
+		FeesJSON:  feesJSON,
+		UpdatedBy: opUser,
+		UpdatedAt: time.Now(),
+	})
 }
 
 func (uc *HouseSettingsUseCase) SetShareFee(ctx context.Context, opUser int32, houseGID int32, share bool) error {
-	return uc.repo.Upsert(ctx, &model.GameHouseSettings{HouseGID: houseGID, ShareFee: share, UpdatedBy: opUser})
+	return uc.repo.Upsert(ctx, &model.GameHouseSettings{
+		HouseGID:  houseGID,
+		ShareFee:  share,
+		UpdatedBy: opUser,
+		UpdatedAt: time.Now(),
+	})
 }
 
 func (uc *HouseSettingsUseCase) SetPushCredit(ctx context.Context, opUser int32, houseGID int32, credit int32) error {
-	return uc.repo.Upsert(ctx, &model.GameHouseSettings{HouseGID: houseGID, PushCredit: credit, UpdatedBy: opUser})
+	return uc.repo.Upsert(ctx, &model.GameHouseSettings{
+		HouseGID:   houseGID,
+		PushCredit: credit,
+		UpdatedBy:  opUser,
+		UpdatedAt:  time.Now(),
+	})
 }
 
 // ---- Fee Settle ----

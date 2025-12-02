@@ -33,4 +33,6 @@ var ProviderSet = wire.NewSet(
 	game.NewMemberUseCase,
 	game.NewBattleQueryUseCase,
 	game.NewBalanceQueryUseCase,
+	game.NewRoomCreditLimitUseCase, // 保留：用于玩家坐下时检查额度
+	game.NewRoomCreditEventHandler, // 保留：用于玩家坐下时检查额度
 )

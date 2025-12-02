@@ -35,5 +35,6 @@ var ProviderSet = wire.NewSet(
 	game.NewBattleRecordService,
 	game.NewShopGroupService,
 	game.NewMemberService,
+	// game.NewRoomCreditLimitService, // 已废弃，改用店铺费用功能
 	NewSessionMonitor,
 )

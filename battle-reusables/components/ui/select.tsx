@@ -79,11 +79,11 @@ const SelectContent = React.forwardRef<
       <FullWindowOverlay>
         <SelectPrimitive.Overlay style={Platform.select({ native: StyleSheet.absoluteFill })}>
           <TextClassContext.Provider value="text-popover-foreground">
-            <NativeOnlyAnimatedView className="z-50" entering={FadeIn} exiting={FadeOut}>
+            <NativeOnlyAnimatedView className="z-[200]" entering={FadeIn} exiting={FadeOut}>
               <SelectPrimitive.Content
                 ref={ref}
                 className={cn(
-                  'bg-popover border-border relative z-50 min-w-[8rem] rounded-md border shadow-md shadow-black/5',
+                  'bg-popover border-border relative z-[200] min-w-[8rem] rounded-md border shadow-md shadow-black/5',
                   Platform.select({
                     web: cn(
                       'animate-in fade-in-0 zoom-in-95 origin-(--radix-select-content-transform-origin) max-h-52 overflow-y-auto overflow-x-hidden',

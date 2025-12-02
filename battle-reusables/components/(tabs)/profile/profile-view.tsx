@@ -12,10 +12,12 @@ import { ProfileGameAccount } from './profile-game-account';
 import { ProfileCtrlAccounts } from './profile-ctrl-accounts';
 import { router } from 'expo-router';
 import { usePermission } from '@/hooks/use-permission';
+import { useColorScheme } from 'nativewind';
 
 export const ProfileView = () => {
   const { user, roles, perms, platform, clearAuth, updateAuth, isAuthenticated } = useAuthStore();
   const { isSuperAdmin, hasAny } = usePermission();
+  const { colorScheme, setColorScheme } = useColorScheme();
   const isAdmin = hasAny([
     'shop:admin:assign', 'shop:admin:view',
     'shop:member:view', 'shop:table:view', 'shop:apply:view',
@@ -146,6 +148,52 @@ export const ProfileView = () => {
               <View className="flex-row gap-2">
                 <Button variant="outline" disabled={loadingRoles} onPress={() => runMeRoles()}><Text>刷新角色</Text></Button>
                 <Button variant="outline" disabled={loadingPerms} onPress={() => runMePerms()}><Text>刷新权限</Text></Button>
+              </View>
+            </InfoCardFooter>
+          </InfoCard>
+
+          <InfoCard>
+            <InfoCardHeader>
+              <InfoCardTitle>外观设置 (调试)</InfoCardTitle>
+            </InfoCardHeader>
+            <InfoCardContent>
+              <View className="gap-3">
+                <InfoCardRow label="当前主题" value={colorScheme === 'dark' ? '🌙 夜间模式' : '☀️ 浅色模式'} />
+                <InfoCardRow label="主题值" value={colorScheme || 'undefined'} />
+                <View className="p-3 bg-muted rounded-md">
+                  <Text className="text-xs">
+                    点击下方按钮切换主题。如果按钮颜色没变化，说明主题系统有问题。
+                  </Text>
+                </View>
+              </View>
+            </InfoCardContent>
+            <InfoCardFooter>
+              <View className="gap-2">
+                <View className="flex-row gap-2">
+                  <Button 
+                    variant={colorScheme === 'light' ? 'default' : 'outline'}
+                    onPress={() => {
+                      console.log('[主题切换] 切换到浅色模式');
+                      setColorScheme('light');
+                    }}
+                    className="flex-1"
+                  >
+                    <Text>☀️ 浅色</Text>
+                  </Button>
+                  <Button 
+                    variant={colorScheme === 'dark' ? 'default' : 'outline'}
+                    onPress={() => {
+                      console.log('[主题切换] 切换到夜间模式');
+                      setColorScheme('dark');
+                    }}
+                    className="flex-1"
+                  >
+                    <Text>🌙 夜间</Text>
+                  </Button>
+                </View>
+                <Text className="text-xs text-center text-muted-foreground">
+                  当前按钮背景色：{colorScheme === 'dark' ? '应该是蓝色' : '应该是黄色'}
+                </Text>
               </View>
             </InfoCardFooter>
           </InfoCard>

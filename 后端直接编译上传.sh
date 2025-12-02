@@ -133,7 +133,6 @@ make build
 
 echo "停止旧进程..."
 pkill -f "go-kgin-platform" || true
-pkill -f "go-kgin-asynq" || true
 
 echo "启动服务..."
 mkdir -p logs
@@ -141,10 +140,6 @@ mkdir -p logs
 # 启动主服务
 nohup ./bin/go-kgin-platform > logs/platform.log 2>&1 &
 PLATFORM_PID=$!
-
-# 启动异步任务服务
-nohup ./bin/go-kgin-asynq > logs/asynq.log 2>&1 &
-ASYNQ_PID=$!
 
 sleep 3
 
@@ -155,13 +150,6 @@ else
     echo "✗ Platform 服务启动失败"
     tail -20 logs/platform.log
     exit 1
-fi
-
-if ps -p $ASYNQ_PID > /dev/null; then
-    echo "✓ Asynq 服务启动成功 (PID: $ASYNQ_PID)"
-else
-    echo "⚠ Asynq 服务启动失败（可选服务）"
-    tail -10 logs/asynq.log
 fi
 
 rm -f /tmp/battle-backend.tar.gz
@@ -178,7 +166,6 @@ tar -xzf /tmp/battle-backend.tar.gz
 
 echo "停止旧进程..."
 pkill -f "go-kgin-platform" || true
-pkill -f "go-kgin-asynq" || true
 
 echo "启动服务..."
 mkdir -p logs
@@ -186,10 +173,6 @@ mkdir -p logs
 # 启动主服务
 nohup ./bin/go-kgin-platform > logs/platform.log 2>&1 &
 PLATFORM_PID=$!
-
-# 启动异步任务服务
-nohup ./bin/go-kgin-asynq > logs/asynq.log 2>&1 &
-ASYNQ_PID=$!
 
 sleep 3
 
@@ -200,13 +183,6 @@ else
     echo "✗ Platform 服务启动失败"
     tail -20 logs/platform.log
     exit 1
-fi
-
-if ps -p $ASYNQ_PID > /dev/null; then
-    echo "✓ Asynq 服务启动成功 (PID: $ASYNQ_PID)"
-else
-    echo "⚠ Asynq 服务启动失败（可选服务）"
-    tail -10 logs/asynq.log
 fi
 
 rm -f /tmp/battle-backend.tar.gz

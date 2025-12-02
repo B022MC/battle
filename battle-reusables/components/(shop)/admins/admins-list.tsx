@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, FlatList } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { AdminsItem } from './admins-item';
 import { Loading } from '@/components/shared/loading';
@@ -22,11 +22,11 @@ export const AdminsList = ({ houseId, loading, data }: AdminsListProps) => {
   }
 
   return (
-    <FlatList
-      data={data}
-      renderItem={({ item }) => <AdminsItem houseId={houseId} data={item} />}
-      keyExtractor={(item) => `${item.id}`}
-    />
+    <View>
+      {data.map((item) => (
+        <AdminsItem key={item.id} houseId={houseId} data={item} />
+      ))}
+    </View>
   );
 };
 

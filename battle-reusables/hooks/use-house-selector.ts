@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
 import { shopsAdminsMe } from '@/services/shops/admins';
 import { shopsHousesOptions } from '@/services/shops/houses';
+import type { MobileSelectOption } from '@/components/ui/mobile-select';
 
 /**
  * 店铺选择Hook
@@ -64,6 +65,16 @@ export function useHouseSelector() {
     }
   }, [isStoreAdmin, isSuperAdmin, adminInfo, houseOptions]);
 
+  // 转换店铺选项为 MobileSelectOption 格式
+  const formattedHouseOptions: MobileSelectOption[] = useMemo(() => {
+    if (!houseOptions) return [];
+    // houseOptions 本身就是数字数组
+    return houseOptions.map((houseId: number) => ({
+      label: `店铺 ${houseId}`,
+      value: String(houseId),
+    }));
+  }, [houseOptions]);
+
   return {
     // 当前选中的店铺号
     houseGid,
@@ -74,7 +85,7 @@ export function useHouseSelector() {
     // 是否为店铺管理员
     isStoreAdmin,
     // 店铺选项列表（超级管理员）
-    houseOptions: houseOptions || [],
+    houseOptions: formattedHouseOptions,
     // 是否正在加载
     loading: loadingAdmin || loadingOptions,
     // 是否已准备好（已获取到店铺信息）

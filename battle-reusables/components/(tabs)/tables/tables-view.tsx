@@ -2,33 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { ScrollView, View } from 'react-native';
 import { TablesSearch } from './tables-search';
 import { TablesList } from './tables-list';
-import { MembersList } from './members-list';
 import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
-import { shopsTablesList, shopsMembersList } from '@/services/shops/tables';
+import { shopsTablesList } from '@/services/shops/tables';
 import { shopsAdminsMe } from '@/services/shops/admins';
 
 export const TablesView = () => {
   const { isSuperAdmin, isStoreAdmin } = usePermission();
   const [searchParams, setSearchParams] = useState<API.ShopsTablesListParams | undefined>();
   const { data, loading, run } = useRequest(shopsTablesList, { manual: true });
-  const { data: membersData, loading: membersLoading, run: runMembers } = useRequest(shopsMembersList, { manual: true });
   const { data: myAdminInfo } = useRequest(shopsAdminsMe, { manual: !isStoreAdmin });
 
-  // 店铺管理员自动加载自己店铺的桌台和成员
+  // 店铺管理员自动加载自己店铺的桌台
   useEffect(() => {
     if (isStoreAdmin && myAdminInfo?.house_gid) {
       const params = { house_gid: myAdminInfo.house_gid };
       setSearchParams(params);
       run(params);
-      runMembers(params);
     }
   }, [isStoreAdmin, myAdminInfo?.house_gid]);
 
   const handleSubmit = (params: API.ShopsTablesListParams) => {
     setSearchParams(params);
     run(params);
-    runMembers(params); // 同时加载成员列表
   };
 
   return (
@@ -51,14 +47,6 @@ export const TablesView = () => {
               onChanged={() => {
                 if (searchParams) run(searchParams);
               }}
-            />
-          </View>
-          
-          {/* 成员列表 */}
-          <View>
-            <MembersList
-              data={membersData?.items}
-              loading={membersLoading}
             />
           </View>
         </View>

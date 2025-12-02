@@ -39,7 +39,7 @@ export default function ShopLayout() {
       <Stack.Screen name="roles" options={{ title: '角色管理' }} />
       <Stack.Screen name="menus" options={{ title: '菜单管理' }} />
       <Stack.Screen name="game-applications" options={{ title: '游戏申请' }} />
-      <Stack.Screen name="room-credits" options={{ title: '房间额度' }} />
+      <Stack.Screen name="shop-fees" options={{ title: '店铺费用' }} />
     </Stack>
   );
 }

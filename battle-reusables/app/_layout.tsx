@@ -10,6 +10,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -18,6 +20,20 @@ export {
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
+
+  // Sync theme changes after hydration (doesn't cause mismatch)
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (colorScheme === 'dark') {
+        root.classList.add('dark');
+        root.style.colorScheme = 'dark';
+      } else {
+        root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+      }
+    }
+  }, [colorScheme]);
 
   return (
     <SafeAreaProvider>
