@@ -114,7 +114,7 @@ export const RegisterForm = () => {
 
   const { run: runUserRegister, loading: registering } = useRequest(loginRegister, {
     manual: true,
-    onSuccess: () => router.replace('/(tabs)'),
+    onSuccess: () => router.push('/(tabs)'),
   });
 
   const onSubmit = async (values: RegisterFormValues) => {

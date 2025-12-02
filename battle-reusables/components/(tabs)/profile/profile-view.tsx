@@ -78,7 +78,7 @@ export const ProfileView = () => {
         description: '请重新登录以生效',
         confirmText: '确定并退出',
         cancelText: '取消',
-        onConfirm: () => { clearAuth(); router.replace('/auth'); },
+        onConfirm: () => { clearAuth(); router.push('/auth'); },
       });
     },
   });
@@ -172,7 +172,7 @@ export const ProfileView = () => {
                 <Button variant="outline" disabled={changingPwd || !oldPwd || !newPwd} onPress={() => runChangePwd({ old_password: oldPwd, new_password: newPwd })}>
                   <Text>修改密码</Text>
                 </Button>
-                <Button variant="destructive" onPress={() => { clearAuth(); router.replace('/auth'); }}>
+                <Button variant="destructive" onPress={() => { clearAuth(); router.push('/auth'); }}>
                   <Text>退出登录</Text>
                 </Button>
               </View>

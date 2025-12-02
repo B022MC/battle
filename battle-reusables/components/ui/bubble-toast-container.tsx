@@ -77,8 +77,13 @@ export function BubbleToastContainer() {
 
   return (
     <View
-      className="absolute top-0 left-0 right-0 z-[100] pt-[60px]"
-      style={{ pointerEvents: 'box-none' }}
+      className="absolute top-0 left-0 right-0 z-[90] pt-[60px]"
+      style={{ 
+        pointerEvents: 'box-none',
+        // @ts-ignore - Web only CSS
+        touchAction: 'none',
+      }}
+      pointerEvents="box-none"
     >
       {toasts.map((toast) => (
         <BubbleToast

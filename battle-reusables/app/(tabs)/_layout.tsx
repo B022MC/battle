@@ -17,7 +17,7 @@ export default function TabLayout() {
   // 未登录时立即重定向，不渲染任何内容
   useFocusEffect(() => {
     if (!isAuthenticated) {
-      router.replace('/auth');
+      router.push('/auth');
     }
   });
 

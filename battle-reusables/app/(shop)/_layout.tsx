@@ -1,12 +1,14 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore } from '@/hooks/use-auth-store';
+import { Platform } from 'react-native';
+import { HeaderBackButton } from '@/components/shared/header-back-button';
 
 export default function ShopLayout() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
 
   useFocusEffect(() => {
-    if (!isAuthenticated) router.replace('/auth');
+    if (!isAuthenticated) router.push('/auth');
   });
 
   return (
@@ -15,6 +17,13 @@ export default function ShopLayout() {
         headerShown: true,
         headerTitleAlign: 'center',
         headerShadowVisible: false,
+        // 使用自定义返回按钮（特别是为了 Web 平台）
+        headerLeft: () => <HeaderBackButton />,
+        // 确保 header 在最顶层，避免被遮罩层挡住
+        headerStyle: {
+          // @ts-ignore - Web only CSS
+          zIndex: 1000,
+        },
       }}>
       <Stack.Screen name="account" options={{ title: '游戏账号' }} />
       <Stack.Screen name="admins" options={{ title: '管理员' }} />
