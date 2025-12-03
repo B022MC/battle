@@ -9,6 +9,7 @@ import (
 	"battle-tiles/internal/dal/req"
 	resp "battle-tiles/internal/dal/resp"
 	"battle-tiles/internal/infra/plaza"
+	utilsplaza "battle-tiles/internal/utils/plaza"
 	"battle-tiles/pkg/plugin/middleware"
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
@@ -16,6 +17,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,6 +51,9 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/pin", middleware.RequirePerm("shop:member:update"), s.PinMember)
 	g.POST("/members/unpin", middleware.RequirePerm("shop:member:update"), s.UnpinMember)
 	g.POST("/members/update-remark", middleware.RequirePerm("shop:member:update"), s.UpdateRemark)
+	// 禁用/解禁成员
+	g.POST("/members/forbid", middleware.RequirePerm("shop:member:forbid"), s.ForbidMember)
+	g.POST("/members/unforbid", middleware.RequirePerm("shop:member:forbid"), s.UnforbidMember)
 	// 平台侧：按圈主返回“我圈子的成员”（基于已通过的入圈申请）
 	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
 	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
@@ -410,6 +415,34 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 	// 返回快照（若无为 nil -> 空数组）
 	mems := sess.ListMembers()
 
+	// 合并数据库中的禁用成员（因为被禁用的成员可能已经被踢下线，不在 sess.ListMembers() 中）
+	if s.gameMember != nil {
+		forbiddenMembers, err := s.gameMember.ListForbiddenByHouse(c.Request.Context(), int32(in.HouseGID))
+		if err == nil && len(forbiddenMembers) > 0 {
+			// 建立现有 mems 的索引
+			existingIDs := make(map[uint32]struct{})
+			for _, m := range mems {
+				existingIDs[m.GameID] = struct{}{}
+			}
+
+			// 追加缺失的禁用成员
+			for _, fm := range forbiddenMembers {
+				gameID := uint32(fm.GameID)
+				if _, exists := existingIDs[gameID]; !exists {
+					// 构造伪造的 GroupMember，用于后续逻辑处理
+					mems = append(mems, &utilsplaza.GroupMember{
+						UserID:     0, // 暂时为0，后续会尝试通过 GameAccount 填充
+						UserStatus: 0, // 离线
+						GameID:     gameID,
+						MemberID:   0,
+						MemberType: 0,
+						NickName:   fm.GameName,
+					})
+				}
+			}
+		}
+	}
+
 	// 构建 GameID 到游戏账号的映射
 	// 注意：m.GameID 是游戏内玩家ID（game_player_id），不是 game_account.id
 	gameIDToAccount := make(map[uint32]*gameModel.GameAccount)
@@ -505,6 +538,8 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 				item.PinOrder = member.PinOrder
 				// 设置备注信息
 				item.Remark = member.Remark
+				// 设置禁用状态
+				item.Forbid = member.Forbid
 			}
 		}
 
@@ -975,6 +1010,102 @@ func (s *GameShopMemberService) UnpinMember(c *gin.Context) {
 	if err := s.gameMember.SetPinStatus(c.Request.Context(), in.HouseGID, gameID, false, 0); err != nil {
 		response.Fail(c, ecode.Failed, fmt.Sprintf("取消置顶失败: %v", err))
 		return
+	}
+
+	response.SuccessWithOK(c)
+}
+
+// ForbidMember 禁用成员
+// @Summary      禁用成员
+// @Description  禁用成员，阻止其进入游戏（类似 passing-dragonfly 的 _freezeMembers）
+// @Tags         店铺/成员
+// @Accept       json
+// @Produce      json
+// @Param        in body object{house_gid=int32,game_player_id=string} true "house_gid, game_player_id"
+// @Success      200 {object} response.Body
+// @Failure      400 {object} response.Body
+// @Failure      401 {object} response.Body
+// @Router       /shops/members/forbid [post]
+func (s *GameShopMemberService) ForbidMember(c *gin.Context) {
+	s.doForbidMember(c, true)
+}
+
+// UnforbidMember 解禁成员
+// @Summary      解禁成员
+// @Description  解禁成员，允许其进入游戏
+// @Tags         店铺/成员
+// @Accept       json
+// @Produce      json
+// @Param        in body object{house_gid=int32,game_player_id=string} true "house_gid, game_player_id"
+// @Success      200 {object} response.Body
+// @Failure      400 {object} response.Body
+// @Failure      401 {object} response.Body
+// @Router       /shops/members/unforbid [post]
+func (s *GameShopMemberService) UnforbidMember(c *gin.Context) {
+	s.doForbidMember(c, false)
+}
+
+func (s *GameShopMemberService) doForbidMember(c *gin.Context, forbid bool) {
+	var in struct {
+		HouseGID     int32  `json:"house_gid" binding:"required"`      // 店铺ID
+		GamePlayerID string `json:"game_player_id" binding:"required"` // 游戏玩家ID
+	}
+	if err := c.ShouldBindJSON(&in); err != nil {
+		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	// 获取当前用户信息
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+	userID := int(claims.BaseClaims.UserID)
+
+	// 转换 GamePlayerID 为 int32
+	var gameID int32
+	if _, err := fmt.Sscanf(in.GamePlayerID, "%d", &gameID); err != nil {
+		response.Fail(c, ecode.ParamsFailed, "invalid game_player_id")
+		return
+	}
+
+	// 查找在线信息以获取 MemberID 和 GameName
+	var gameName string
+	var memberID int32
+	if sess, ok := s.mgr.Get(userID, int(in.HouseGID)); ok && sess != nil {
+		mems := sess.ListMembers()
+		for _, m := range mems {
+			if int32(m.GameID) == gameID {
+				gameName = m.NickName
+				memberID = int32(m.MemberID)
+				break
+			}
+		}
+	}
+
+	// 更新数据库 forbid 字段
+	if err := s.gameMember.UpsertForbid(c.Request.Context(), in.HouseGID, gameID, gameName, forbid); err != nil {
+		action := "禁用"
+		if !forbid {
+			action = "解禁"
+		}
+		response.Fail(c, ecode.Failed, fmt.Sprintf("%s成员失败: %v", action, err))
+		return
+	}
+
+	// 如果有在线会话，推送到游戏端（可选，失败不影响数据库更新）
+	if sess, ok := s.mgr.Get(userID, int(in.HouseGID)); ok && sess != nil {
+		targetID := int(gameID)
+		if memberID > 0 {
+			targetID = int(memberID)
+		}
+
+		key := fmt.Sprintf("forbid-%d-%d-%d", in.HouseGID, gameID, time.Now().UnixNano())
+		if err := s.mgr.ForbidMembers(userID, int(in.HouseGID), key, []int{targetID}, forbid); err != nil {
+			// 失败只记录日志，不影响结果（以数据库为准）
+			// 没有 log 字段，跳过日志记录
+		}
 	}
 
 	response.SuccessWithOK(c)

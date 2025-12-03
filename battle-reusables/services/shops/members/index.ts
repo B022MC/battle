@@ -55,3 +55,11 @@ export function shopsMembersUnpin(data: API.ShopsMembersUnpinParams) {
 export function shopsMembersUpdateRemark(data: API.ShopsMembersUpdateRemarkParams) {
   return post<null>('/shops/members/update-remark', data);
 }
+
+export function shopsMembersForbid(data: { house_gid: number; game_player_id: string }) {
+  return post<null>('/shops/members/forbid', data);
+}
+
+export function shopsMembersUnforbid(data: { house_gid: number; game_player_id: string }) {
+  return post<null>('/shops/members/unforbid', data);
+}

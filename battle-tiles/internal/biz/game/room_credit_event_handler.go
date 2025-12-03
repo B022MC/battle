@@ -33,11 +33,13 @@ func NewRoomCreditEventHandler(
 // houseGID: 店铺GID
 func (h *RoomCreditEventHandler) CreateHandler(userID int, houseGID int32) *sessionCreditHandler {
 	return &sessionCreditHandler{
-		userID:   userID,
-		houseGID: houseGID,
-		creditUC: h.creditUC,
-		plazaMgr: h.plazaMgr,
-		log:      h.log,
+		userID:            userID,
+		houseGID:          houseGID,
+		creditUC:          h.creditUC,
+		plazaMgr:          h.plazaMgr,
+		log:               h.log,
+		roomsCache:        make(map[int]*utilsplaza.TableInfo),
+		uncheckedSitdowns: make(map[int]int32),
 	}
 }
 
@@ -49,56 +51,34 @@ type sessionCreditHandler struct {
 	creditUC *RoomCreditLimitUseCase
 	plazaMgr plaza.Manager
 	log      *log.Helper
+
+	// 缓存：桌子号 -> 桌子信息
+	roomsCache map[int]*utilsplaza.TableInfo
+	// 缓存：桌子号 -> gameID（未检查的坐下事件）
+	uncheckedSitdowns map[int]int32
 }
 
 // OnUserSitDown 处理玩家坐下事件
 // 当收到游戏服务器的坐下事件时，检查玩家余额是否满足额度要求
 func (h *sessionCreditHandler) OnUserSitDown(sitdown *utilsplaza.UserSitDown) {
-	h.log.Debugf("OnUserSitDown: gameID=%d, mappedNum=%d",
-		sitdown.UserID, sitdown.MappedNum)
+	h.log.Infof("[费用检查] 收到玩家坐下事件: gameID=%d, mappedNum=%d, userID=%d, houseGID=%d",
+		sitdown.UserID, sitdown.MappedNum, h.userID, h.houseGID)
 
-	ctx := context.Background()
-
-	// 1. 从 plaza.Manager 获取会话
-	session, ok := h.plazaMgr.Get(h.userID, int(h.houseGID))
+	// 1. 检查桌子信息是否已缓存（类似 passing-dragonfly）
+	tableInfo, ok := h.roomsCache[int(sitdown.MappedNum)]
 	if !ok {
-		h.log.Errorf("Session not found: userID=%d, houseGID=%d", h.userID, h.houseGID)
+		// 桌子信息还没有收到，将坐下事件暂存，等待 OnRoomListUpdated
+		h.log.Warnf("[费用检查] 桌子信息未缓存，等待OnRoomListUpdated: mappedNum=%d, gameID=%d",
+			sitdown.MappedNum, sitdown.UserID)
+		h.uncheckedSitdowns[int(sitdown.MappedNum)] = int32(sitdown.UserID)
 		return
 	}
 
-	// 2. 从会话的桌子列表中查找对应的桌子信息
-	tables := session.ListTables()
-	var kindID, baseScore int
-	found := false
-	for _, table := range tables {
-		if table.MappedNum == int(sitdown.MappedNum) {
-			kindID = table.KindID
-			baseScore = table.BaseScore
-			found = true
-			break
-		}
-	}
+	h.log.Infof("[费用检查] 桌子信息: gameID=%d, kindID=%d, baseScore=%d, mappedNum=%d",
+		sitdown.UserID, tableInfo.KindID, tableInfo.BaseScore, sitdown.MappedNum)
 
-	if !found {
-		h.log.Warnf("Table not found in session: mappedNum=%d", sitdown.MappedNum)
-		return
-	}
-
-	h.log.Debugf("OnUserSitDown: gameID=%d, kindID=%d, baseScore=%d, mappedNum=%d",
-		sitdown.UserID, kindID, baseScore, sitdown.MappedNum)
-
-	// 3. 调用额度检查逻辑
-	if err := h.creditUC.HandlePlayerSitDown(
-		ctx,
-		h.userID,
-		h.houseGID,
-		int32(sitdown.UserID),    // gameID
-		int32(kindID),            // kindID
-		int32(baseScore),         // baseScore
-		int32(sitdown.MappedNum), // tableNum
-	); err != nil {
-		h.log.Errorf("HandlePlayerSitDown failed: %v", err)
-	}
+	// 2. 调用额度检查逻辑
+	h.handlePlayerSitDown(int32(sitdown.UserID), tableInfo.KindID, tableInfo.BaseScore, int32(sitdown.MappedNum))
 }
 
 // 以下是 IPlazaHandler 接口的其他方法实现（空实现）
@@ -115,7 +95,26 @@ func (h *sessionCreditHandler) OnMemberRightUpdated(key string, memberID int, su
 
 func (h *sessionCreditHandler) OnLoginDone(success bool) {}
 
-func (h *sessionCreditHandler) OnRoomListUpdated(tables []*utilsplaza.TableInfo) {}
+func (h *sessionCreditHandler) OnRoomListUpdated(tables []*utilsplaza.TableInfo) {
+	h.log.Infof("[费用检查] 收到桌子列表更新: 桌子数=%d", len(tables))
+
+	// 1. 更新桌子缓存
+	for _, table := range tables {
+		h.roomsCache[table.MappedNum] = table
+		h.log.Debugf("[费用检查] 缓存桌子: mappedNum=%d, kindID=%d, baseScore=%d",
+			table.MappedNum, table.KindID, table.BaseScore)
+
+		// 2. 检查是否有未处理的坐下事件（类似 passing-dragonfly 的 uncheckedSitdownCache）
+		if gameID, ok := h.uncheckedSitdowns[table.MappedNum]; ok {
+			h.log.Infof("[费用检查] 发现未检查的坐下事件，立即检查: mappedNum=%d, gameID=%d, kindID=%d, baseScore=%d",
+				table.MappedNum, gameID, table.KindID, table.BaseScore)
+			delete(h.uncheckedSitdowns, table.MappedNum)
+
+			// 立即处理之前未检查的坐下事件
+			h.handlePlayerSitDown(gameID, table.KindID, table.BaseScore, int32(table.MappedNum))
+		}
+	}
+}
 
 func (h *sessionCreditHandler) OnUserStandUp(standup *utilsplaza.UserStandUp) {}
 
@@ -126,3 +125,20 @@ func (h *sessionCreditHandler) OnDismissTable(table int) {}
 func (h *sessionCreditHandler) OnAppliesForHouse(applyInfos []*utilsplaza.ApplyInfo) {}
 
 func (h *sessionCreditHandler) OnReconnectFailed(houseGID int, retryCount int) {}
+
+// handlePlayerSitDown 处理玩家坐下的核心逻辑（类似 passing-dragonfly 的 _handlePlayerSitDown）
+func (h *sessionCreditHandler) handlePlayerSitDown(gameID int32, kindID int, baseScore int, mappedNum int32) {
+	ctx := context.Background()
+
+	if err := h.creditUC.HandlePlayerSitDown(
+		ctx,
+		h.userID,
+		h.houseGID,
+		gameID,
+		int32(kindID),
+		int32(baseScore),
+		mappedNum,
+	); err != nil {
+		h.log.Errorf("[费用检查] HandlePlayerSitDown失败: %v", err)
+	}
+}

@@ -1,0 +1,31 @@
+# 四川游戏家园机器人配置示例
+# 复制此文件为 config.yaml 并填写你的配置
+
+# 账号配置
+account:
+  username: "你的账号"           # 游戏账号或手机号
+  password: "你的密码"           # 登录密码（填写明文，程序会自动转MD5）
+  login_mode: "account"         # 登录模式: account(账号) 或 mobile(手机)
+
+# 游戏配置
+game:
+  house_gid: 123456            # 房间ID（从battle-tiles获取）
+  game_user_id: 789012         # 游戏用户ID（首次登录后获取）
+
+# 机器人行为配置
+bot:
+  auto_join_table: true        # 自动加入桌台
+  auto_play: true              # 自动打牌
+  play_delay_min_ms: 1000      # 出牌最小延迟（毫秒）
+  play_delay_max_ms: 3000      # 出牌最大延迟（毫秒）
+  max_games_per_day: 100       # 每天最大游戏局数
+  active_hours_start: 8        # 活跃时间开始（小时，24小时制）
+  active_hours_end: 22         # 活跃时间结束（小时，24小时制）
+  strategy: "random"           # 打牌策略: random(随机), conservative(保守), aggressive(激进)
+
+# 游戏服务器配置
+plaza:
+  server_82: "androidsc.foxuc.com:8200"  # 登录服务器
+  server_87_host: "newbgp.foxuc.com"     # 游戏服务器
+  keepalive_seconds: 30                   # 保活间隔（秒）
+  auto_reconnect: true                    # 自动重连

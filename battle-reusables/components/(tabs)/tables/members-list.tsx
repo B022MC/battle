@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loading } from '@/components/shared/loading';
 import { CreditDialog } from '@/components/(shop)/members/credit-dialog';
-import { shopsMembersUpdateRemark } from '@/services/shops/members';
+import { shopsMembersUpdateRemark, shopsMembersForbid, shopsMembersUnforbid } from '@/services/shops/members';
 import { useRequest } from '@/hooks/use-request';
 import { listGroupBattles } from '@/services/battles/query';
 import type { BattleRecord } from '@/services/battles/query-typing';
+import { alert } from '@/utils/alert';
 
 type MembersListProps = {
   loading: boolean;
@@ -18,10 +19,11 @@ type MembersListProps = {
   myGroupId?: number; // 店铺管理员的圈子ID，用于判断是否可以上分下分
   onPullToGroup?: (gamePlayerID: string, memberName: string, currentGroupName?: string) => void;
   onRemoveFromGroup?: (gamePlayerID: string, memberName: string, currentGroupName: string) => void;
-  onCreditChange?: () => void; // 上分/下分后的回调
+  onCreditChange?: () => void; // 上分/下分后的回调，也可用于刷新列表
+  isBlockedList?: boolean; // 是否为禁用名单模式
 };
 
-export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup, onRemoveFromGroup, onCreditChange }: MembersListProps) => {
+export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup, onRemoveFromGroup, onCreditChange, isBlockedList }: MembersListProps) => {
   const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; memberId: number; memberName: string } | null>(null);
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [remarkValues, setRemarkValues] = useState<Record<string, string>>({});
@@ -29,6 +31,52 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
   const [battleRecords, setBattleRecords] = useState<Record<string, BattleRecord[]>>({});
   const [loadingBattles, setLoadingBattles] = useState<Set<string>>(new Set());
   const { run: updateRemarkRun } = useRequest(shopsMembersUpdateRemark, { manual: true });
+  const { run: forbidRun } = useRequest(shopsMembersForbid, { manual: true });
+  const { run: unforbidRun } = useRequest(shopsMembersUnforbid, { manual: true });
+
+  // 处理禁用
+  const handleForbid = async (gamePlayerId: string, memberName: string) => {
+    if (!houseGid) return;
+    
+    alert.show({
+      title: '确认禁用',
+      description: `确定要禁用玩家 ${memberName} 吗？禁用后玩家将无法进入游戏。`,
+      confirmText: '禁用',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          await forbidRun({ house_gid: houseGid, game_player_id: gamePlayerId });
+          alert.show({ title: '已禁用' });
+          onCreditChange?.(); // 刷新列表
+        } catch (error: any) {
+          console.error('禁用失败:', error);
+          alert.show({ title: '禁用失败', description: error.message || '未知错误' });
+        }
+      }
+    });
+  };
+
+  // 处理解禁
+  const handleUnforbid = async (gamePlayerId: string, memberName: string) => {
+    if (!houseGid) return;
+    
+    alert.show({
+      title: '确认解禁',
+      description: `确定要解禁玩家 ${memberName} 吗？`,
+      confirmText: '解禁',
+      cancelText: '取消',
+      onConfirm: async () => {
+        try {
+          await unforbidRun({ house_gid: houseGid, game_player_id: gamePlayerId });
+          alert.show({ title: '已解禁' });
+          onCreditChange?.(); // 刷新列表
+        } catch (error: any) {
+          console.error('解禁失败:', error);
+          alert.show({ title: '解禁失败', description: error.message || '未知错误' });
+        }
+      }
+    });
+  };
 
   // 处理备注编辑
   const handleEditRemark = (gamePlayerId: string, currentRemark: string) => {
@@ -135,7 +183,14 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
           <View className="gap-2">
             <View className="flex-row items-center justify-between">
               <View className="flex-1">
-                <Text className="font-medium">{item.nick_name || '未命名'}</Text>
+                <View className="flex-row items-center">
+                  <Text className="font-medium">{item.nick_name || '未命名'}</Text>
+                  {item.forbid ? (
+                    <View className="bg-destructive px-2 py-0.5 rounded ml-2">
+                      <Text className="text-destructive-foreground text-xs">已禁用</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <View className="mt-1 flex-row gap-2">
                   <Text className="text-xs text-muted-foreground">{`GameID: ${item.game_id}`}</Text>
                   <Text className="text-xs text-muted-foreground">{`MemberID: ${item.member_id}`}</Text>
@@ -198,6 +253,29 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
             )}
             {item.game_player_id && houseGid ? (
               <View className="mt-2 border-t border-border pt-2">
+                <View className="mb-2 flex-row gap-2">
+                  {isBlockedList ? (
+                    <Button
+                      variant="default" 
+                      size="sm"
+                      className="flex-1 bg-green-600"
+                      onPress={() => handleUnforbid(item.game_player_id!, item.nick_name || '未命名')}
+                    >
+                      <Text className="text-xs">✅ 解禁成员</Text>
+                    </Button>
+                  ) : (
+                    !item.forbid ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onPress={() => handleForbid(item.game_player_id!, item.nick_name || '未命名')}
+                      >
+                        <Text className="text-xs">🚫 禁用成员</Text>
+                      </Button>
+                    ) : null
+                  )}
+                </View>
                 {editingRemarkId === item.game_player_id ? (
                   <View className="mb-2 gap-2">
                     <Input

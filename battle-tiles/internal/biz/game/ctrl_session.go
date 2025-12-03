@@ -21,10 +21,11 @@ type CtrlSessionUseCase struct {
 	// 可选：houseRepo 若需要“先连再落库创建店铺”，放开注入后在回调里 Ensure
 	// houseRepo repo.GameHouseRepo
 
-	sessRepo repo.SessionRepo
-	mgr      plaza.Manager
-	syncMgr  *BattleSyncManager // 战绩同步管理器
-	log      *log.Helper
+	sessRepo      repo.SessionRepo
+	mgr           plaza.Manager
+	syncMgr       *BattleSyncManager      // 战绩同步管理器
+	creditHandler *RoomCreditEventHandler // 房间额度事件处理器（可选）
+	log           *log.Helper
 }
 
 func NewCtrlSessionUseCase(
@@ -34,14 +35,16 @@ func NewCtrlSessionUseCase(
 	mgr plaza.Manager,
 	syncMgr *BattleSyncManager,
 	logger log.Logger,
+	creditHandler *RoomCreditEventHandler,
 ) *CtrlSessionUseCase {
 	uc := &CtrlSessionUseCase{
-		ctrlRepo: ctrl,
-		linkRepo: link,
-		sessRepo: sess,
-		mgr:      mgr,
-		syncMgr:  syncMgr,
-		log:      log.NewHelper(log.With(logger, "module", "usecase/ctrl_session")),
+		ctrlRepo:      ctrl,
+		linkRepo:      link,
+		sessRepo:      sess,
+		mgr:           mgr,
+		syncMgr:       syncMgr,
+		creditHandler: creditHandler,
+		log:           log.NewHelper(log.With(logger, "module", "usecase/ctrl_session")),
 	}
 
 	// 设置重连失败回调 - 自动停用中控账号
@@ -68,6 +71,12 @@ func NewCtrlSessionUseCase(
 	return uc
 }
 
+// WithCreditHandler 注入房间额度事件处理器（可选）
+func (uc *CtrlSessionUseCase) WithCreditHandler(h *RoomCreditEventHandler) *CtrlSessionUseCase {
+	uc.creditHandler = h
+	return uc
+}
+
 // 先连 -> 成功收到登录/房间回调后再做落库（如需）
 func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ctrlAccID int32, houseGID int32) error {
 	// 1) 取中控凭证
@@ -88,7 +97,7 @@ func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ct
 	}
 
 	// 4) 包一个 bootstrap handler：连接成功/收到房间列表时，做你想做的落库动作（可选）
-	h := uc.newBootstrapHandler(ctrl.Id, houseGID)
+	h := uc.newBootstrapHandler(userID, ctrl.Id, houseGID)
 
 	// 5) 不再强制关闭旧会话，改为“存在则更新、否则插入”
 
@@ -146,6 +155,82 @@ func (*noopHandler) OnDismissTable(int)                            {}
 func (*noopHandler) OnAppliesForHouse([]*plazaUtils.ApplyInfo)     {}
 func (*noopHandler) OnReconnectFailed(int, int)                    {}
 
+// compositeHandler 组合多个 handler
+type compositeHandler struct {
+	bootstrap *bootstrapHandler
+	credit    *sessionCreditHandler
+	log       *log.Helper
+}
+
+func (h *compositeHandler) OnSessionRestarted(session *plazaUtils.Session) {
+	h.bootstrap.OnSessionRestarted(session)
+	h.credit.OnSessionRestarted(session)
+}
+
+func (h *compositeHandler) OnMemberListUpdated(members []*plazaUtils.GroupMember) {
+	h.bootstrap.OnMemberListUpdated(members)
+	h.credit.OnMemberListUpdated(members)
+}
+
+func (h *compositeHandler) OnMemberInserted(member *plazaUtils.MemberInserted) {
+	h.bootstrap.OnMemberInserted(member)
+	h.credit.OnMemberInserted(member)
+}
+
+func (h *compositeHandler) OnMemberDeleted(member *plazaUtils.MemberDeleted) {
+	h.bootstrap.OnMemberDeleted(member)
+	h.credit.OnMemberDeleted(member)
+}
+
+func (h *compositeHandler) OnMemberRightUpdated(key string, memberID int, success bool) {
+	h.bootstrap.OnMemberRightUpdated(key, memberID, success)
+	h.credit.OnMemberRightUpdated(key, memberID, success)
+}
+
+func (h *compositeHandler) OnLoginDone(success bool) {
+	h.log.Infof("[compositeHandler] OnLoginDone: success=%v", success)
+	h.bootstrap.OnLoginDone(success)
+	h.credit.OnLoginDone(success)
+}
+
+func (h *compositeHandler) OnRoomListUpdated(tables []*plazaUtils.TableInfo) {
+	h.log.Infof("[compositeHandler] OnRoomListUpdated: 桌子数=%d", len(tables))
+	h.bootstrap.OnRoomListUpdated(tables)
+	h.credit.OnRoomListUpdated(tables)
+}
+
+func (h *compositeHandler) OnUserSitDown(sitdown *plazaUtils.UserSitDown) {
+	h.log.Infof("[compositeHandler] OnUserSitDown: gameID=%d, mappedNum=%d", sitdown.UserID, sitdown.MappedNum)
+	h.bootstrap.OnUserSitDown(sitdown)
+	h.credit.OnUserSitDown(sitdown)
+}
+
+func (h *compositeHandler) OnUserStandUp(standup *plazaUtils.UserStandUp) {
+	h.bootstrap.OnUserStandUp(standup)
+	h.credit.OnUserStandUp(standup)
+}
+
+func (h *compositeHandler) OnTableRenew(item *plazaUtils.TableRenew) {
+	h.bootstrap.OnTableRenew(item)
+	h.credit.OnTableRenew(item)
+}
+
+func (h *compositeHandler) OnDismissTable(table int) {
+	h.bootstrap.OnDismissTable(table)
+	h.credit.OnDismissTable(table)
+}
+
+func (h *compositeHandler) OnAppliesForHouse(applyInfos []*plazaUtils.ApplyInfo) {
+	h.log.Infof("[compositeHandler] OnAppliesForHouse: 申请数=%d", len(applyInfos))
+	h.bootstrap.OnAppliesForHouse(applyInfos)
+	h.credit.OnAppliesForHouse(applyInfos)
+}
+
+func (h *compositeHandler) OnReconnectFailed(houseGID int, retryCount int) {
+	h.bootstrap.OnReconnectFailed(houseGID, retryCount)
+	h.credit.OnReconnectFailed(houseGID, retryCount)
+}
+
 type bootstrapHandler struct {
 	noopHandler
 	once      sync.Once
@@ -165,8 +250,8 @@ func (h *bootstrapHandler) OnRoomListUpdated(ts []*plazaUtils.TableInfo) {
 	h.noopHandler.OnRoomListUpdated(ts)
 }
 
-func (uc *CtrlSessionUseCase) newBootstrapHandler(ctrlID int32, houseGID int32) plaza.Handler {
-	return &bootstrapHandler{
+func (uc *CtrlSessionUseCase) newBootstrapHandler(userID int32, ctrlID int32, houseGID int32) plaza.Handler {
+	h := &bootstrapHandler{
 		ctrlID:   ctrlID,
 		houseGID: houseGID,
 		bootstrap: func() {
@@ -182,4 +267,18 @@ func (uc *CtrlSessionUseCase) newBootstrapHandler(ctrlID int32, houseGID int32) 
 			// })
 		},
 	}
+
+	// 如果有费用检查处理器，创建组合handler
+	if uc.creditHandler != nil {
+		uc.log.Infof("[费用检查] 创建组合handler: userID=%d, houseGID=%d", userID, houseGID)
+		creditH := uc.creditHandler.CreateHandler(int(userID), houseGID)
+		return &compositeHandler{
+			bootstrap: h,
+			credit:    creditH,
+			log:       uc.log,
+		}
+	}
+
+	uc.log.Infof("[警告] creditHandler为空，未启用费用检查: userID=%d, houseGID=%d", userID, houseGID)
+	return h
 }

@@ -25,6 +25,8 @@ declare namespace API {
     pin_order?: number; // 置顶排序（数字越小越靠前）
     // 备注功能字段
     remark?: string; // 管理员备注
+    // 禁用功能字段
+    forbid?: boolean; // 是否禁用
   };
 
   type ShopsMembersList = { items?: ShopsMemberItem[] };

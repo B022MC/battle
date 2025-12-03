@@ -367,6 +367,30 @@ func (that *Session) doLogonServer87() error {
 
 	go that._87serverWaitForData()
 	go that._87ServerHandleData()
+
+	// 87服务器连接成功后，发送进入房间命令（参考 battle-bot 实现）
+	go func() {
+		time.Sleep(2 * time.Second) // 等待连接稳定
+
+		// 发送进入房间命令
+		enterCmd := CmdGroupService(uint32(that.userID), uint32(that.houseGID))
+		data := that._87encoder.Encrypt(enterCmd)
+		if _, err := that._87connection.Write(data); err != nil {
+			logger.Errorf("发送进入房间命令失败: %v", err)
+			return
+		}
+		logger.Infof("已发送进入房间命令: UserID=%d, HouseGID=%d", that.userID, that.houseGID)
+
+		// 等待进入房间响应
+		time.Sleep(2 * time.Second)
+
+		if that.handler != nil {
+			that.handler.OnLoginDone(true)
+			// 主动拉取成员列表，促使服务端推送房间列表快照
+			that.GetGroupMembers()
+		}
+	}()
+
 	return nil
 }
 
@@ -453,6 +477,9 @@ func (that *Session) _87handlePacket(data []byte) {
 		return
 	}
 
+	logger.Infof("87收到数据包: MainCmdID=%d, SubCmdID=%d, DataLen=%d",
+		packer.Head.Cmd.MainCmdID, packer.Head.Cmd.SubCmdID, len(packer.Data()))
+
 	switch packer.Head.Cmd.MainCmdID {
 	case consts.MDM_GA_BATTLE_SERVICE: // 1
 		switch packer.Head.Cmd.SubCmdID {
@@ -467,6 +494,7 @@ func (that *Session) _87handlePacket(data []byte) {
 			logger.Infof("解散桌子结果:%v\n", result)
 		case consts.SUB_GA_USER_SITDOWN:
 			user := ParseUserSitDown(packer.Data())
+			logger.Infof("玩家坐下: UserID=%d, MappedNum=%d, ChairID=%d", user.UserID, user.MappedNum, user.ChairID)
 			that.handler.OnUserSitDown(user)
 			// 增量保障：根据坐下事件确保桌子存在于快照
 			that.ensureTableByMappedNum(int(user.MappedNum))

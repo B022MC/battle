@@ -51,6 +51,15 @@ type GameMemberRepo interface {
 
 	// 更新成员备注
 	UpdateRemark(ctx context.Context, houseGID int32, gameID int32, remark string) error
+
+	// 更新成员禁用状态
+	UpdateForbid(ctx context.Context, houseGID int32, gameID int32, forbid bool) error
+
+	// 查询店铺下所有被禁用的成员
+	ListForbiddenByHouse(ctx context.Context, houseGID int32) ([]*model.GameMember, error)
+
+	// UpsertForbid 更新禁用状态，如果不存在则创建
+	UpsertForbid(ctx context.Context, houseGID int32, gameID int32, gameName string, forbid bool) error
 }
 
 type gameMemberRepo struct {
@@ -275,4 +284,44 @@ func (r *gameMemberRepo) UpdateRemark(ctx context.Context, houseGID int32, gameI
 	return r.db(ctx).Model(&model.GameMember{}).
 		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
 		Update("remark", remark).Error
+}
+
+// UpdateForbid 更新成员禁用状态（类似 passing-dragonfly 的 _freezeMembers）
+func (r *gameMemberRepo) UpdateForbid(ctx context.Context, houseGID int32, gameID int32, forbid bool) error {
+	return r.db(ctx).Model(&model.GameMember{}).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		Update("forbid", forbid).Error
+}
+
+// ListForbiddenByHouse 查询店铺下所有被禁用的成员
+func (r *gameMemberRepo) ListForbiddenByHouse(ctx context.Context, houseGID int32) ([]*model.GameMember, error) {
+	var members []*model.GameMember
+	err := r.db(ctx).
+		Where("house_gid = ? AND forbid = ?", houseGID, true).
+		Find(&members).Error
+	return members, err
+}
+
+// UpsertForbid 更新禁用状态，如果不存在则创建
+func (r *gameMemberRepo) UpsertForbid(ctx context.Context, houseGID int32, gameID int32, gameName string, forbid bool) error {
+	res := r.db(ctx).Model(&model.GameMember{}).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		Update("forbid", forbid)
+
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 && gameName != "" {
+		// Create new
+		member := model.GameMember{
+			HouseGID: houseGID,
+			GameID:   gameID,
+			GameName: gameName,
+			Forbid:   forbid,
+		}
+		// 注意：这里不设置 group_id，只作为基本信息记录
+		return r.db(ctx).Create(&member).Error
+	}
+	return nil
 }

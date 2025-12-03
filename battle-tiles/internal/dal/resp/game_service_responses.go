@@ -79,6 +79,9 @@ type ShopMemberListItem struct {
 
 	// 管理员备注
 	Remark string `json:"remark"` // 管理员对该成员的备注
+
+	// 禁用状态
+	Forbid bool `json:"forbid"` // 是否禁用
 }
 
 // UserInfo 用户信息响应（过滤敏感字段）

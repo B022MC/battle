@@ -44,5 +44,5 @@ global:
       auto_reconnect: true
 
 log:
-  level: "info"  # 可选值: debug, info, warn, error (默认: info)
+  level: "debug"  # 可选值: debug, info, warn, error (默认: info)
   verbose_task_log: false  # 是否显示详细的定时任务日志 (默认: false，设为true时显示战绩同步等任务的debug日志)
