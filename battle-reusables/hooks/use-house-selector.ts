@@ -3,6 +3,7 @@ import { useRequest } from '@/hooks/use-request';
 import { usePermission } from '@/hooks/use-permission';
 import { shopsAdminsMe } from '@/services/shops/admins';
 import { shopsHousesOptions } from '@/services/shops/houses';
+import { gameAccountMeHouses } from '@/services/game/account';
 import type { MobileSelectOption } from '@/components/ui/mobile-select';
 
 /**
@@ -40,20 +41,31 @@ export function useHouseSelector() {
     }
   );
 
+  // 普通成员：根据绑定账号返回的店铺/圈子
+  const { data: memberHouse, loading: loadingMemberHouse, run: loadMemberHouse } = useRequest(
+    gameAccountMeHouses,
+    {
+      manual: true,
+      onSuccess: (data) => {
+        if (data?.house_gid) {
+          setHouseGid(String(data.house_gid));
+        }
+        setIsReady(true);
+      },
+    }
+  );
+
   // 当角色确定后加载对应数据 - 只加载一次
   useEffect(() => {
     if (isStoreAdmin && !adminInfo && !loadingAdmin) {
       loadAdminInfo();
-    } 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStoreAdmin, adminInfo, loadingAdmin]);
-
-  useEffect(() => {
-    if (isSuperAdmin && !houseOptions && !loadingOptions) {
+    } else if (isSuperAdmin && !houseOptions && !loadingOptions) {
       loadHouseOptions();
+    } else if (!isStoreAdmin && !isSuperAdmin && !memberHouse && !loadingMemberHouse) {
+      loadMemberHouse();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin, houseOptions, loadingOptions]);
+  }, [isStoreAdmin, isSuperAdmin, adminInfo, houseOptions, memberHouse, loadingAdmin, loadingOptions, loadingMemberHouse]);
 
   // 更新店铺ID和准备状态
   useEffect(() => {
@@ -62,8 +74,12 @@ export function useHouseSelector() {
       setIsReady(true);
     } else if (isSuperAdmin && houseOptions) {
       setIsReady(true);
+    } else if (!isStoreAdmin && !isSuperAdmin && memberHouse?.house_gid) {
+      // 普通成员
+      setHouseGid(String(memberHouse.house_gid));
+      setIsReady(true);
     }
-  }, [isStoreAdmin, isSuperAdmin, adminInfo, houseOptions]);
+  }, [isStoreAdmin, isSuperAdmin, adminInfo, houseOptions, memberHouse]);
 
   // 转换店铺选项为 MobileSelectOption 格式
   const formattedHouseOptions: MobileSelectOption[] = useMemo(() => {

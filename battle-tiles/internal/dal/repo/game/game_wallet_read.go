@@ -1,4 +1,4 @@
-﻿// internal/dal/repo/game/game_wallet_read.go
+// internal/dal/repo/game/game_wallet_read.go
 package game
 
 import (
@@ -14,17 +14,19 @@ import (
 type WalletReadRepo interface {
 	// 璇伙細闈炲姞閿?	// 淇敼: 澧炲姞 groupID 鍙傛暟
 	Get(ctx context.Context, houseGID, memberID int32, groupID *int32) (*model.GameMemberWallet, error)
-	
+	// 新增：按 game_id 查询
+	GetByGameID(ctx context.Context, houseGID, gameID int32, groupID *int32) (*model.GameMemberWallet, error)
+
 	// 鍒楄〃 + 璁℃暟锛堜綑棰濆尯闂淬€佹槸鍚︿釜鎬ч搴︺€佸垎椤碉級
 	// 淇敼: 澧炲姞 groupID 鍙傛暟
 	ListWallets(ctx context.Context, houseGID int32, groupID *int32, min, max *int32, hasCustomLimit *bool, page, size int32) ([]*model.GameMemberWallet, int64, error)
-	
+
 	// 鏂板: 鏌ヨ鎴愬憳鍦ㄦ墍鏈夊湀瀛愮殑浣欓
 	ListMemberBalances(ctx context.Context, houseGID int32, memberID int32) ([]*model.GameMemberWallet, error)
-	
+
 	// 娴佹按鍒楄〃 + 璁℃暟锛堝彲鎸夋垚鍛?绫诲瀷/鏃堕棿鑼冨洿绛涢€夛紝鍒嗛〉锛?
 	ListLedger(ctx context.Context, houseGID int32, memberID *int32, tp *int32, start, end time.Time, page, size int32) ([]*model.GameWalletLedger, int64, error)
-	
+
 	// 鎸夋垚鍛橀泦鍚堣繃婊ょ殑閽卞寘鍒楄〃
 	ListWalletsByMembers(ctx context.Context, houseGID int32, memberIDs []int32, min, max *int32, page, size int32) ([]*model.GameMemberWallet, int64, error)
 }
@@ -47,12 +49,27 @@ func (r *walletReadRepo) db(ctx context.Context) *gorm.DB { return r.data.GetDBW
 func (r *walletReadRepo) Get(ctx context.Context, houseGID, memberID int32, groupID *int32) (*model.GameMemberWallet, error) {
 	var m model.GameMemberWallet
 	db := r.db(ctx).Where("house_gid = ? AND member_id = ?", houseGID, memberID)
-	
+
 	// 鏂板: 鏀寔鎸夊湀瀛愮瓫閫?
 	if groupID != nil {
 		db = db.Where("group_id = ?", *groupID)
 	}
-	
+
+	if err := db.First(&m).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// GetByGameID 按 game_id 查询（可选 group_id）
+func (r *walletReadRepo) GetByGameID(ctx context.Context, houseGID, gameID int32, groupID *int32) (*model.GameMemberWallet, error) {
+	var m model.GameMemberWallet
+	db := r.db(ctx).Where("house_gid = ? AND game_id = ?", houseGID, gameID)
+
+	if groupID != nil {
+		db = db.Where("group_id = ?", *groupID)
+	}
+
 	if err := db.First(&m).Error; err != nil {
 		return nil, err
 	}
@@ -115,7 +132,7 @@ func (r *walletReadRepo) ListMemberBalances(ctx context.Context, houseGID int32,
 		Find(&wallets).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return wallets, nil
 }
 

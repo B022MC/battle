@@ -57,6 +57,7 @@ export const MembersView = () => {
   const { data: myGroup, loading: loadingMyGroup, run: runGetMyGroup } = useRequest(getMyGroup, { manual: true });
   const { data: allGroups, loading: loadingGroups, run: runListGroups } = useRequest(listGroupsByHouse, { manual: true });
   const { data: groupMembers, loading: loadingGroupMembers, run: runListGroupMembers } = useRequest(listGroupMembers, { manual: true });
+  const { data: groupGameMembers, loading: loadingGroupGameMembers, run: runListGroupGameMembers } = useRequest(shopsMembersList, { manual: true });
   const { run: runRemoveMember, loading: removingMember } = useRequest(removeMemberFromGroup, { manual: true });
   const { run: runAssignAdmin, loading: assigningAdmin } = useRequest(shopsAdminsAssign, { manual: true });
   const { run: runRevokeAdmin, loading: revokingAdmin } = useRequest(shopsAdminsRevoke, { manual: true });
@@ -442,33 +443,22 @@ export const MembersView = () => {
           </>
         ) : (
           <>
-            {!isStoreAdmin ? (
-              <View className="flex-row gap-2">
-                <Select
-                  value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
-                  onValueChange={(opt) => setHouseGid(String(opt?.value ?? ''))}
-                >
-                  <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
-                    <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>店铺号</SelectLabel>
-                      {(houseOptions ?? []).map((gid) => (
-                        <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
-                          {`店铺 ${gid}`}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Button onPress={handleLoadMyGroup} disabled={loadingMyGroup}>
-                  <Text>{loadingMyGroup ? '加载中...' : '加载圈子'}</Text>
-                </Button>
-              </View>
-            ) : null}
+            {/* 我的圈子：使用游戏成员列表（带备注/禁用/战绩/余额/上下分） */}
+            <Button
+              onPress={() => {
+                if (myGroup) {
+                  runListGroupGameMembers({ house_gid: myGroup.house_gid });
+                } else {
+                  handleLoadMyGroup();
+                }
+              }}
+              disabled={loadingGroupGameMembers || loadingMyGroup}
+              variant="default"
+            >
+              <Text>{loadingGroupGameMembers ? '加载中...' : '刷新圈子成员'}</Text>
+            </Button>
             {isSuperAdmin ? (
-              <Button onPress={handleLoadAllGroups} disabled={loadingGroups} variant="outline">
+              <Button onPress={handleLoadAllGroups} disabled={loadingGroups} variant="outline" className="mt-2">
                 <Text>查看所有圈子</Text>
               </Button>
             ) : null}
@@ -487,12 +477,12 @@ export const MembersView = () => {
         className="flex-1"
         refreshControl={
           <RefreshControl
-            refreshing={loadingUsers || loadingGroupMembers || loadingGameMembers}
+            refreshing={loadingUsers || loadingGroupMembers || loadingGameMembers || loadingGroupGameMembers}
             onRefresh={async () => {
               if (activeTab === 'all') {
                 handleLoadUsers();
               } else if (activeTab === 'group' && myGroup) {
-                runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
+                runListGroupGameMembers({ house_gid: myGroup.house_gid });
               } else if (activeTab === 'game') {
                 const effectiveHouseGid = isStoreAdmin && myAdminInfo?.house_gid 
                   ? myAdminInfo.house_gid 
@@ -628,96 +618,18 @@ export const MembersView = () => {
           </View>
         ) : (
           <View className="p-4 gap-2">
-            {loadingGroupMembers && !groupMembers ? (
-              <View className="py-8 items-center">
-                <ActivityIndicator size="large" />
-                <Text className="text-muted-foreground mt-2">加载中...</Text>
-              </View>
-            ) : null}
-            {(groupMembers?.items || []).map((user) => {
-              const gameIdMatch = (user as any).introduction?.match(/game_id:(\d+)/);
-              const gameId = gameIdMatch ? parseInt(gameIdMatch[1]) : null;
-              const isUnboundUser = user.id === 0 && gameId;
-              return (
-                <View
-                  key={user.id || `game-${gameId}`}
-                  className="bg-card rounded-lg border border-border p-4 gap-2"
-                >
-                  <View className="gap-2">
-                    <View className="flex-row justify-between items-start">
-                      <View className="flex-1">
-                        <Text className="font-semibold">{user.nick_name || user.username}</Text>
-                        {isUnboundUser ? (
-                          <View className="mt-1">
-                            <View className="flex-row items-center gap-2">
-                              <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
-                                <Text className="text-xs text-orange-700 dark:text-orange-400">未绑定平台</Text>
-                              </View>
-                              <Text className="text-xs text-muted-foreground">{`GameID: ${gameId}`}</Text>
-                            </View>
-                          </View>
-                        ) : (
-                          <View className="mt-1">
-                            <Text className="text-muted-foreground text-sm">{`ID: ${user.id}`}</Text>
-                            {user.phone ? (
-                              <Text className="text-muted-foreground text-sm">{`手机: ${user.phone}`}</Text>
-                            ) : null}
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    <View className="flex-row gap-2 mt-2 border-t border-border pt-2">
-                      <Button
-                        variant="destructive"
-                        onPress={() => handleRemoveMember(user.id)}
-                        disabled={removingMember}
-                        size="sm"
-                        className="flex-1"
-                      >
-                        <Text className="text-xs">移除</Text>
-                      </Button>
-                      {gameId && myGroup ? (
-                        <>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            onPress={() => setCreditDialog({
-                              visible: true,
-                              type: 'deposit',
-                              memberId: gameId,
-                              memberName: user.nick_name || user.username,
-                              gameId: gameId
-                            })}
-                          >
-                            <Text className="text-xs">上分</Text>
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="flex-1"
-                            onPress={() => setCreditDialog({
-                              visible: true,
-                              type: 'withdraw',
-                              memberId: gameId,
-                              memberName: user.nick_name || user.username,
-                              gameId: gameId
-                            })}
-                          >
-                            <Text className="text-xs">下分</Text>
-                          </Button>
-                        </>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-            {groupMembers && (groupMembers.items?.length || 0) === 0 ? (
-              <View className="py-8 items-center">
-                <Text className="text-muted-foreground">圈子暂无成员</Text>
-              </View>
-            ) : null}
+            <MembersList
+              loading={loadingGroupGameMembers && !groupGameMembers}
+              data={(groupGameMembers?.items || []).filter(item => item.current_group_id === myGroup?.id)}
+              houseGid={myGroup?.house_gid}
+              myGroupId={myGroup?.id}
+              onRemoveFromGroup={handleRemoveFromGroup}
+              onCreditChange={() => {
+                if (myGroup) {
+                  runListGroupGameMembers({ house_gid: myGroup.house_gid });
+                }
+              }}
+            />
             {!myGroup && !loadingMyGroup ? (
               <View className="py-8 items-center">
                 <Text className="text-muted-foreground">请先加载圈子</Text>

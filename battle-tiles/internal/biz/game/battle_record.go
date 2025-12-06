@@ -25,6 +25,7 @@ type BattleRecordUseCase struct {
 	accountGroupRepo repo.GameAccountGroupRepo // 用于查询活跃圈子
 	settingsRepo     repo.HouseSettingsRepo
 	feeRepo          repo.FeeSettleRepo
+	walletRepo       repo.WalletReadRepo
 	log              *log.Helper
 	verboseTaskLog   bool // 是否显示详细的任务日志
 }
@@ -38,6 +39,7 @@ func NewBattleRecordUseCase(
 	accountGroupRepo repo.GameAccountGroupRepo,
 	settingsRepo repo.HouseSettingsRepo,
 	feeRepo repo.FeeSettleRepo,
+	walletRepo repo.WalletReadRepo,
 	logConf *conf.Log,
 	logger log.Logger,
 ) *BattleRecordUseCase {
@@ -54,6 +56,7 @@ func NewBattleRecordUseCase(
 		accountGroupRepo: accountGroupRepo,
 		settingsRepo:     settingsRepo,
 		feeRepo:          feeRepo,
+		walletRepo:       walletRepo,
 		log:              log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
 		verboseTaskLog:   verboseTaskLog,
 	}
@@ -379,16 +382,45 @@ func (uc *BattleRecordUseCase) GetMyBalances(
 		uc.log.Errorf("Failed to get game account for user %d: %v", userID, err)
 		return nil, fmt.Errorf("未找到绑定的游戏账号")
 	}
-
-	// 2. 检查是否有游戏账号
 	if account.Account == "" {
 		uc.log.Warnf("User %d has no game account", userID)
 		return []interface{}{}, nil
 	}
 
-	// 3. 返回空列表（暂时实现）
-	// TODO: 实现实际的余额查询逻辑
-	return []interface{}{}, nil
+	// 2. 查询成员（按 game_id）
+	member, err := uc.memberRepo.GetByGameID(ctx, houseGID, account.GameIDInt())
+	if err != nil || member == nil {
+		uc.log.Warnf("GetMyBalances: member not found house=%d game_id=%d err=%v", houseGID, account.GameIDInt(), err)
+		return []interface{}{}, nil
+	}
+
+	// 3. 选择圈子：优先入参 group_id，否则用成员自身 group_id
+	targetGroupID := groupID
+	if targetGroupID == nil && member.GroupID != nil {
+		targetGroupID = member.GroupID
+	}
+
+	// 4. 查询钱包：先用 game_id+group 再回退 member_id+group
+	var balance int32 = member.Balance
+	if w, err := uc.walletRepo.GetByGameID(ctx, houseGID, member.GameID, targetGroupID); err == nil && w != nil {
+		balance = w.Balance
+	} else if w2, err2 := uc.walletRepo.Get(ctx, houseGID, member.Id, targetGroupID); err2 == nil && w2 != nil {
+		balance = w2.Balance
+	}
+
+	// 5. 返回
+	item := &MemberBalance{
+		MemberID:    member.Id,
+		GameID:      member.GameID,
+		GameName:    member.GameName,
+		GroupID:     targetGroupID,
+		GroupName:   member.GroupName,
+		Balance:     balance,
+		BalanceYuan: float64(balance) / 100.0,
+		UpdatedAt:   member.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	return []interface{}{item}, nil
 }
 
 // ListGroupMemberBalances 查询圈子成员余额

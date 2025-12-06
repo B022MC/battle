@@ -2,30 +2,16 @@ import React, { useState, useRef } from 'react';
 import { ScrollView, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { alert } from '@/utils/alert';
 import { listMyBattles, getMyStats } from '@/services/battles/query';
 import type { BattleRecord, BattleStats } from '@/services/battles/query-typing';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { shopsHousesOptions } from '@/services/shops/houses';
-import { getGroupOptions } from '@/services/shops/groups';
-import { TriggerRef } from '@rn-primitives/select';
-import { isWeb } from '@/utils/platform';
 
 export const MyBattlesView = () => {
   // 状态管理
   const [houseGid, setHouseGid] = useState<string>('');
-  const [groupId, setGroupId] = useState<string>('');
   const [page, setPage] = useState(1);
 
   // 计算最近7天的时间范围
@@ -39,39 +25,21 @@ export const MyBattlesView = () => {
   // API 请求
   const { data: battlesData, loading: loadingBattles, run: runListBattles } = useRequest(listMyBattles, { manual: true });
   const { data: statsData, loading: loadingStats, run: runGetStats } = useRequest(getMyStats, { manual: true });
-  const { data: houseOptions } = useRequest(shopsHousesOptions);
-  const { data: groupOptions, run: runGetGroupOptions } = useRequest(getGroupOptions, { manual: true });
-  const houseRef = useRef<TriggerRef>(null);
-  const groupRef = useRef<TriggerRef>(null);
-
-  function onHouseTouchStart() {
-    isWeb && houseRef.current?.open();
-  }
-
-  function onGroupTouchStart() {
-    isWeb && groupRef.current?.open();
-  }
-
-  // 当店铺改变时，加载该店铺的圈子列表
-  const handleHouseChange = async (newHouseGid: string) => {
-    setHouseGid(newHouseGid);
-    setGroupId(''); // 重置圈子选择
-    if (newHouseGid) {
-      try {
-        await runGetGroupOptions({ house_gid: Number(newHouseGid) });
-      } catch (error) {
-        console.error('加载圈子列表失败:', error);
+  const { data: houseOptions } = useRequest(shopsHousesOptions, {
+    onSuccess: (opts) => {
+      if (!houseGid && opts?.length) {
+        setHouseGid(String(opts[0]));
       }
-    }
-  };
+    },
+  });
 
   // 加载战绩
   const handleLoadBattles = async () => {
-    if (!houseGid) {
-      alert.show({ title: '请选择店铺号', variant: 'error' });
+    const gid = Number(houseGid || (houseOptions?.[0] ?? ''));
+    if (!gid) {
+      alert.show({ title: '未获取到店铺号', variant: 'error' });
       return;
     }
-    const gid = Number(houseGid);
     if (isNaN(gid) || gid <= 0) {
       alert.show({ title: '店铺号格式错误', variant: 'error' });
       return;
@@ -86,13 +54,6 @@ export const MyBattlesView = () => {
       end_time: endTime,
     };
 
-    if (groupId) {
-      const gidNum = Number(groupId);
-      if (!isNaN(gidNum) && gidNum > 0) {
-        params.group_id = gidNum;
-      }
-    }
-
     try {
       await runListBattles(params);
     } catch (error: any) {
@@ -102,11 +63,11 @@ export const MyBattlesView = () => {
 
   // 加载统计
   const handleLoadStats = async () => {
-    if (!houseGid) {
-      alert.show({ title: '请选择店铺号', variant: 'error' });
+    const gid = Number(houseGid || (houseOptions?.[0] ?? ''));
+    if (!gid) {
+      alert.show({ title: '未获取到店铺号', variant: 'error' });
       return;
     }
-    const gid = Number(houseGid);
     if (isNaN(gid) || gid <= 0) {
       alert.show({ title: '店铺号格式错误', variant: 'error' });
       return;
@@ -118,13 +79,6 @@ export const MyBattlesView = () => {
       start_time: startTime,
       end_time: endTime,
     };
-
-    if (groupId) {
-      const gidNum = Number(groupId);
-      if (!isNaN(gidNum) && gidNum > 0) {
-        params.group_id = gidNum;
-      }
-    }
 
     try {
       await runGetStats(params);
@@ -152,52 +106,14 @@ export const MyBattlesView = () => {
 
   return (
     <ScrollView className="flex-1 bg-background p-4">
-      {/* 查询表单 */}
+      {/* 查询表单（自动使用当前店铺，无需选择） */}
       <Card className="p-4 mb-4">
         <Text className="text-lg font-bold mb-4">查询我的战绩</Text>
-        
-        <View className="mb-3">
-          <Text className="mb-2">店铺号 *</Text>
-          <Select
-            value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
-            onValueChange={(opt) => handleHouseChange(String(opt?.value ?? ''))}
-          >
-            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
-              <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>店铺号</SelectLabel>
-                {(houseOptions ?? []).map((gid) => (
-                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
-                    店铺 {gid}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </View>
 
         <View className="mb-3">
-          <Text className="mb-2">圈子 (可选)</Text>
-          <Select
-            value={groupId ? ({ label: groupOptions?.find(g => String(g.id) === groupId)?.name || `圈子 ${groupId}`, value: groupId } as any) : undefined}
-            onValueChange={(opt) => setGroupId(String(opt?.value ?? ''))}
-          >
-            <SelectTrigger ref={groupRef} onTouchStart={onGroupTouchStart} className="min-w-[160px]">
-              <SelectValue placeholder={groupId ? `圈子 ${groupId}` : '选择圈子 (可选)'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>圈子</SelectLabel>
-                {(groupOptions ?? []).map((group) => (
-                  <SelectItem key={String(group.id)} label={group.name} value={String(group.id)}>
-                    {group.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <Text className="text-sm text-muted-foreground">
+            自动使用当前店铺（最近 7 天）
+          </Text>
         </View>
 
         <View className="mb-3">

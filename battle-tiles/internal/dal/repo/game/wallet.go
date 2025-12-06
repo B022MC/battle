@@ -18,6 +18,7 @@ type WalletRepo interface {
 
 	// 行级锁获取（FOR UPDATE），tx 允许为 nil（则内部自取 db）
 	GetForUpdate(ctx context.Context, tx *gorm.DB, houseGID, memberID int32) (*model.GameMemberWallet, error)
+	GetForUpdateByGameID(ctx context.Context, tx *gorm.DB, houseGID, gameID int32) (*model.GameMemberWallet, error)
 
 	// UPSERT（(house_gid,member_id) 冲突更新）
 	Upsert(ctx context.Context, tx *gorm.DB, w *model.GameMemberWallet) error
@@ -27,6 +28,10 @@ type WalletRepo interface {
 
 	// 幂等检查
 	ExistsLedgerBiz(ctx context.Context, houseGID, memberID int32, bizNo string) (bool, error)
+
+	// 清理指定成员钱包和流水
+	DeleteByMemberID(ctx context.Context, houseGID, memberID int32) error
+	DeleteLedgerByMemberID(ctx context.Context, houseGID, memberID int32) error
 }
 
 type walletRepo struct {
@@ -66,6 +71,21 @@ func (r *walletRepo) GetForUpdate(ctx context.Context, tx *gorm.DB, houseGID, me
 	return &m, nil
 }
 
+func (r *walletRepo) GetForUpdateByGameID(ctx context.Context, tx *gorm.DB, houseGID, gameID int32) (*model.GameMemberWallet, error) {
+	db := r.db(ctx)
+	if tx != nil {
+		db = tx
+	}
+	var m model.GameMemberWallet
+	if err := db.
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		First(&m).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
 func (r *walletRepo) Upsert(ctx context.Context, tx *gorm.DB, w *model.GameMemberWallet) error {
 	db := r.db(ctx)
 	if tx != nil {
@@ -73,11 +93,13 @@ func (r *walletRepo) Upsert(ctx context.Context, tx *gorm.DB, w *model.GameMembe
 	}
 	return db.
 		Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "house_gid"}, {Name: "member_id"}},
+			Columns: []clause.Column{{Name: "house_gid"}, {Name: "game_id"}, {Name: "group_id"}},
 			DoUpdates: clause.Assignments(map[string]any{
-				"balance":   w.Balance,
-				"forbid":    w.Forbid,
-				"limit_min": w.LimitMin,
+				"balance":    w.Balance,
+				"forbid":     w.Forbid,
+				"limit_min":  w.LimitMin,
+				"member_id":  w.MemberID,
+				"updated_by": w.UpdatedBy,
 			}),
 		}).
 		Create(w).Error
@@ -98,4 +120,16 @@ func (r *walletRepo) ExistsLedgerBiz(ctx context.Context, houseGID, memberID int
 		Where("house_gid = ? AND member_id = ? AND biz_no = ?", houseGID, memberID, bizNo).
 		Count(&cnt).Error
 	return cnt > 0, err
+}
+
+func (r *walletRepo) DeleteByMemberID(ctx context.Context, houseGID, memberID int32) error {
+	return r.db(ctx).
+		Where("house_gid = ? AND member_id = ?", houseGID, memberID).
+		Delete(&model.GameMemberWallet{}).Error
+}
+
+func (r *walletRepo) DeleteLedgerByMemberID(ctx context.Context, houseGID, memberID int32) error {
+	return r.db(ctx).
+		Where("house_gid = ? AND member_id = ?", houseGID, memberID).
+		Delete(&model.GameWalletLedger{}).Error
 }

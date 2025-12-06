@@ -2,6 +2,7 @@
 package game
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/plugin/soft_delete"
@@ -42,3 +43,15 @@ func (ga *GameAccount) IsVerified() bool {
 }
 
 func (GameAccount) TableName() string { return TableNameGameAccount }
+
+// GameIDInt returns GamePlayerID as int32, 0 if invalid or empty.
+func (ga *GameAccount) GameIDInt() int32 {
+	if ga == nil {
+		return 0
+	}
+	var id int32
+	if _, err := fmt.Sscanf(ga.GamePlayerID, "%d", &id); err != nil {
+		return 0
+	}
+	return id
+}

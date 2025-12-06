@@ -46,6 +46,12 @@ func (uc *FundsUseCase) Deposit(ctx context.Context, opUser int32, houseGID, mem
 		return nil, errors.New("member not found")
 	}
 
+	// 获取成员以取得 game_id
+	member, err := uc.memberRepo.GetByMemberID(ctx, houseGID, memberID)
+	if err != nil {
+		return nil, fmt.Errorf("member not found")
+	}
+
 	// 直接更新 game_member.balance
 	before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, memberID, amount)
 	if err != nil {
@@ -65,7 +71,7 @@ func (uc *FundsUseCase) Deposit(ctx context.Context, opUser int32, houseGID, mem
 		BizNo:          bizNo,
 	})
 
-	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: after}, nil
+	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, GameID: member.GameID, Balance: after}, nil
 }
 
 func (uc *FundsUseCase) Withdraw(ctx context.Context, opUser int32, houseGID, memberID int32, amount int32, bizNo, reason string, force bool) (*model.GameMemberWallet, error) {
@@ -120,10 +126,15 @@ func (uc *FundsUseCase) Withdraw(ctx context.Context, opUser int32, houseGID, me
 		BizNo:          bizNo,
 	})
 
-	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: after}, nil
+	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, GameID: m.GameID, Balance: after}, nil
 }
 
 func (uc *FundsUseCase) UpdateLimit(ctx context.Context, opUser int32, houseGID, memberID int32, limitMin *int32, forbid *bool, reason string) (*model.GameMemberWallet, error) {
+	member, err := uc.memberRepo.GetByMemberID(ctx, houseGID, memberID)
+	if err != nil {
+		return nil, fmt.Errorf("member not found")
+	}
+
 	tx, txErr := uc.wallet.BeginTx(ctx)
 	if txErr != nil {
 		return nil, txErr
@@ -138,7 +149,11 @@ func (uc *FundsUseCase) UpdateLimit(ctx context.Context, opUser int32, houseGID,
 		w = &model.GameMemberWallet{
 			HouseGID: houseGID,
 			MemberID: memberID,
+			GameID:   member.GameID,
 		}
+	} else if w.GameID == 0 {
+		// 补充 game_id
+		w.GameID = member.GameID
 	}
 	if limitMin != nil {
 		w.LimitMin = *limitMin

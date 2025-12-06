@@ -1,63 +1,38 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRequest } from '@/hooks/use-request';
 import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { alert } from '@/utils/alert';
 import { getMyBalances } from '@/services/battles/query';
 import type { MemberBalance } from '@/services/battles/query-typing';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { shopsHousesOptions } from '@/services/shops/houses';
-import { TriggerRef } from '@rn-primitives/select';
-import { isWeb } from '@/utils/platform';
+import { useHouseSelector } from '@/hooks/use-house-selector';
 
 export const MyBalancesView = () => {
-  // 状态管理
-  const [houseGid, setHouseGid] = useState<string>('');
-  const [groupId, setGroupId] = useState<string>('');
+  // 自动获取当前店铺（店铺管理员固定，超管可选择）
+  const { houseGid, isReady } = useHouseSelector();
 
   // API 请求
   const { data: balancesData, loading: loadingBalances, run: runGetBalances } = useRequest(getMyBalances, { manual: true });
-  const { data: houseOptions } = useRequest(shopsHousesOptions);
-  const houseRef = useRef<TriggerRef>(null);
 
-  function onHouseTouchStart() {
-    isWeb && houseRef.current?.open();
-  }
-
-  // 加载余额
+  // 加载余额（只需要 house_gid，game_id 由后端根据绑定账号解析）
   const handleLoadBalances = async () => {
-    if (!houseGid) {
-      alert.show({ title: '请输入店铺号', variant: 'error' });
+    if (!isReady || !houseGid) {
+      alert.show({ title: '未获取到店铺号', variant: 'error' });
       return;
     }
     const gid = Number(houseGid);
+    if (!gid) {
+      alert.show({ title: '未获取到店铺号', variant: 'error' });
+      return;
+    }
     if (isNaN(gid) || gid <= 0) {
       alert.show({ title: '店铺号格式错误', variant: 'error' });
       return;
     }
 
-    const params: any = {
-      house_gid: gid,
-    };
-
-    if (groupId) {
-      const gidNum = Number(groupId);
-      if (!isNaN(gidNum) && gidNum > 0) {
-        params.group_id = gidNum;
-      }
-    }
-
+    const params = { house_gid: gid };
     try {
       await runGetBalances(params);
     } catch (error: any) {
@@ -79,47 +54,18 @@ export const MyBalancesView = () => {
 
   // 计算总余额
   const getTotalBalance = () => {
-    if (!balancesData?.balances) return 0;
-    return balancesData.balances.reduce((sum, b) => sum + b.balance_yuan, 0);
+    const list = balancesData?.balances ?? [];
+    return list.reduce((sum, b) => sum + b.balance_yuan, 0);
   };
 
   return (
     <ScrollView className="flex-1 bg-background p-4">
-      {/* 查询表单 */}
+      {/* 查询表单（自动使用当前店铺，无需选择） */}
       <Card className="p-4 mb-4">
         <Text className="text-lg font-bold mb-4">查询我的余额</Text>
-        
-        <View className="mb-3">
-          <Text className="mb-2">店铺号 *</Text>
-          <Select
-            value={houseGid ? ({ label: `店铺 ${houseGid}`, value: houseGid } as any) : undefined}
-            onValueChange={(opt) => setHouseGid(String(opt?.value ?? ''))}
-          >
-            <SelectTrigger ref={houseRef} onTouchStart={onHouseTouchStart} className="min-w-[160px]">
-              <SelectValue placeholder={houseGid ? `店铺 ${houseGid}` : '选择店铺号'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>店铺号</SelectLabel>
-                {(houseOptions ?? []).map((gid) => (
-                  <SelectItem key={String(gid)} label={`店铺 ${gid}`} value={String(gid)}>
-                    店铺 {gid}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </View>
-
-        <View className="mb-3">
-          <Text className="mb-2">圈子ID (可选)</Text>
-          <Input
-            placeholder="不填则查询所有圈子"
-            value={groupId}
-            onChangeText={setGroupId}
-            keyboardType="numeric"
-          />
-        </View>
+        <Text className="text-sm text-muted-foreground mb-3">
+          自动使用当前店铺和当前圈子，无需选择
+        </Text>
 
         <Button
           onPress={handleLoadBalances}
@@ -130,7 +76,7 @@ export const MyBalancesView = () => {
       </Card>
 
       {/* 总余额 */}
-      {balancesData && balancesData.balances.length > 0 && (
+      {balancesData?.balances && balancesData.balances.length > 0 && (
         <Card className="p-4 mb-4 bg-primary">
           <Text className="text-sm text-primary-foreground mb-1">总余额</Text>
           <Text className="text-3xl font-bold text-primary-foreground">
@@ -143,7 +89,7 @@ export const MyBalancesView = () => {
       )}
 
       {/* 余额列表 */}
-      {balancesData && (
+      {balancesData?.balances && (
         <Card className="p-4">
           <Text className="text-lg font-bold mb-3">余额明细</Text>
 

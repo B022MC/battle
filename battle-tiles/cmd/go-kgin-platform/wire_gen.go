@@ -22,10 +22,11 @@ import (
 	"battle-tiles/internal/service"
 	basic3 "battle-tiles/internal/service/basic"
 	game3 "battle-tiles/internal/service/game"
-
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
+)
 
+import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -55,8 +56,9 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	gameCtrlAccountRepo := game.NewCtrlAccountRepo(infraData, logger)
 	gameAccountHouseRepo := game.NewGameAccountHouseRepo(infraData, logger)
 	gameAccountGroupRepo := game.NewGameAccountGroupRepo(infraData, logger)
+	gameMemberRepo := game.NewGameMemberRepo(infraData, logger)
 	sessionRepo := game.NewSessionRepo(infraData)
-	gameAccountUseCase := game2.NewGameAccountUseCase(gameAccountRepo, gameCtrlAccountRepo, gameAccountHouseRepo, gameAccountGroupRepo, sessionRepo, manager, logger)
+	gameAccountUseCase := game2.NewGameAccountUseCase(gameAccountRepo, gameCtrlAccountRepo, gameAccountHouseRepo, gameAccountGroupRepo, gameMemberRepo, sessionRepo, manager, logger)
 	basicLoginUseCase := basic2.NewBasicLoginUseCase(basicLoginRepo, global, authRepo, gameAccountUseCase, logger)
 	basicLoginService := basic3.NewBasicLoginService(basicLoginUseCase)
 	basicMenuRepo := basic.NewBaseMenuRepo(infraData, logger)
@@ -71,10 +73,10 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	accountService := game3.NewAccountService(gameAccountUseCase)
 	gameCtrlAccountHouseRepo := game.NewCtrlAccountHouseRepo(infraData, logger)
 	battleRecordRepo := game.NewBattleRecordRepo(infraData, logger)
-	gameMemberRepo := game.NewGameMemberRepo(infraData, logger)
 	houseSettingsRepo := game.NewHouseSettingsRepo(infraData, logger)
 	feeSettleRepo := game.NewFeeSettleRepo(infraData, logger)
-	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, confLog, logger)
+	walletReadRepo := game.NewWalletReadRepo(infraData, logger)
+	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, walletReadRepo, confLog, logger)
 	battleSyncManager := game2.NewBattleSyncManager(battleRecordUseCase, infraData, logger)
 	roomCreditLimitRepo := game.NewRoomCreditLimitRepo(db)
 	roomCreditLimitUseCase := game2.NewRoomCreditLimitUseCase(roomCreditLimitRepo, gameMemberRepo, houseSettingsRepo, manager, logger)
@@ -82,7 +84,6 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	ctrlSessionUseCase := game2.NewCtrlSessionUseCase(gameCtrlAccountRepo, gameCtrlAccountHouseRepo, sessionRepo, manager, battleSyncManager, logger, roomCreditEventHandler)
 	sessionService := game3.NewSessionService(ctrlSessionUseCase)
 	walletRepo := game.NewWalletRepo(infraData, logger)
-	walletReadRepo := game.NewWalletReadRepo(infraData, logger)
 	fundsUseCase := game2.NewFundsUseCase(walletRepo, walletReadRepo, gameMemberRepo)
 	fundsService := game3.NewFundsService(fundsUseCase, manager)
 	ctrlAccountUseCase := game2.NewCtrlAccountUseCase(gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, manager, logger)
@@ -97,7 +98,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	userApplicationRepo := game.NewUserApplicationRepo(infraData, logger)
 	shopGroupMemberRepo := game.NewShopGroupMemberRepo(infraData, logger)
 	shopGroupUseCase := game2.NewShopGroupUseCase(shopGroupRepo, shopGroupMemberRepo, gameShopAdminRepo, gameMemberRepo, gameAccountRepo, gameAccountGroupRepo, basicUserRepo, logger)
-	gameShopMemberService := game3.NewGameShopMemberService(manager, memberRuleUseCase, gameShopAdminRepo, basicUserRepo, userApplicationRepo, gameAccountRepo, gameMemberRepo, shopGroupUseCase, shopGroupRepo, gameAccountGroupRepo)
+	gameShopMemberService := game3.NewGameShopMemberService(manager, memberRuleUseCase, gameShopAdminRepo, basicUserRepo, userApplicationRepo, gameAccountRepo, gameMemberRepo, shopGroupUseCase, shopGroupRepo, gameAccountGroupRepo, walletRepo, logger)
 	gameStatsRepo := game.NewStatsRepo(infraData, logger)
 	gameStatsUseCase := game2.NewGameStatsUseCase(gameStatsRepo, logger)
 	gameStatsService := game3.NewGameStatsService(gameStatsUseCase, shopAdminUseCase, manager)
@@ -108,7 +109,8 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	gameGroupService := game3.NewGameGroupService(manager)
 	houseSettingsUseCase := game2.NewHouseSettingsUseCase(houseSettingsRepo, feeSettleRepo, logger)
 	houseSettingsService := game3.NewHouseSettingsService(houseSettingsUseCase)
-	battleRecordService := game3.NewBattleRecordService(battleRecordUseCase)
+	balanceQueryUseCase := game2.NewBalanceQueryUseCase(gameMemberRepo, walletReadRepo, shopGroupRepo, logger)
+	battleRecordService := game3.NewBattleRecordService(battleRecordUseCase, balanceQueryUseCase, gameAccountUseCase)
 	shopGroupService := game3.NewShopGroupService(shopGroupUseCase, gameAccountGroupUseCase, logger)
 	memberUseCase := game2.NewMemberUseCase(basicUserRepo, gameShopAdminRepo, logger)
 	memberService := game3.NewMemberService(memberUseCase, logger)

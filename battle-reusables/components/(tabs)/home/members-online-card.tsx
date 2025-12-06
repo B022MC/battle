@@ -95,9 +95,9 @@ export function MembersOnlineCard({
             最近在线成员
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            {onlineMembers.slice(0, 10).map((member) => (
+            {onlineMembers.slice(0, 10).map((member, idx) => (
               <View
-                key={member.id}
+                key={`${member.id}-${member.nickname}-${idx}`}
                 className="flex-row items-center gap-2 px-3 py-2 bg-secondary rounded-full"
               >
                 <View

@@ -15,10 +15,12 @@ import (
 	"battle-tiles/pkg/utils/response"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 type GameShopMemberService struct {
@@ -32,10 +34,25 @@ type GameShopMemberService struct {
 	groupUC          *biz.ShopGroupUseCase
 	groupRepo        gameRepo.ShopGroupRepo
 	accountGroupRepo gameRepo.GameAccountGroupRepo // 添加圈子关系 repo
+	walletRepo       gameRepo.WalletRepo
+	log              *log.Helper
 }
 
-func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, gameAccount gameRepo.GameAccountRepo, gameMember gameRepo.GameMemberRepo, groupUC *biz.ShopGroupUseCase, groupRepo gameRepo.ShopGroupRepo, accountGroupRepo gameRepo.GameAccountGroupRepo) *GameShopMemberService {
-	return &GameShopMemberService{mgr: mgr, rule: rule, sAdm: sAdm, users: users, apps: apps, gameAccount: gameAccount, gameMember: gameMember, groupUC: groupUC, groupRepo: groupRepo, accountGroupRepo: accountGroupRepo}
+func NewGameShopMemberService(mgr plaza.Manager, rule *biz.MemberRuleUseCase, sAdm gameRepo.GameShopAdminRepo, users basicRepo.BasicUserRepo, apps gameRepo.UserApplicationRepo, gameAccount gameRepo.GameAccountRepo, gameMember gameRepo.GameMemberRepo, groupUC *biz.ShopGroupUseCase, groupRepo gameRepo.ShopGroupRepo, accountGroupRepo gameRepo.GameAccountGroupRepo, walletRepo gameRepo.WalletRepo, logger log.Logger) *GameShopMemberService {
+	return &GameShopMemberService{
+		mgr:              mgr,
+		rule:             rule,
+		sAdm:             sAdm,
+		users:            users,
+		apps:             apps,
+		gameAccount:      gameAccount,
+		gameMember:       gameMember,
+		groupUC:          groupUC,
+		groupRepo:        groupRepo,
+		accountGroupRepo: accountGroupRepo,
+		walletRepo:       walletRepo,
+		log:              log.NewHelper(log.With(logger, "module", "service/game_shop_member")),
+	}
 }
 
 func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
@@ -862,6 +879,12 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 	kickedCount := 0
 
 	for _, gamePlayerID := range in.GamePlayerIDs {
+		// 预取成员记录用于清理钱包/流水
+		var memberRecord *gameModel.GameMember
+		if gameIDInt, err := strconv.Atoi(gamePlayerID); err == nil {
+			memberRecord, _ = s.gameMember.GetByGameID(c.Request.Context(), in.HouseGID, int32(gameIDInt))
+		}
+
 		// 在会话中查找该成员
 		var found bool
 		var gamePlayerIDInt int32
@@ -915,6 +938,16 @@ func (s *GameShopMemberService) RemoveFromGroup(c *gin.Context) {
 		// 清空圈子信息（设置为 0 和空字符串）
 		if err := s.gameMember.UpdateGroup(c.Request.Context(), in.HouseGID, gamePlayerIDInt, 0, ""); err != nil {
 			continue
+		}
+
+		// 清理钱包余额与流水（移除/转移即视为清空资金记录）
+		if memberRecord != nil {
+			if err := s.walletRepo.DeleteByMemberID(c.Request.Context(), in.HouseGID, memberRecord.Id); err != nil {
+				s.log.Warnf("清理钱包失败 house=%d member=%d err=%v", in.HouseGID, memberRecord.Id, err)
+			}
+			if err := s.walletRepo.DeleteLedgerByMemberID(c.Request.Context(), in.HouseGID, memberRecord.Id); err != nil {
+				s.log.Warnf("清理流水失败 house=%d member=%d err=%v", in.HouseGID, memberRecord.Id, err)
+			}
 		}
 
 		successCount++

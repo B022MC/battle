@@ -24,6 +24,9 @@ type GameMemberRepo interface {
 	// 鏌ヨ鎴愬憳鍦ㄦ墍鏈夊湀瀛愮殑璁板綍
 	ListByGameID(ctx context.Context, houseGID int32, gameID int32) ([]*model.GameMember, error)
 
+	// 按 game_id 跨店铺查询所有成员，按更新时间倒序
+	ListAllByGameID(ctx context.Context, gameID int32) ([]*model.GameMember, error)
+
 	// 鏌ヨ鍦堝瓙鐨勬墍鏈夋垚鍛?
 	ListByGroup(ctx context.Context, houseGID int32, groupID int32, page, size int32) ([]*model.GameMember, int64, error)
 
@@ -137,6 +140,18 @@ func (r *gameMemberRepo) ListByGameID(ctx context.Context, houseGID int32, gameI
 		return nil, err
 	}
 
+	return members, nil
+}
+
+// ListAllByGameID 按 game_id 跨店铺查询成员，按更新时间倒序
+func (r *gameMemberRepo) ListAllByGameID(ctx context.Context, gameID int32) ([]*model.GameMember, error) {
+	var members []*model.GameMember
+	if err := r.db(ctx).
+		Where("game_id = ?", gameID).
+		Order("updated_at DESC").
+		Find(&members).Error; err != nil {
+		return nil, err
+	}
 	return members, nil
 }
 

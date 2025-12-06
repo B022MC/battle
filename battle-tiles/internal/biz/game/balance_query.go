@@ -1,4 +1,4 @@
-﻿package game
+package game
 
 import (
 	model "battle-tiles/internal/dal/model/game"
@@ -60,14 +60,14 @@ func (uc *BalanceQueryUseCase) GetMyBalances(
 			return nil, err
 		}
 
-		// 鏌ヨ閽卞寘淇℃伅
-		wallet, err := uc.walletRepo.Get(ctx, houseGID, member.Id, groupID)
+		// 先按 game_id+group 查钱包，找不到再按 member_id+group
+		wallet, err := uc.walletRepo.GetByGameID(ctx, houseGID, member.GameID, groupID)
 		if err != nil {
-			uc.log.Warnf("get wallet failed: %v, use member balance", err)
-			// 濡傛灉閽卞寘涓嶅瓨鍦?浣跨敤鎴愬憳琛ㄧ殑浣欓
-			wallet = &model.GameMemberWallet{
-				Balance: member.Balance,
-			}
+			uc.log.Warnf("get wallet by game_id failed: %v, fallback member_id", err)
+			wallet, err = uc.walletRepo.Get(ctx, houseGID, member.Id, groupID)
+		}
+		if err != nil || wallet == nil {
+			wallet = &model.GameMemberWallet{Balance: member.Balance}
 		}
 
 		balance := &MemberBalance{
@@ -91,14 +91,14 @@ func (uc *BalanceQueryUseCase) GetMyBalances(
 		}
 
 		for _, member := range members {
-			// 鏌ヨ閽卞寘淇℃伅
-			wallet, err := uc.walletRepo.Get(ctx, houseGID, member.Id, member.GroupID)
+			// 先按 game_id+group 查钱包，找不到再按 member_id+group
+			wallet, err := uc.walletRepo.GetByGameID(ctx, houseGID, member.GameID, member.GroupID)
 			if err != nil {
-				uc.log.Warnf("get wallet for member %d failed: %v, use member balance", member.Id, err)
-				// 濡傛灉閽卞寘涓嶅瓨鍦?浣跨敤鎴愬憳琛ㄧ殑浣欓
-				wallet = &model.GameMemberWallet{
-					Balance: member.Balance,
-				}
+				uc.log.Warnf("get wallet for member %d by game_id failed: %v, fallback member_id", member.Id, err)
+				wallet, err = uc.walletRepo.Get(ctx, houseGID, member.Id, member.GroupID)
+			}
+			if err != nil || wallet == nil {
+				wallet = &model.GameMemberWallet{Balance: member.Balance}
 			}
 
 			balance := &MemberBalance{

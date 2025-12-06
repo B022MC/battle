@@ -19,11 +19,8 @@ export default function ShopLayout() {
         headerShadowVisible: false,
         // 使用自定义返回按钮（特别是为了 Web 平台）
         headerLeft: () => <HeaderBackButton />,
-        // 确保 header 在最顶层，避免被遮罩层挡住
-        headerStyle: {
-          // @ts-ignore - Web only CSS
-          zIndex: 1000,
-        },
+        // Web 平台：避免无效的 zIndex 警告，保持默认即可
+        headerStyle: Platform.OS === 'web' ? {} : undefined,
       }}>
       <Stack.Screen name="account" options={{ title: '游戏账号' }} />
       <Stack.Screen name="admins" options={{ title: '管理员' }} />

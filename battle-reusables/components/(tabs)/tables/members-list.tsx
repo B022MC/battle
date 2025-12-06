@@ -234,7 +234,10 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
               {item.is_bind_platform && <View className="bg-green-500/20 px-1.5 py-0.5 rounded"><Text className="text-green-700 dark:text-green-400 text-xs">绑</Text></View>}
               {item.current_group_name && <Text className="text-xs text-blue-600 dark:text-blue-400">{item.current_group_name}</Text>}
             </View>
-            <Text className="text-xs text-muted-foreground">{item.game_id} {item.current_group_id ? `(圈:${item.current_group_id})` : ''}</Text>
+            <View className="items-end">
+              <Text className="text-xs text-muted-foreground">{item.game_id} {item.current_group_id ? `(圈:${item.current_group_id})` : ''}</Text>
+              <Text className="text-xs text-primary font-semibold">分数: {item.balance ?? 0}</Text>
+            </View>
           </View>
           {/* 第二行：备注和操作按钮 */}
           {item.game_player_id && houseGid ? (

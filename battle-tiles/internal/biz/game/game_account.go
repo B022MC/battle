@@ -21,6 +21,7 @@ type GameAccountUseCase struct {
 	accCtrlAccountRepo repo.GameCtrlAccountRepo
 	accHouseRepo       repo.GameAccountHouseRepo
 	accountGroupRepo   repo.GameAccountGroupRepo // 用于查询 game_account_group
+	memberRepo         repo.GameMemberRepo       // 用于回退按 game_id 查询最新圈子
 	sessRepo           repo.SessionRepo
 	mgr                plaza.Manager
 	log                *log.Helper
@@ -31,6 +32,7 @@ func NewGameAccountUseCase(
 	ctrlAcc repo.GameCtrlAccountRepo,
 	accHouse repo.GameAccountHouseRepo,
 	accountGroup repo.GameAccountGroupRepo,
+	memberRepo repo.GameMemberRepo,
 	sess repo.SessionRepo,
 	mgr plaza.Manager,
 	logger log.Logger,
@@ -40,6 +42,7 @@ func NewGameAccountUseCase(
 		accCtrlAccountRepo: ctrlAcc,
 		accHouseRepo:       accHouse,
 		accountGroupRepo:   accountGroup,
+		memberRepo:         memberRepo,
 		sessRepo:           sess,
 		mgr:                mgr,
 		log:                log.NewHelper(log.With(logger, "module", "usecase/game_account")),
@@ -121,8 +124,31 @@ func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) (*m
 		return nil, err
 	}
 
-	// 从 game_account_group 查询店铺信息（一个用户在一个店铺只能加入一个圈子）
-	// 使用 game_player_id 查询
+	// 优先按 game_id 跨店铺取最新的 game_member 记录（以 updated_at DESC）
+	gameIDInt := acc.GameIDInt()
+	if gameIDInt == 0 {
+		return nil, fmt.Errorf("游戏账号缺少有效 game_id")
+	}
+	members, err := uc.memberRepo.ListAllByGameID(ctx, gameIDInt)
+	if err != nil {
+		return nil, err
+	}
+	if len(members) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	if len(members) > 0 {
+		latest := members[0] // updated_at DESC
+		return &model.GameAccountHouse{
+			Id:            latest.Id,
+			GameAccountID: acc.Id,
+			HouseGID:      latest.HouseGID,
+			IsDefault:     true,
+			Status:        1,
+		}, nil
+	}
+
+	// 若成员表无记录，再从 game_account_group（按创建时间 DESC）获取活跃店铺
 	if acc.GamePlayerID == "" {
 		return nil, fmt.Errorf("游戏账号缺少 game_player_id")
 	}
@@ -131,22 +157,17 @@ func (uc *GameAccountUseCase) GetMyHouses(ctx context.Context, userID int32) (*m
 		return nil, err
 	}
 
-	if len(accountGroups) == 0 {
-		return nil, gorm.ErrRecordNotFound
-	}
-
-	// 取第一个激活的圈子关系，转换为 GameAccountHouse 格式
-	for _, ag := range accountGroups {
-		if ag.Status == model.AccountGroupStatusActive {
-			// 转换为 GameAccountHouse 结构（保持 API 响应格式不变）
-			// 使用 game_account.id (acc.Id)，而非 GamePlayerID
-			return &model.GameAccountHouse{
-				Id:            ag.Id,
-				GameAccountID: acc.Id, // 使用当前 game_account 的 ID
-				HouseGID:      ag.HouseGID,
-				IsDefault:     true,
-				Status:        1,
-			}, nil
+	if len(accountGroups) > 0 {
+		for _, ag := range accountGroups {
+			if ag.Status == model.AccountGroupStatusActive {
+				return &model.GameAccountHouse{
+					Id:            ag.Id,
+					GameAccountID: acc.Id,
+					HouseGID:      ag.HouseGID,
+					IsDefault:     true,
+					Status:        1,
+				}, nil
+			}
 		}
 	}
 

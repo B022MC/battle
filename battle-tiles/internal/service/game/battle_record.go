@@ -2,22 +2,31 @@
 package game
 
 import (
+	"fmt"
+	"strconv"
+	"time"
+
 	gameBiz "battle-tiles/internal/biz/game"
 	"battle-tiles/pkg/plugin/middleware"
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type BattleRecordService struct {
-	uc *gameBiz.BattleRecordUseCase
+	battleUC  *gameBiz.BattleRecordUseCase
+	balanceUC *gameBiz.BalanceQueryUseCase
+	accountUC *gameBiz.GameAccountUseCase
 }
 
-func NewBattleRecordService(uc *gameBiz.BattleRecordUseCase) *BattleRecordService {
-	return &BattleRecordService{uc: uc}
+func NewBattleRecordService(battleUC *gameBiz.BattleRecordUseCase, balanceUC *gameBiz.BalanceQueryUseCase, accountUC *gameBiz.GameAccountUseCase) *BattleRecordService {
+	return &BattleRecordService{
+		battleUC:  battleUC,
+		balanceUC: balanceUC,
+		accountUC: accountUC,
+	}
 }
 
 func (s *BattleRecordService) RegisterRouter(r *gin.RouterGroup) {
@@ -39,10 +48,10 @@ func (s *BattleRecordService) RegisterRouter(r *gin.RouterGroup) {
 
 // ListMyBattlesRequest 查询我的战绩请求
 type ListMyBattlesRequest struct {
-	HouseGID  int32  `json:"house_gid"`  // 可选，如果不传则查询所有店铺
-	StartTime *int64 `json:"start_time"` // Unix timestamp
-	GroupID   *int32 `json:"group_id"`   // 可选，如果不传则查询所有圈子
-	EndTime   *int64 `json:"end_time"`   // Unix timestamp
+	HouseGID  int32  `json:"house_gid" binding:"required"` // 必填：当前店铺
+	StartTime *int64 `json:"start_time"`                   // Unix timestamp
+	GroupID   *int32 `json:"group_id"`                     // 可选：圈子
+	EndTime   *int64 `json:"end_time"`                     // Unix timestamp
 	Page      int32  `json:"page"`
 	Size      int32  `json:"size"`
 }
@@ -59,6 +68,11 @@ func (s *BattleRecordService) ListMyBattles(c *gin.Context) {
 	var in ListMyBattlesRequest
 	if err := c.ShouldBindJSON(&in); err != nil {
 		response.Fail(c, ecode.ParamsFailed, err)
+		return
+	}
+
+	if in.HouseGID <= 0 {
+		response.Fail(c, ecode.ParamsFailed, fmt.Errorf("house_gid 必填且需大于0"))
 		return
 	}
 
@@ -89,7 +103,7 @@ func (s *BattleRecordService) ListMyBattles(c *gin.Context) {
 	}
 
 	// 查询战绩
-	records, total, err := s.uc.ListMyBattleRecords(
+	records, total, err := s.battleUC.ListMyBattleRecords(
 		c.Request.Context(),
 		claims.UserID,
 		in.HouseGID,
@@ -114,7 +128,7 @@ func (s *BattleRecordService) ListMyBattles(c *gin.Context) {
 
 // GetMyStatsRequest 查询我的统计请求
 type GetMyStatsRequest struct {
-	HouseGID  int32  `json:"house_gid"` // 可选，如果不传则查询所有店铺
+	HouseGID  int32  `json:"house_gid" binding:"required"` // 必填：当前店铺
 	GroupID   *int32 `json:"group_id"`
 	StartTime *int64 `json:"start_time"` // Unix timestamp
 	EndTime   *int64 `json:"end_time"`   // Unix timestamp
@@ -135,6 +149,11 @@ func (s *BattleRecordService) GetMyStats(c *gin.Context) {
 		return
 	}
 
+	if in.HouseGID <= 0 {
+		response.Fail(c, ecode.ParamsFailed, fmt.Errorf("house_gid 必填且需大于0"))
+		return
+	}
+
 	claims, err := utils.GetClaims(c)
 	if err != nil {
 		response.Fail(c, ecode.TokenValidateFailed, err)
@@ -152,7 +171,7 @@ func (s *BattleRecordService) GetMyStats(c *gin.Context) {
 	}
 
 	// 查询统计
-	totalGames, totalScore, totalFee, err := s.uc.GetMyBattleStats(
+	totalGames, totalScore, totalFee, err := s.battleUC.GetMyBattleStats(
 		c.Request.Context(),
 		claims.UserID,
 		in.HouseGID,
@@ -243,7 +262,7 @@ func (s *BattleRecordService) ListGroupBattles(c *gin.Context) {
 	}
 
 	// 调用业务层查询战绩
-	list, total, err := s.uc.ListGroupBattles(
+	list, total, err := s.battleUC.ListGroupBattles(
 		c.Request.Context(),
 		in.HouseGID,
 		in.GroupID,
@@ -300,7 +319,7 @@ func (s *BattleRecordService) GetPlayerStats(c *gin.Context) {
 	}
 
 	// 查询统计
-	totalGames, totalScore, totalFee, err := s.uc.GetPlayerBattleStats(
+	totalGames, totalScore, totalFee, err := s.battleUC.GetPlayerBattleStats(
 		c.Request.Context(),
 		in.HouseGID,
 		in.PlayerGameID,
@@ -356,9 +375,24 @@ func (s *BattleRecordService) GetMyBalances(c *gin.Context) {
 	}
 
 	// 查询我的余额
-	balances, err := s.uc.GetMyBalances(
+	account, err := s.accountUC.GetMine(c.Request.Context(), claims.UserID)
+	if err != nil {
+		response.Fail(c, ecode.Failed, err)
+		return
+	}
+	if account == nil || account.GamePlayerID == "" {
+		response.Fail(c, ecode.Failed, fmt.Errorf("未找到绑定的游戏账号ID"))
+		return
+	}
+	gameID, err := strconv.Atoi(account.GamePlayerID)
+	if err != nil {
+		response.Fail(c, ecode.Failed, fmt.Errorf("无效的 game_player_id"))
+		return
+	}
+
+	balances, err := s.balanceUC.GetMyBalances(
 		c.Request.Context(),
-		claims.UserID,
+		int32(gameID),
 		in.HouseGID,
 		in.GroupID,
 	)
@@ -405,13 +439,28 @@ func (s *BattleRecordService) ListGroupMemberBalances(c *gin.Context) {
 		in.Size = 20
 	}
 
+	claims, err := utils.GetClaims(c)
+	if err != nil {
+		response.Fail(c, ecode.TokenValidateFailed, err)
+		return
+	}
+
+	toCent := func(v *int32) *int32 {
+		if v == nil {
+			return nil
+		}
+		x := *v * 100
+		return &x
+	}
+
 	// 查询圈子成员余额
-	balances, total, err := s.uc.ListGroupMemberBalances(
+	balances, total, err := s.balanceUC.ListGroupMemberBalances(
 		c.Request.Context(),
+		claims.UserID,
 		in.HouseGID,
 		in.GroupID,
-		in.MinYuan,
-		in.MaxYuan,
+		toCent(in.MinYuan),
+		toCent(in.MaxYuan),
 		in.Page,
 		in.Size,
 	)
@@ -463,7 +512,7 @@ func (s *BattleRecordService) GetGroupStats(c *gin.Context) {
 	}
 
 	// 查询圈子统计
-	stats, err := s.uc.GetGroupStats(
+	stats, err := s.battleUC.GetGroupStats(
 		c.Request.Context(),
 		in.HouseGID,
 		in.GroupID,
@@ -512,7 +561,7 @@ func (s *BattleRecordService) GetHouseStats(c *gin.Context) {
 	}
 
 	// 查询店铺统计
-	stats, err := s.uc.GetHouseStats(
+	stats, err := s.battleUC.GetHouseStats(
 		c.Request.Context(),
 		in.HouseGID,
 		start,
