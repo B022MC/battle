@@ -19,6 +19,9 @@ export default function ShopHubScreen() {
         <PermissionGate anyOf={["shop:fees:view"]}>
           <Button onPress={() => router.push('/(shop)/shop-fees')}><Text>店铺费用</Text></Button>
         </PermissionGate>
+        <PermissionGate anyOf={["room:credit:view"]}>
+          <Button onPress={() => router.push('/(shop)/room-credit')}><Text>额度设置</Text></Button>
+        </PermissionGate>
         <Button onPress={() => router.push('/(shop)/game-applications')}><Text>游戏申请</Text></Button>
 
         {/* 战绩查询功能 */}

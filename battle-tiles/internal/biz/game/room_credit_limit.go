@@ -125,10 +125,17 @@ func (uc *RoomCreditLimitUseCase) HandlePlayerSitDown(ctx context.Context, userI
 	}
 
 	// 2. 检查房间额度要求
+	uc.log.Infof("[费用检查] 查询额度配置: houseGID=%d, group=%s, kindID=%d, baseScore=%d",
+		houseGID, member.GroupName, kindID, baseScore)
 	roomCreditLimit, found := uc.repo.GetCreditLimit(ctx, houseGID, member.GroupName, kindID, baseScore)
 	if !found {
-		uc.log.Warnf("HandlePlayerSitDown: no credit limit found, using default, houseGID=%d, group=%s, kind=%d, base=%d",
+		// 没有配置额度时，使用兜底值（与 passing-dragonfly 一致：99999元）
+		roomCreditLimit = 99999 * 100 // 9999900分 = 99999元
+		uc.log.Warnf("[费用检查] 未找到额度配置，使用兜底值99999元: houseGID=%d, group=%s, kind=%d, base=%d",
 			houseGID, member.GroupName, kindID, baseScore)
+	} else {
+		uc.log.Infof("[费用检查] 找到额度配置: roomCreditLimit=%d分 (%.0f元)",
+			roomCreditLimit, float64(roomCreditLimit)/100.0)
 	}
 
 	// 3. 计算有效额度要求（房间额度 + 玩家个人额度调整）

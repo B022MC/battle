@@ -22,7 +22,7 @@ type GameRouter struct {
 	battleRecordService    *game.BattleRecordService
 	shopGroupService       *game.ShopGroupService
 	memberService          *game.MemberService
-	// roomCreditLimitService *game.RoomCreditLimitService // 已废弃，改用店铺费用功能
+	roomCreditLimitService *game.RoomCreditLimitService
 }
 
 func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
@@ -61,8 +61,8 @@ func (r *GameRouter) InitRouter(root *gin.RouterGroup) {
 	// 成员管理
 	r.memberService.RegisterRouter(root)
 
-	// 房间额度 - 已废弃，改用店铺费用功能
-	// r.roomCreditLimitService.RegisterRouter(root)
+	// 房间额度设置
+	r.roomCreditLimitService.RegisterRouter(root)
 }
 
 func NewGameRouter(
@@ -81,7 +81,7 @@ func NewGameRouter(
 	battleRecordService *game.BattleRecordService,
 	shopGroupService *game.ShopGroupService,
 	memberService *game.MemberService,
-	// roomCreditLimitService *game.RoomCreditLimitService, // 已废弃
+	roomCreditLimitService *game.RoomCreditLimitService,
 ) *GameRouter {
 	return &GameRouter{
 		accountService:         accountService,
@@ -99,6 +99,6 @@ func NewGameRouter(
 		battleRecordService:    battleRecordService,
 		shopGroupService:       shopGroupService,
 		memberService:          memberService,
-		// roomCreditLimitService: roomCreditLimitService, // 已废弃
+		roomCreditLimitService: roomCreditLimitService,
 	}
 }

@@ -16,6 +16,7 @@ export * from './game/account';
 export * from './game/ctrl-account';
 export * from './game/session';
 export * from './game/funds';
+export * from './game/room-credit';
 
 // ============================================
 // Shop Management

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Switch } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useHouseSelector } from '@/hooks/use-house-selector';
 import { usePlazaConsts } from '@/hooks/use-plaza-consts';
 import { MobileSelect } from '@/components/ui/mobile-select';
-import { getShopFees, setShopFees } from '@/services/game/shop-fees';
+import { getShopFees, setShopFees, setShareFee } from '@/services/game/shop-fees';
 
 export function ShopFeesView() {
   const {
@@ -24,6 +24,7 @@ export function ShopFeesView() {
 
   const [loading, setLoading] = useState(false);
   const [feesConfig, setFeesConfig] = useState<API.FeesConfig>({ rules: [] });
+  const [shareEnabled, setShareEnabled] = useState(false);
   
   // 费用规则表单
   const [threshold, setThreshold] = useState('');
@@ -46,11 +47,17 @@ export function ShopFeesView() {
 
   // 获取游戏类型名称
   const getGameKindName = (kindCode: string | number | undefined) => {
-    if (!kindCode) return '未指定';
+    // 未设置或为 0，表示全部游戏
+    if (kindCode === undefined || kindCode === null || kindCode === '') {
+      return '全部游戏';
+    }
+
     const code = typeof kindCode === 'string' ? Number(kindCode) : kindCode;
-    if (code === 0 || isNaN(code)) return '未指定';
+    if (code === 0 || isNaN(code)) return '全部游戏';
+
     const name = maps.game_kinds.get(code);
     if (name) return name;
+
     // 常见游戏类型硬编码备用
     const fallback: Record<number, string> = {
       60: '血战到底',
@@ -68,7 +75,11 @@ export function ShopFeesView() {
     try {
       setLoading(true);
       const res = await getShopFees({ house_gid: Number(houseGid) });
-      
+
+      if (res.data) {
+        setShareEnabled(!!res.data.share_fee);
+      }
+
       if (res.data?.fees_json) {
         try {
           const config = JSON.parse(res.data.fees_json) as API.FeesConfig;
@@ -97,6 +108,29 @@ export function ShopFeesView() {
     loadFees();
   }, [loadFees]);
 
+  // 切换分运开关
+  const handleToggleShareFee = async (value: boolean) => {
+    if (!houseGid) {
+      showToast('请选择店铺', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await setShareFee({
+        house_gid: Number(houseGid),
+        share: value,
+      });
+      setShareEnabled(value);
+      showToast(value ? '已开启分运' : '已关闭分运', 'success');
+    } catch (error) {
+      showToast('更新分运设置失败', 'error');
+      console.error('更新分运设置失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 开始编辑规则
   const handleEditRule = (index: number) => {
     const rule = feesConfig.rules[index];
@@ -118,35 +152,51 @@ export function ShopFeesView() {
 
   // 添加/保存规则
   const handleSaveRule = () => {
-    if (!gameKind || gameKind === '0') {
-      showToast('请选择游戏类型', 'error');
+    // 分数阈值与费用必须是有效的正数
+    const thresholdNum = Number(threshold);
+    const feeNum = Number(fee);
+    const baseNum = baseScore ? Number(baseScore) : 0;
+
+    if (!threshold || Number.isNaN(thresholdNum) || thresholdNum <= 0) {
+      showToast('请输入正确的分数阈值', 'error');
       return;
     }
-    if (!threshold || !fee) {
-      showToast('请输入分数阈值和费用', 'error');
+    if (!fee || Number.isNaN(feeNum) || feeNum <= 0) {
+      showToast('请输入正确的费用', 'error');
       return;
     }
 
     const newRule: API.FeeRule = {
-      threshold: Number(threshold),
-      fee: Number(fee),
-      kind: gameKind,
-      base: baseScore ? Number(baseScore) : 0,
+      threshold: thresholdNum,
+      fee: feeNum,
     };
 
-    if (editingIndex !== null) {
-      // 编辑模式：替换对应索引的规则
-      setFeesConfig(prev => ({
-        rules: prev.rules.map((r, i) => i === editingIndex ? newRule : r)
-      }));
-      showToast('规则已修改，请点击保存', 'success');
+    // 如果选择了游戏类型，则必须设置大于 0 的底分，按具体【游戏类型 + 底分】生效
+    if (gameKind) {
+      if (Number.isNaN(baseNum) || baseNum <= 0) {
+        showToast('选择了游戏类型时必须设置大于 0 的底分', 'error');
+        return;
+      }
+      newRule.kind = gameKind;
+      newRule.base = baseNum;
     } else {
-      // 新增模式
-      setFeesConfig(prev => ({
-        rules: [...prev.rules, newRule]
-      }));
-      showToast('规则已添加，请点击保存', 'success');
+      // 未选择游戏类型：可选设置底分>0，表示“所有游戏但指定底分”，否则为完全全局规则
+      if (!Number.isNaN(baseNum) && baseNum > 0) {
+        newRule.base = baseNum;
+      }
     }
+
+    setFeesConfig(prev => {
+      const rules = [...prev.rules];
+      if (editingIndex !== null && editingIndex >= 0 && editingIndex < rules.length) {
+        rules[editingIndex] = newRule;
+      } else {
+        rules.push(newRule);
+      }
+      return { ...prev, rules };
+    });
+
+    showToast(editingIndex !== null ? '规则已修改，请点击保存' : '规则已添加，请点击保存', 'success');
 
     // 清空表单
     setEditingIndex(null);
@@ -216,6 +266,23 @@ export function ShopFeesView() {
           </View>
         </Card>
 
+        {/* 分运设置 */}
+        <PermissionGate anyOf={['shop:sharefee:write', 'shop:fees:update']}>
+          <Card className="mb-4 p-4 flex-row items-center justify-between">
+            <View>
+              <Text className="text-base font-semibold mb-1">分运设置</Text>
+              <Text className="text-xs text-muted-foreground">
+                开启后，运费在各圈之间按规则分摊
+              </Text>
+            </View>
+            <Switch
+              value={shareEnabled}
+              onValueChange={handleToggleShareFee}
+              disabled={!houseGid || loading}
+            />
+          </Card>
+        </PermissionGate>
+
         {/* 添加/编辑费用规则 */}
         <PermissionGate anyOf={['shop:fees:update']}>
           <Card className="mb-4 p-4">
@@ -233,11 +300,11 @@ export function ShopFeesView() {
 
             <View className="mb-3">
               <Text className="text-sm text-muted-foreground mb-1">
-                游戏类型 *
+                游戏类型（可选，留空表示全部）
               </Text>
               <MobileSelect
                 value={gameKind}
-                placeholder="请选择游戏类型"
+                placeholder="请选择游戏类型（留空表示全部）"
                 options={gameKindSelectOptions}
                 onValueChange={(value) => setGameKind(value)}
                 className="w-full"
@@ -282,7 +349,7 @@ export function ShopFeesView() {
 
             <Button
               onPress={handleSaveRule}
-              disabled={!gameKind || gameKind === '0' || !threshold || !fee || loading}
+              disabled={!threshold || !fee || loading}
               variant="outline"
             >
               {editingIndex === null && <Icon as={Plus} size={16} className="mr-2" />}
@@ -292,7 +359,8 @@ export function ShopFeesView() {
             <View className="mt-3 bg-muted/50 p-3 rounded">
               <Text className="text-xs text-muted-foreground">
                 规则说明：
-                {'\n'}• 游戏类型必填，底分可选（0表示不限）
+                {'\n'}• 游戏类型可选：留空表示全部游戏
+                {'\n'}• 底分可选：0 或留空表示不限底分
                 {'\n'}• 分数阈值：最高分达到该值时收取费用
               </Text>
             </View>
