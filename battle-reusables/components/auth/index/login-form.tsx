@@ -20,6 +20,7 @@ import { useRequest } from '@/hooks/use-request';
 import { useAuthStore } from '@/hooks/use-auth-store';
 import { platformsList } from '@/services/platforms';
 import { loginUsername } from '@/services/login';
+import { basicUserMeRoles, basicUserMePerms } from '@/services/basic/user';
 import z from 'zod';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,7 +73,23 @@ export const LoginForm = () => {
 
   const { run: runUserLogin, loading } = useRequest(loginUsername, {
     manual: true,
-    onSuccess: () => router.push('/(tabs)'),
+    onSuccess: async () => {
+      // 登录成功后立即获取权限和角色
+      const { updateAuth } = useAuthStore.getState();
+      try {
+        const [rolesRes, permsRes] = await Promise.all([
+          basicUserMeRoles(),
+          basicUserMePerms(),
+        ]);
+        updateAuth({
+          roles: rolesRes?.data?.role_ids,
+          perms: permsRes?.data?.perms,
+        });
+      } catch (error) {
+        console.error('获取权限失败:', error);
+      }
+      router.push('/(tabs)');
+    },
   });
 
   const onSubmit = (values: LoginFormValues) => {

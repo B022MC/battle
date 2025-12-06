@@ -47,7 +47,7 @@ export function NavigationDebugger() {
 
   return (
     <View className="fixed bottom-4 right-4 z-50 bg-card border border-border rounded-lg p-3 shadow-lg max-w-xs">
-      <Text className="text-xs font-bold mb-2">🔍 导航调试</Text>
+      <Text className="text-xs font-bold mb-2">导航调试</Text>
       <View className="gap-1">
         <Text className="text-xs">
           <Text className="font-semibold">当前路径:</Text> {currentUrl}
@@ -56,7 +56,7 @@ export function NavigationDebugger() {
           <Text className="font-semibold">历史长度:</Text> {historyLength}
         </Text>
         <Text className="text-xs">
-          <Text className="font-semibold">可以后退:</Text> {historyLength > 1 ? '✅ 是' : '❌ 否'}
+          <Text className="font-semibold">可以后退:</Text> {historyLength > 1 ? '是' : '否'}
         </Text>
       </View>
       <View className="flex-row gap-2 mt-2">
@@ -83,7 +83,7 @@ export function NavigationDebugger() {
             console.log('State:', window.history.state);
           }}
         >
-          <Text className="text-xs">📋 日志</Text>
+          <Text className="text-xs">日志</Text>
         </Button>
       </View>
     </View>

@@ -134,15 +134,16 @@ func (uc *GameAccountGroupUseCase) AddGameAccountToGroup(
 		return uc.accountGroupRepo.UpdateStatus(ctx, existing.Id, model.AccountGroupStatusActive)
 	}
 
-	// 创建新的游戏玩家圈子关系（使用 game_player_id）
+	// 创建新的游戏玩家圈子关系
 	adminUserIDPtr := &adminUserID
 	accountGroup := &model.GameAccountGroup{
-		GamePlayerID: gameAccount.GamePlayerID,
-		HouseGID:     houseGID,
-		GroupID:      groupID,
-		GroupName:    groupName,
-		AdminUserID:  adminUserIDPtr,
-		Status:       model.AccountGroupStatusActive,
+		GameAccountID: gameAccountID,
+		GamePlayerID:  gameAccount.GamePlayerID,
+		HouseGID:      houseGID,
+		GroupID:       groupID,
+		GroupName:     groupName,
+		AdminUserID:   adminUserIDPtr,
+		Status:        model.AccountGroupStatusActive,
 	}
 
 	return uc.accountGroupRepo.Create(ctx, accountGroup)

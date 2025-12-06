@@ -123,7 +123,7 @@ export const ProfileGameAccount = () => {
                 <Text variant="muted" className="font-semibold">绑定的店铺：</Text>
                 <View className="flex-row items-center gap-2 pl-2">
                   <Text className="text-sm">
-                    {houses.is_default ? '👌' : '⭕'} 店铺 {houses.house_gid}
+                    {houses.is_default ? '[默认]' : ''} 店铺 {houses.house_gid}
                     {houses.status === 1 ? ' (启用)' : ' (禁用)'}
                   </Text>
                 </View>

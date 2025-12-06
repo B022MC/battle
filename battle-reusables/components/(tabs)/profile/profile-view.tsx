@@ -158,7 +158,7 @@ export const ProfileView = () => {
             </InfoCardHeader>
             <InfoCardContent>
               <View className="gap-3">
-                <InfoCardRow label="当前主题" value={colorScheme === 'dark' ? '🌙 夜间模式' : '☀️ 浅色模式'} />
+                <InfoCardRow label="当前主题" value={colorScheme === 'dark' ? '夜间模式' : '浅色模式'} />
                 <InfoCardRow label="主题值" value={colorScheme || 'undefined'} />
                 <View className="p-3 bg-muted rounded-md">
                   <Text className="text-xs">
@@ -178,7 +178,7 @@ export const ProfileView = () => {
                     }}
                     className="flex-1"
                   >
-                    <Text>☀️ 浅色</Text>
+                    <Text>浅色</Text>
                   </Button>
                   <Button 
                     variant={colorScheme === 'dark' ? 'default' : 'outline'}
@@ -188,7 +188,7 @@ export const ProfileView = () => {
                     }}
                     className="flex-1"
                   >
-                    <Text>🌙 夜间</Text>
+                    <Text>夜间</Text>
                   </Button>
                 </View>
                 <Text className="text-xs text-center text-muted-foreground">

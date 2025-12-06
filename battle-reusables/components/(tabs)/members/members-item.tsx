@@ -157,7 +157,7 @@ export const MembersItem = ({ houseId, data }: MembersItemProps) => {
   return (
     <InfoCard>
       <InfoCardHeader>
-        <InfoCardTitle>成员 #{member_id} {is_pinned && '📌'}</InfoCardTitle>
+        <InfoCardTitle>成员 #{member_id} {is_pinned && '[置顶]'}</InfoCardTitle>
         <InfoCardTitle>用户 {user_id}</InfoCardTitle>
         <InfoCardTitle>昵称 {nick_name}</InfoCardTitle>
       </InfoCardHeader>

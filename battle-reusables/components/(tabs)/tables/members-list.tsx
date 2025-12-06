@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
@@ -24,9 +24,35 @@ type MembersListProps = {
 };
 
 export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup, onRemoveFromGroup, onCreditChange, isBlockedList }: MembersListProps) => {
-  const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; memberId: number; memberName: string } | null>(null);
+  const [creditDialog, setCreditDialog] = useState<{ visible: boolean; type: 'deposit' | 'withdraw'; gameId: number; memberName: string } | null>(null);
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [remarkValues, setRemarkValues] = useState<Record<string, string>>({});
+  const [searchText, setSearchText] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'gameId' | 'name'>('default');
+
+  // 搜索和排序后的数据
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    let result = [...data];
+    // 搜索过滤
+    if (searchText.trim()) {
+      const keyword = searchText.trim().toLowerCase();
+      result = result.filter(item => 
+        (item.nick_name?.toLowerCase().includes(keyword)) ||
+        (item.game_id?.toString().includes(keyword)) ||
+        (item.game_player_id?.includes(keyword)) ||
+        (item.remark?.toLowerCase().includes(keyword)) ||
+        (item.current_group_name?.toLowerCase().includes(keyword))
+      );
+    }
+    // 排序
+    if (sortBy === 'gameId') {
+      result.sort((a, b) => (b.game_id || 0) - (a.game_id || 0)); // GameID 降序（新用户在前）
+    } else if (sortBy === 'name') {
+      result.sort((a, b) => (a.nick_name || '').localeCompare(b.nick_name || ''));
+    }
+    return result;
+  }, [data, searchText, sortBy]);
   const [expandedBattleIds, setExpandedBattleIds] = useState<Set<string>>(new Set());
   const [battleRecords, setBattleRecords] = useState<Record<string, BattleRecord[]>>({});
   const [loadingBattles, setLoadingBattles] = useState<Set<string>>(new Set());
@@ -174,255 +200,112 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
 
   return (
     <View>
-      <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-lg font-semibold">游戏成员列表</Text>
-        <Text className="text-sm text-muted-foreground">{`共 ${data.length} 人`}</Text>
+      {/* 搜索和排序 */}
+      <View className="mb-2 gap-2">
+        <Input
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="搜索昵称/ID/备注/圈子..."
+          className="h-8 text-sm"
+        />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1">
+            <Text className="text-xs text-muted-foreground">排序:</Text>
+            <Button variant={sortBy === 'default' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onPress={() => setSortBy('default')}><Text className="text-xs">默认</Text></Button>
+            <Button variant={sortBy === 'gameId' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onPress={() => setSortBy('gameId')}><Text className="text-xs">最新</Text></Button>
+            <Button variant={sortBy === 'name' ? 'default' : 'ghost'} size="sm" className="h-6 px-2" onPress={() => setSortBy('name')}><Text className="text-xs">昵称</Text></Button>
+          </View>
+          <Text className="text-xs text-muted-foreground">{searchText ? `${filteredData.length}/${data.length}` : `共 ${data.length} 人`} {myGroupId ? `(我的圈:${myGroupId})` : '(无圈子)'}</Text>
+        </View>
       </View>
-      {data.map((item) => (
-        <Card key={`${item.user_id}-${item.game_id}-${item.member_id}`} className="mb-2 p-3">
-          <View className="gap-2">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  <Text className="font-medium">{item.nick_name || '未命名'}</Text>
-                  {item.forbid ? (
-                    <View className="bg-destructive px-2 py-0.5 rounded ml-2">
-                      <Text className="text-destructive-foreground text-xs">已禁用</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <View className="mt-1 flex-row gap-2">
-                  <Text className="text-xs text-muted-foreground">{`GameID: ${item.game_id}`}</Text>
-                  <Text className="text-xs text-muted-foreground">{`MemberID: ${item.member_id}`}</Text>
-                </View>
-                <View className="mt-1 flex-row items-center gap-2">
-                  {item.current_group_name ? (
-                    <View className="flex-row items-center gap-1">
-                      <View className="h-2 w-2 rounded-full bg-blue-500" />
-                      <Text className="text-xs text-blue-600 dark:text-blue-400">{item.current_group_name}</Text>
-                    </View>
-                  ) : (
-                    <View className="flex-row items-center gap-1">
-                      <View className="h-2 w-2 rounded-full bg-orange-500" />
-                      <Text className="text-xs text-orange-600 dark:text-orange-400">无圈子</Text>
-                    </View>
-                  )}
-                </View>
-                {item.remark ? (
-                  <View className="mt-1">
-                    <Text className="text-xs text-muted-foreground">{`💬 ${item.remark}`}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <View className="ml-2">
-                {item.member_type === 2 ? (
-                  <View className="rounded-md bg-primary px-2 py-1">
-                    <Text className="text-xs text-primary-foreground">管理员</Text>
-                  </View>
-                ) : null}
-                {item.member_type === 0 ? (
-                  <View className="rounded-md bg-secondary px-2 py-1">
-                    <Text className="text-xs text-secondary-foreground">普通成员</Text>
-                  </View>
-                ) : null}
-              </View>
+      {filteredData.length === 0 && searchText ? (
+        <View className="min-h-16 flex-row items-center justify-center">
+          <Text className="text-muted-foreground">未找到匹配的成员</Text>
+        </View>
+      ) : null}
+      {filteredData.map((item) => (
+        <Card key={`${item.user_id}-${item.game_id}-${item.member_id}`} className="mb-1.5 p-2">
+          {/* 第一行：基本信息 */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 flex-row items-center gap-2">
+              <Text className="font-medium text-sm">{item.nick_name || '未命名'}</Text>
+              {item.forbid && <View className="bg-destructive px-1.5 py-0.5 rounded"><Text className="text-destructive-foreground text-xs">禁</Text></View>}
+              {item.member_type === 2 && <View className="bg-primary px-1.5 py-0.5 rounded"><Text className="text-primary-foreground text-xs">管</Text></View>}
+              {item.is_bind_platform && <View className="bg-green-500/20 px-1.5 py-0.5 rounded"><Text className="text-green-700 dark:text-green-400 text-xs">绑</Text></View>}
+              {item.current_group_name && <Text className="text-xs text-blue-600 dark:text-blue-400">{item.current_group_name}</Text>}
             </View>
-            {item.is_bind_platform && item.platform_user ? (
-              <View className="mt-2 border-t border-border pt-2">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-2">
-                      <View className="rounded-full bg-green-500/20 px-2 py-0.5">
-                        <Text className="text-xs text-green-700 dark:text-green-400">已绑定</Text>
-                      </View>
-                      <Text className="font-medium text-sm">{item.platform_user.nick_name || item.platform_user.username}</Text>
-                    </View>
-                    <Text className="mt-1 text-xs text-muted-foreground">{`用户名: ${item.platform_user.username}`}</Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View className="mt-2 border-t border-border pt-2">
-                <View className="flex-row items-center gap-2">
-                  <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
-                    <Text className="text-xs text-orange-700 dark:text-orange-400">暂未绑定</Text>
-                  </View>
-                  <Text className="text-xs text-muted-foreground">该游戏账号尚未绑定平台用户</Text>
-                </View>
-              </View>
-            )}
-            {item.game_player_id && houseGid ? (
-              <View className="mt-2 border-t border-border pt-2">
-                <View className="mb-2 flex-row gap-2">
-                  {isBlockedList ? (
-                    <Button
-                      variant="default" 
-                      size="sm"
-                      className="flex-1 bg-green-600"
-                      onPress={() => handleUnforbid(item.game_player_id!, item.nick_name || '未命名')}
-                    >
-                      <Text className="text-xs">✅ 解禁成员</Text>
-                    </Button>
-                  ) : (
-                    !item.forbid ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex-1"
-                        onPress={() => handleForbid(item.game_player_id!, item.nick_name || '未命名')}
-                      >
-                        <Text className="text-xs">🚫 禁用成员</Text>
-                      </Button>
-                    ) : null
-                  )}
-                </View>
+            <Text className="text-xs text-muted-foreground">{item.game_id} {item.current_group_id ? `(圈:${item.current_group_id})` : ''}</Text>
+          </View>
+          {/* 第二行：备注和操作按钮 */}
+          {item.game_player_id && houseGid ? (
+            <View className="mt-1.5 flex-row items-center justify-between">
+              <View className="flex-1">
                 {editingRemarkId === item.game_player_id ? (
-                  <View className="mb-2 gap-2">
+                  <View className="flex-row items-center gap-1">
                     <Input
                       value={remarkValues[item.game_player_id] || ''}
                       onChangeText={(text) => setRemarkValues(prev => ({ ...prev, [item.game_player_id!]: text }))}
-                      placeholder="输入备注"
+                      placeholder="备注"
+                      className="flex-1 h-7 text-xs"
                     />
-                    <View className="flex-row gap-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        onPress={() => handleSaveRemark(item.game_player_id!)}
-                      >
-                        <Text className="text-xs">保存备注</Text>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onPress={handleCancelRemark}
-                      >
-                        <Text className="text-xs">取消</Text>
-                      </Button>
-                    </View>
+                    <Button variant="default" size="sm" className="h-7 px-2" onPress={() => handleSaveRemark(item.game_player_id!)}><Text className="text-xs">保存</Text></Button>
+                    <Button variant="ghost" size="sm" className="h-7 px-2" onPress={handleCancelRemark}><Text className="text-xs">取消</Text></Button>
                   </View>
                 ) : (
-                  <View className="mb-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => handleEditRemark(item.game_player_id!, item.remark || '')}
-                    >
-                      <Text className="text-xs">{item.remark ? '✏️ 编辑备注' : '➕ 添加备注'}</Text>
-                    </Button>
-                  </View>
+                  <Text className="text-xs text-muted-foreground" onPress={() => handleEditRemark(item.game_player_id!, item.remark || '')}>
+                    {item.remark || '点击添加备注'}
+                  </Text>
                 )}
               </View>
-            ) : null}
-            {item.game_player_id && item.game_id && myGroupId && item.current_group_id === myGroupId ? (
-              <View className="mt-2 border-t border-border pt-2">
-                <View className="mb-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => toggleBattleExpand(item.game_player_id!, item.game_id!)}
-                      disabled={loadingBattles.has(item.game_player_id!)}
-                    >
-                      <Text className="text-xs">{loadingBattles.has(item.game_player_id!) ? '📊 加载中...' : expandedBattleIds.has(item.game_player_id!) ? '📊 收起战绩' : '📊 查看战绩'}</Text>
-                    </Button>
-                </View>
-                {expandedBattleIds.has(item.game_player_id!) && battleRecords[item.game_player_id!] ? (
-                  <View className="gap-2">
-                    {battleRecords[item.game_player_id!].length === 0 ? (
-                      <View className="py-4 items-center">
-                        <Text className="text-xs text-muted-foreground">暂无战绩记录</Text>
-                      </View>
-                    ) : (
-                      battleRecords[item.game_player_id!].map((record) => (
-                        <View key={record.id} className="bg-secondary/30 rounded-md p-2">
-                          <View className="flex-row items-center justify-between mb-1">
-                            <Text className="text-xs font-medium">{formatTime(record.battle_at)}</Text>
-                            <View className="flex-row items-center gap-1">
-                              <Text className={`text-xs font-bold ${record.score >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{`${record.score >= 0 ? '+' : ''}${formatScore(record.score)}`}</Text>
-                            </View>
-                          </View>
-                          <View className="flex-row items-center justify-between">
-                            <Text className="text-xs text-muted-foreground">{`房间 ${record.room_uid} · 底分 ${record.base_score}`}</Text>
-                            <Text className="text-xs text-muted-foreground">{`余额 ${formatScore(record.player_balance)}`}</Text>
-                          </View>
-                          {record.fee > 0 ? (
-                            <Text className="text-xs text-muted-foreground mt-1">{`手续费 -${formatScore(record.fee)}`}</Text>
-                          ) : null}
-                        </View>
-                      ))
-                    )}
-                  </View>
-                ) : null}
+              <View className="flex-row gap-1 ml-2">
+                <Button variant="destructive" size="sm" className="h-7 px-2" onPress={() => handleForbid(item.game_player_id!, item.nick_name || '未命名')}><Text className="text-xs">禁用</Text></Button>
+                <Button variant="default" size="sm" className="h-7 px-2 bg-green-600" onPress={() => handleUnforbid(item.game_player_id!, item.nick_name || '未命名')}><Text className="text-xs">解禁</Text></Button>
               </View>
-            ) : null}
-            {item.game_player_id && (onPullToGroup || onRemoveFromGroup || houseGid) ? (
-              <View className="mt-2 border-t border-border pt-2">
-                {(onPullToGroup || onRemoveFromGroup) ? (
-                  <View className="flex-row gap-2 mb-2">
-                    {onPullToGroup ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onPress={() => onPullToGroup(
-                          item.game_player_id!,
-                          item.nick_name || '未命名',
-                          item.current_group_name
-                        )}
-                      >
-                        <Text className="text-xs">{item.current_group_name ? '转移圈子' : '拉入圈子'}</Text>
-                      </Button>
-                    ) : null}
-                    {onRemoveFromGroup && item.current_group_name ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex-1"
-                        onPress={() => onRemoveFromGroup(
-                          item.game_player_id!,
-                          item.nick_name || '未命名',
-                          item.current_group_name!
-                        )}
-                      >
-                        <Text className="text-xs">踢出圈子</Text>
-                      </Button>
-                    ) : null}
+            </View>
+          ) : null}
+          {/* 第三行：圈子操作和上下分 */}
+          {item.game_player_id && (onPullToGroup || onRemoveFromGroup || (houseGid && item.member_id)) ? (
+            <View className="mt-1.5 flex-row items-center gap-1 flex-wrap">
+              {onPullToGroup && (
+                <Button variant="outline" size="sm" className="h-7 px-2" onPress={() => onPullToGroup(item.game_player_id!, item.nick_name || '未命名', item.current_group_name)}>
+                  <Text className="text-xs">{item.current_group_name ? '转移' : '拉入'}</Text>
+                </Button>
+              )}
+              {onRemoveFromGroup && item.current_group_name && (
+                <Button variant="destructive" size="sm" className="h-7 px-2" onPress={() => onRemoveFromGroup(item.game_player_id!, item.nick_name || '未命名', item.current_group_name!)}>
+                  <Text className="text-xs">踢出</Text>
+                </Button>
+              )}
+              {houseGid && item.game_id && myGroupId && item.current_group_id === myGroupId && (
+                <>
+                  <Button variant="default" size="sm" className="h-7 px-2" onPress={() => setCreditDialog({ visible: true, type: 'deposit', gameId: item.game_id!, memberName: item.nick_name || '未命名' })}>
+                    <Text className="text-xs">上分</Text>
+                  </Button>
+                  <Button variant="secondary" size="sm" className="h-7 px-2" onPress={() => setCreditDialog({ visible: true, type: 'withdraw', gameId: item.game_id!, memberName: item.nick_name || '未命名' })}>
+                    <Text className="text-xs">下分</Text>
+                  </Button>
+                  <Text className="text-xs text-primary ml-1" onPress={() => toggleBattleExpand(item.game_player_id!, item.game_id!)}>
+                    {loadingBattles.has(item.game_player_id!) ? '...' : expandedBattleIds.has(item.game_player_id!) ? '收起' : '战绩'}
+                  </Text>
+                </>
+              )}
+            </View>
+          ) : null}
+          {/* 战绩展开区域 */}
+          {item.game_player_id && expandedBattleIds.has(item.game_player_id) && battleRecords[item.game_player_id] ? (
+            <View className="mt-1.5 gap-1">
+              {battleRecords[item.game_player_id].length === 0 ? (
+                <Text className="text-xs text-muted-foreground py-2 text-center">暂无战绩</Text>
+              ) : (
+                battleRecords[item.game_player_id].map((record) => (
+                  <View key={record.id} className="bg-secondary/30 rounded p-1.5 flex-row items-center justify-between">
+                    <Text className="text-xs text-muted-foreground">{formatTime(record.battle_at)}</Text>
+                    <Text className={`text-xs font-medium ${record.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>{`${record.score >= 0 ? '+' : ''}${formatScore(record.score)}`}</Text>
                   </View>
-                ) : null}
-                {houseGid && item.member_id && myGroupId && item.current_group_id === myGroupId ? (
-                  <View className="flex-row gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onPress={() => setCreditDialog({
-                        visible: true,
-                        type: 'deposit',
-                        memberId: item.member_id!,
-                        memberName: item.nick_name || '未命名'
-                      })}
-                    >
-                      <Text className="text-xs">上分</Text>
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="flex-1"
-                      onPress={() => setCreditDialog({
-                        visible: true,
-                        type: 'withdraw',
-                        memberId: item.member_id!,
-                        memberName: item.nick_name || '未命名'
-                      })}
-                    >
-                      <Text className="text-xs">下分</Text>
-                    </Button>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
+                ))
+              )}
+            </View>
+          ) : null}
         </Card>
       ))}
       {creditDialog && houseGid ? (
@@ -430,7 +313,7 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
           visible={creditDialog.visible}
           type={creditDialog.type}
           houseGid={houseGid}
-          memberId={creditDialog.memberId}
+          memberId={creditDialog.gameId}
           memberName={creditDialog.memberName}
           onClose={() => setCreditDialog(null)}
           onSuccess={() => {

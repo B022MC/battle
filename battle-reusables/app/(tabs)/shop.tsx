@@ -13,9 +13,6 @@ export default function ShopHubScreen() {
       <View className="gap-4">
         <Text className="text-xl font-bold">店铺</Text>
         <View className="gap-2">
-        <PermissionGate anyOf={["shop:admin:view"]}>
-          <Button onPress={() => router.push('/(shop)/admins')}><Text>管理员</Text></Button>
-        </PermissionGate>
         <PermissionGate anyOf={["shop:member:view"]}>
           <Button onPress={() => router.push('/(shop)/members')}><Text>成员管理</Text></Button>
         </PermissionGate>

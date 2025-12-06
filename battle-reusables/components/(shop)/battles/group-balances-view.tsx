@@ -335,7 +335,7 @@ export const GroupBalancesView = () => {
       {/* 说明 */}
       <Card className="p-4 mt-4 bg-muted">
         <Text className="text-sm text-muted-foreground">
-          💡 提示：
+          提示：
         </Text>
         <Text className="text-sm text-muted-foreground mt-2">
           • 可以通过最小/最大余额筛选成员

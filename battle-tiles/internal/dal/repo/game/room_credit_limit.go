@@ -136,8 +136,8 @@ func (r *roomCreditLimitRepo) GetCreditLimit(ctx context.Context, houseGID int32
 		return limit.CreditLimit, true
 	}
 
-	// 5. 兜底值（建议配置为一个很大的数）
-	return 99999 * 100, true
+	// 5. 没有配置时不做额度检查
+	return 0, false
 }
 
 // FormatCreditKey 格式化额度限制的键（用于日志和调试）

@@ -111,6 +111,12 @@ type Session struct {
 	members      *cache.Cache
 	applications *cache.Cache
 
+	// 已处理的申请ID（防止被游戏服务器推送重新添加）
+	processedApplications *cache.Cache
+
+	// 禁用成员缓存（内存中，key=gameID，value=昵称）
+	forbiddenMembers *cache.Cache
+
 	// houses: cache latest discovered group/house ids
 	houses *cache.Cache
 }
@@ -136,7 +142,9 @@ func NewSessionWithConfig(cfg SessionConfig) (*Session, error) {
 
 	s.tables = cache.New(10*time.Minute, 10*time.Minute)
 	s.members = cache.New(10*time.Minute, 10*time.Minute)
-	s.applications = cache.New(10*time.Minute, 10*time.Minute)
+	s.applications = cache.New(24*time.Hour, 1*time.Hour)          // 申请数据保留24小时
+	s.processedApplications = cache.New(24*time.Hour, 1*time.Hour) // 已处理的申请ID保留24小时
+	s.forbiddenMembers = cache.New(24*time.Hour, 1*time.Hour)      // 禁用成员保留24小时
 	s.houses = cache.New(10*time.Minute, 10*time.Minute)
 	if err := s.doLogonServer82(); err != nil {
 		return nil, err
@@ -660,6 +668,52 @@ func (that *Session) ForbidMembers(key string, members []int, forbid bool) {
 			continue
 		}
 		that.prepareForbidCmd(fmt.Sprintf("%s:%d", key, m), m, forbid)
+
+		// 更新禁用成员缓存
+		gameIDKey := fmt.Sprintf("%d", m)
+		if forbid {
+			// 尝试从在线成员列表获取昵称
+			nickName := ""
+			for _, mem := range that.ListMembers() {
+				if int(mem.GameID) == m || int(mem.MemberID) == m {
+					nickName = mem.NickName
+					break
+				}
+			}
+			that.forbiddenMembers.Set(gameIDKey, nickName, cache.DefaultExpiration)
+		} else {
+			// 解禁时从缓存移除
+			that.forbiddenMembers.Delete(gameIDKey)
+		}
+	}
+}
+
+// IsForbidden 检查成员是否被禁用（基于内存缓存）
+func (that *Session) IsForbidden(gameID int) bool {
+	_, found := that.forbiddenMembers.Get(fmt.Sprintf("%d", gameID))
+	return found
+}
+
+// ListForbiddenGameIDs 获取所有被禁用的 gameID 列表
+func (that *Session) ListForbiddenGameIDs() []int {
+	items := that.forbiddenMembers.Items()
+	result := make([]int, 0, len(items))
+	for key := range items {
+		var gameID int
+		if _, err := fmt.Sscanf(key, "%d", &gameID); err == nil {
+			result = append(result, gameID)
+		}
+	}
+	return result
+}
+
+// SetForbiddenStatus 设置成员禁用状态（仅更新缓存，不推送到游戏服务器）
+func (that *Session) SetForbiddenStatus(gameID int, forbid bool) {
+	gameIDKey := fmt.Sprintf("%d", gameID)
+	if forbid {
+		that.forbiddenMembers.Set(gameIDKey, "", cache.DefaultExpiration)
+	} else {
+		that.forbiddenMembers.Delete(gameIDKey)
 	}
 }
 
@@ -870,7 +924,12 @@ func (that *Session) ListMembers() []*GroupMember {
 }
 func (that *Session) saveApplications(list []*ApplyInfo) {
 	for _, a := range list {
-		that.applications.Set(fmt.Sprintf("%d", a.MessageId), a, cache.DefaultExpiration)
+		key := fmt.Sprintf("%d", a.MessageId)
+		// 跳过已处理的申请
+		if _, processed := that.processedApplications.Get(key); processed {
+			continue
+		}
+		that.applications.Set(key, a, cache.DefaultExpiration)
 	}
 }
 
@@ -896,6 +955,14 @@ func (that *Session) FindApplicationByID(msgID int) (*ApplyInfo, bool) {
 		}
 	}
 	return nil, false
+}
+
+// RemoveApplication 从缓存中删除已处理的申请，并记录到已处理列表
+func (that *Session) RemoveApplication(msgID int) {
+	key := fmt.Sprintf("%d", msgID)
+	that.applications.Delete(key)
+	// 记录到已处理列表，防止游戏服务器推送时重新添加
+	that.processedApplications.Set(key, true, cache.DefaultExpiration)
 }
 
 func (that *Session) createNewSession() bool {

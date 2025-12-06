@@ -22,11 +22,10 @@ import (
 	"battle-tiles/internal/service"
 	basic3 "battle-tiles/internal/service/basic"
 	game3 "battle-tiles/internal/service/game"
+
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-)
 
-import (
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -84,7 +83,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	sessionService := game3.NewSessionService(ctrlSessionUseCase)
 	walletRepo := game.NewWalletRepo(infraData, logger)
 	walletReadRepo := game.NewWalletReadRepo(infraData, logger)
-	fundsUseCase := game2.NewFundsUseCase(walletRepo, walletReadRepo)
+	fundsUseCase := game2.NewFundsUseCase(walletRepo, walletReadRepo, gameMemberRepo)
 	fundsService := game3.NewFundsService(fundsUseCase, manager)
 	ctrlAccountUseCase := game2.NewCtrlAccountUseCase(gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, manager, logger)
 	ctrlAccountService := game3.NewCtrlAccountService(ctrlAccountUseCase)

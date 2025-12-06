@@ -3,6 +3,7 @@ package game
 import (
 	"battle-tiles/internal/infra/plaza"
 	utilsplaza "battle-tiles/internal/utils/plaza"
+	pdb "battle-tiles/pkg/plugin/dbx"
 	"context"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -31,10 +32,12 @@ func NewRoomCreditEventHandler(
 // CreateHandler 为特定的会话创建 Handler
 // userID: 平台用户ID（中控账号对应的用户）
 // houseGID: 店铺GID
-func (h *RoomCreditEventHandler) CreateHandler(userID int, houseGID int32) *sessionCreditHandler {
+// platform: 数据库平台标识
+func (h *RoomCreditEventHandler) CreateHandler(userID int, houseGID int32, platform string) *sessionCreditHandler {
 	return &sessionCreditHandler{
 		userID:            userID,
 		houseGID:          houseGID,
+		platform:          platform,
 		creditUC:          h.creditUC,
 		plazaMgr:          h.plazaMgr,
 		log:               h.log,
@@ -48,6 +51,7 @@ func (h *RoomCreditEventHandler) CreateHandler(userID int, houseGID int32) *sess
 type sessionCreditHandler struct {
 	userID   int
 	houseGID int32
+	platform string // 数据库平台标识
 	creditUC *RoomCreditLimitUseCase
 	plazaMgr plaza.Manager
 	log      *log.Helper
@@ -61,24 +65,24 @@ type sessionCreditHandler struct {
 // OnUserSitDown 处理玩家坐下事件
 // 当收到游戏服务器的坐下事件时，检查玩家余额是否满足额度要求
 func (h *sessionCreditHandler) OnUserSitDown(sitdown *utilsplaza.UserSitDown) {
-	h.log.Infof("[费用检查] 收到玩家坐下事件: gameID=%d, mappedNum=%d, userID=%d, houseGID=%d",
-		sitdown.UserID, sitdown.MappedNum, h.userID, h.houseGID)
+	h.log.Infof("[费用检查] 收到玩家坐下事件: userID=%d, gameID=%d, mappedNum=%d, houseGID=%d",
+		sitdown.UserID, sitdown.GameID, sitdown.MappedNum, h.houseGID)
 
 	// 1. 检查桌子信息是否已缓存（类似 passing-dragonfly）
 	tableInfo, ok := h.roomsCache[int(sitdown.MappedNum)]
 	if !ok {
 		// 桌子信息还没有收到，将坐下事件暂存，等待 OnRoomListUpdated
 		h.log.Warnf("[费用检查] 桌子信息未缓存，等待OnRoomListUpdated: mappedNum=%d, gameID=%d",
-			sitdown.MappedNum, sitdown.UserID)
-		h.uncheckedSitdowns[int(sitdown.MappedNum)] = int32(sitdown.UserID)
+			sitdown.MappedNum, sitdown.GameID)
+		h.uncheckedSitdowns[int(sitdown.MappedNum)] = int32(sitdown.GameID)
 		return
 	}
 
 	h.log.Infof("[费用检查] 桌子信息: gameID=%d, kindID=%d, baseScore=%d, mappedNum=%d",
-		sitdown.UserID, tableInfo.KindID, tableInfo.BaseScore, sitdown.MappedNum)
+		sitdown.GameID, tableInfo.KindID, tableInfo.BaseScore, sitdown.MappedNum)
 
-	// 2. 调用额度检查逻辑
-	h.handlePlayerSitDown(int32(sitdown.UserID), tableInfo.KindID, tableInfo.BaseScore, int32(sitdown.MappedNum))
+	// 2. 调用额度检查逻辑（传 gameID 而不是 userID）
+	h.handlePlayerSitDown(int32(sitdown.GameID), tableInfo.KindID, tableInfo.BaseScore, int32(sitdown.MappedNum))
 }
 
 // 以下是 IPlazaHandler 接口的其他方法实现（空实现）
@@ -128,7 +132,8 @@ func (h *sessionCreditHandler) OnReconnectFailed(houseGID int, retryCount int) {
 
 // handlePlayerSitDown 处理玩家坐下的核心逻辑（类似 passing-dragonfly 的 _handlePlayerSitDown）
 func (h *sessionCreditHandler) handlePlayerSitDown(gameID int32, kindID int, baseScore int, mappedNum int32) {
-	ctx := context.Background()
+	// 创建带有数据库 key 的 context
+	ctx := context.WithValue(context.Background(), pdb.CtxDBKey, h.platform)
 
 	if err := h.creditUC.HandlePlayerSitDown(
 		ctx,

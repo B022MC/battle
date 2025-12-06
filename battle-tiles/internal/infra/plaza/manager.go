@@ -111,10 +111,10 @@ func NewManager(globalConf *conf.Global, logger log.Logger) Manager {
 // --- handler 包装器：实现并转发 IPlazaHandler 的全部方法，附带钩子 ---
 
 type handlerWrapper struct {
-	inner            Handler
-	onLogin          func(ok bool)
-	onRooms          func(tables []*utilsplaza.TableInfo)
-	onRestart        func(s *utilsplaza.Session)
+	inner             Handler
+	onLogin           func(ok bool)
+	onRooms           func(tables []*utilsplaza.TableInfo)
+	onRestart         func(s *utilsplaza.Session)
 	onReconnectFailed func(houseGID int, retryCount int)
 }
 
@@ -419,7 +419,22 @@ func (m *manager) ForbidMembers(userID, houseGID int, key string, members []int,
 	if !ok {
 		return fmt.Errorf("session not found for user %d in house %d", userID, houseGID)
 	}
+	// 推送到游戏服务器并更新当前 Session 的缓存
 	s.ForbidMembers(key, members, forbid)
+
+	// 同步禁用状态到该 house 的所有其他 Session
+	m.mu.RLock()
+	suffix := fmt.Sprintf(":%d", houseGID)
+	for k, sess := range m.sessions {
+		if strings.HasSuffix(k, suffix) && sess != nil && sess != s {
+			// 只更新缓存，不重复发送命令
+			for _, memberID := range members {
+				sess.SetForbiddenStatus(memberID, forbid)
+			}
+		}
+	}
+	m.mu.RUnlock()
+
 	return nil
 }
 

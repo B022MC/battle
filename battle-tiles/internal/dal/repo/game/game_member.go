@@ -4,6 +4,8 @@ import (
 	model "battle-tiles/internal/dal/model/game"
 	"battle-tiles/internal/infra"
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"gorm.io/gorm"
@@ -60,6 +62,12 @@ type GameMemberRepo interface {
 
 	// UpsertForbid 更新禁用状态，如果不存在则创建
 	UpsertForbid(ctx context.Context, houseGID int32, gameID int32, gameName string, forbid bool) error
+
+	// 上分/下分：更新余额（原子操作）
+	UpdateBalance(ctx context.Context, houseGID int32, memberID int32, amount int32) (before int32, after int32, err error)
+
+	// 根据 memberID 查询成员
+	GetByMemberID(ctx context.Context, houseGID int32, memberID int32) (*model.GameMember, error)
 }
 
 type gameMemberRepo struct {
@@ -324,4 +332,50 @@ func (r *gameMemberRepo) UpsertForbid(ctx context.Context, houseGID int32, gameI
 		return r.db(ctx).Create(&member).Error
 	}
 	return nil
+}
+
+// UpdateBalance 上分/下分：原子更新余额（如果不存在则自动创建）
+// 注意：前端传的 memberID 实际上是游戏服务器返回的 MemberID，等于数据库的 game_id
+func (r *gameMemberRepo) UpdateBalance(ctx context.Context, houseGID int32, gameID int32, amount int32) (before int32, after int32, err error) {
+	var member model.GameMember
+	err = r.db(ctx).Transaction(func(tx *gorm.DB) error {
+		// 锁行查询
+		findErr := tx.Set("gorm:query_option", "FOR UPDATE").
+			Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+			First(&member).Error
+
+		if findErr != nil {
+			if errors.Is(findErr, gorm.ErrRecordNotFound) {
+				// 玩家不存在，自动创建
+				member = model.GameMember{
+					HouseGID: houseGID,
+					GameID:   gameID,
+					GameName: fmt.Sprintf("玩家-%d", gameID),
+					Balance:  amount,
+				}
+				before = 0
+				after = amount
+				return tx.Create(&member).Error
+			}
+			return findErr
+		}
+
+		before = member.Balance
+		after = before + amount
+		// 更新余额
+		return tx.Model(&member).Update("balance", after).Error
+	})
+	return
+}
+
+// GetByMemberID 根据 gameID 查询成员
+// 注意：前端传的 memberID 实际上是游戏服务器返回的 MemberID，等于数据库的 game_id
+func (r *gameMemberRepo) GetByMemberID(ctx context.Context, houseGID int32, gameID int32) (*model.GameMember, error) {
+	var member model.GameMember
+	if err := r.db(ctx).
+		Where("house_gid = ? AND game_id = ?", houseGID, gameID).
+		First(&member).Error; err != nil {
+		return nil, err
+	}
+	return &member, nil
 }

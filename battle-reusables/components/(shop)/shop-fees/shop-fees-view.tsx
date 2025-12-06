@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { X, Plus } from 'lucide-react-native';
+import { X, Plus, Pencil } from 'lucide-react-native';
 import { showToast } from '@/utils/toast';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useHouseSelector } from '@/hooks/use-house-selector';
@@ -30,13 +30,12 @@ export function ShopFeesView() {
   const [fee, setFee] = useState('');
   const [gameKind, setGameKind] = useState<string | undefined>(undefined);
   const [baseScore, setBaseScore] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // 编辑中的规则索引
 
   // 获取游戏类型常量
-  const { data: plazaData } = usePlazaConsts();
+  const { data: plazaData, maps } = usePlazaConsts();
   const gameKindSelectOptions = useMemo(() => {
-    const options: { label: string; value: string }[] = [
-      { label: '全局默认（所有游戏）', value: '0' }
-    ];
+    const options: { label: string; value: string }[] = [];
     if (plazaData?.game_kinds) {
       plazaData.game_kinds.forEach(item => {
         options.push({ label: item.label, value: String(item.value) });
@@ -44,6 +43,23 @@ export function ShopFeesView() {
     }
     return options;
   }, [plazaData]);
+
+  // 获取游戏类型名称
+  const getGameKindName = (kindCode: string | number | undefined) => {
+    if (!kindCode) return '未指定';
+    const code = typeof kindCode === 'string' ? Number(kindCode) : kindCode;
+    if (code === 0 || isNaN(code)) return '未指定';
+    const name = maps.game_kinds.get(code);
+    if (name) return name;
+    // 常见游戏类型硬编码备用
+    const fallback: Record<number, string> = {
+      60: '血战到底',
+      61: '血战换三张', 
+      70: '跑得快',
+      80: '斗地主',
+    };
+    return fallback[code] || `游戏${code}`;
+  };
 
   // 加载店铺费用配置
   const loadFees = useCallback(async () => {
@@ -81,8 +97,31 @@ export function ShopFeesView() {
     loadFees();
   }, [loadFees]);
 
-  // 添加规则
-  const handleAddRule = () => {
+  // 开始编辑规则
+  const handleEditRule = (index: number) => {
+    const rule = feesConfig.rules[index];
+    setEditingIndex(index);
+    setThreshold(String(rule.threshold));
+    setFee(String(rule.fee));
+    setGameKind(rule.kind || undefined);
+    setBaseScore(String(rule.base || ''));
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setThreshold('');
+    setFee('');
+    setGameKind(undefined);
+    setBaseScore('');
+  };
+
+  // 添加/保存规则
+  const handleSaveRule = () => {
+    if (!gameKind || gameKind === '0') {
+      showToast('请选择游戏类型', 'error');
+      return;
+    }
     if (!threshold || !fee) {
       showToast('请输入分数阈值和费用', 'error');
       return;
@@ -91,30 +130,30 @@ export function ShopFeesView() {
     const newRule: API.FeeRule = {
       threshold: Number(threshold),
       fee: Number(fee),
+      kind: gameKind,
+      base: baseScore ? Number(baseScore) : 0,
     };
 
-    // 如果指定了游戏类型，必须同时指定底分
-    if (gameKind && gameKind !== '0') {
-      if (!baseScore || baseScore === '0') {
-        showToast('指定游戏类型时必须设置底分', 'error');
-        return;
-      }
-      newRule.kind = gameKind;  // 使用字符串
-      newRule.base = Number(baseScore);
+    if (editingIndex !== null) {
+      // 编辑模式：替换对应索引的规则
+      setFeesConfig(prev => ({
+        rules: prev.rules.map((r, i) => i === editingIndex ? newRule : r)
+      }));
+      showToast('规则已修改，请点击保存', 'success');
+    } else {
+      // 新增模式
+      setFeesConfig(prev => ({
+        rules: [...prev.rules, newRule]
+      }));
+      showToast('规则已添加，请点击保存', 'success');
     }
-    // 全局规则：不设置 kind 和 base 字段
-
-    setFeesConfig(prev => ({
-      rules: [...prev.rules, newRule]
-    }));
 
     // 清空表单
+    setEditingIndex(null);
     setThreshold('');
     setFee('');
     setGameKind(undefined);
     setBaseScore('');
-    
-    showToast('规则已添加，请点击保存', 'success');
   };
 
   // 删除规则
@@ -177,18 +216,28 @@ export function ShopFeesView() {
           </View>
         </Card>
 
-        {/* 添加费用规则 */}
+        {/* 添加/编辑费用规则 */}
         <PermissionGate anyOf={['shop:fees:update']}>
           <Card className="mb-4 p-4">
-            <Text className="text-base font-semibold mb-3">添加费用规则</Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-semibold">
+                {editingIndex !== null ? `编辑规则 #${editingIndex + 1}` : '添加费用规则'}
+              </Text>
+              {editingIndex !== null && (
+                <Button variant="ghost" size="sm" onPress={handleCancelEdit}>
+                  <Icon as={X} size={16} className="text-muted-foreground" />
+                  <Text className="text-xs text-muted-foreground ml-1">取消</Text>
+                </Button>
+              )}
+            </View>
 
             <View className="mb-3">
               <Text className="text-sm text-muted-foreground mb-1">
-                游戏类型
+                游戏类型 *
               </Text>
               <MobileSelect
                 value={gameKind}
-                placeholder="全局默认（所有游戏）"
+                placeholder="请选择游戏类型"
                 options={gameKindSelectOptions}
                 onValueChange={(value) => setGameKind(value)}
                 className="w-full"
@@ -232,20 +281,18 @@ export function ShopFeesView() {
             </View>
 
             <Button
-              onPress={handleAddRule}
-              disabled={!threshold || !fee || loading}
+              onPress={handleSaveRule}
+              disabled={!gameKind || gameKind === '0' || !threshold || !fee || loading}
               variant="outline"
             >
-              <Icon as={Plus} size={16} className="mr-2" />
-              <Text>添加规则</Text>
+              {editingIndex === null && <Icon as={Plus} size={16} className="mr-2" />}
+              <Text>{editingIndex !== null ? '保存修改' : '添加规则'}</Text>
             </Button>
 
             <View className="mt-3 bg-muted/50 p-3 rounded">
               <Text className="text-xs text-muted-foreground">
-                💡 规则说明：
-                {'\n'}• 全局规则：不指定游戏类型和底分，适用所有房间
-                {'\n'}• 特定规则：指定游戏类型或底分，精确匹配
-                {'\n'}• 匹配优先级：全局规则优先，然后是特定规则
+                规则说明：
+                {'\n'}• 游戏类型必填，底分可选（0表示不限）
                 {'\n'}• 分数阈值：最高分达到该值时收取费用
               </Text>
             </View>
@@ -293,7 +340,7 @@ export function ShopFeesView() {
                     <View className="flex-row justify-between items-start mb-2">
                       <View className="flex-1">
                         <Text className="text-sm font-medium">
-                          {rule.kind ? `游戏类型 ${rule.kind}` : '全局默认'}
+                          {getGameKindName(rule.kind)}
                           {rule.base ? ` | 底分 ${rule.base}` : ''}
                         </Text>
                         <Text className="text-xs text-muted-foreground mt-1">
@@ -301,15 +348,26 @@ export function ShopFeesView() {
                         </Text>
                       </View>
                       <PermissionGate anyOf={['shop:fees:update']}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2"
-                          onPress={() => handleDeleteRule(index)}
-                          disabled={loading}
-                        >
-                          <Icon as={X} size={16} className="text-destructive" />
-                        </Button>
+                        <View className="flex-row">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onPress={() => handleEditRule(index)}
+                            disabled={loading}
+                          >
+                            <Icon as={Pencil} size={14} className="text-primary" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onPress={() => handleDeleteRule(index)}
+                            disabled={loading}
+                          >
+                            <Icon as={X} size={16} className="text-destructive" />
+                          </Button>
+                        </View>
                       </PermissionGate>
                     </View>
                     <View className="flex-row items-center justify-between">

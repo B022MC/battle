@@ -6,6 +6,7 @@ import (
 	repo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/infra/plaza"
 	plazaUtils "battle-tiles/internal/utils/plaza"
+	pdb "battle-tiles/pkg/plugin/dbx"
 	"context"
 	"strconv"
 	"strings"
@@ -96,8 +97,16 @@ func (uc *CtrlSessionUseCase) StartSession(ctx context.Context, userID int32, ct
 		return nil
 	}
 
-	// 4) 包一个 bootstrap handler：连接成功/收到房间列表时，做你想做的落库动作（可选）
-	h := uc.newBootstrapHandler(userID, ctrl.Id, houseGID)
+	// 4) 从 ctx 中获取 platform
+	platform := ""
+	if v := ctx.Value(pdb.CtxDBKey); v != nil {
+		if s, ok := v.(string); ok {
+			platform = s
+		}
+	}
+
+	// 5) 包一个 bootstrap handler：连接成功/收到房间列表时，做你想做的落库动作（可选）
+	h := uc.newBootstrapHandler(userID, ctrl.Id, houseGID, platform)
 
 	// 5) 不再强制关闭旧会话，改为“存在则更新、否则插入”
 
@@ -200,7 +209,7 @@ func (h *compositeHandler) OnRoomListUpdated(tables []*plazaUtils.TableInfo) {
 }
 
 func (h *compositeHandler) OnUserSitDown(sitdown *plazaUtils.UserSitDown) {
-	h.log.Infof("[compositeHandler] OnUserSitDown: gameID=%d, mappedNum=%d", sitdown.UserID, sitdown.MappedNum)
+	h.log.Infof("[compositeHandler] OnUserSitDown: userID=%d, gameID=%d, mappedNum=%d", sitdown.UserID, sitdown.GameID, sitdown.MappedNum)
 	h.bootstrap.OnUserSitDown(sitdown)
 	h.credit.OnUserSitDown(sitdown)
 }
@@ -250,7 +259,7 @@ func (h *bootstrapHandler) OnRoomListUpdated(ts []*plazaUtils.TableInfo) {
 	h.noopHandler.OnRoomListUpdated(ts)
 }
 
-func (uc *CtrlSessionUseCase) newBootstrapHandler(userID int32, ctrlID int32, houseGID int32) plaza.Handler {
+func (uc *CtrlSessionUseCase) newBootstrapHandler(userID int32, ctrlID int32, houseGID int32, platform string) plaza.Handler {
 	h := &bootstrapHandler{
 		ctrlID:   ctrlID,
 		houseGID: houseGID,
@@ -270,8 +279,8 @@ func (uc *CtrlSessionUseCase) newBootstrapHandler(userID int32, ctrlID int32, ho
 
 	// 如果有费用检查处理器，创建组合handler
 	if uc.creditHandler != nil {
-		uc.log.Infof("[费用检查] 创建组合handler: userID=%d, houseGID=%d", userID, houseGID)
-		creditH := uc.creditHandler.CreateHandler(int(userID), houseGID)
+		uc.log.Infof("[费用检查] 创建组合handler: userID=%d, houseGID=%d, platform=%s", userID, houseGID, platform)
+		creditH := uc.creditHandler.CreateHandler(int(userID), houseGID, platform)
 		return &compositeHandler{
 			bootstrap: h,
 			credit:    creditH,

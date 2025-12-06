@@ -9,7 +9,6 @@ import (
 	"battle-tiles/internal/dal/req"
 	resp "battle-tiles/internal/dal/resp"
 	"battle-tiles/internal/infra/plaza"
-	utilsplaza "battle-tiles/internal/utils/plaza"
 	"battle-tiles/pkg/plugin/middleware"
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
@@ -52,8 +51,8 @@ func (s *GameShopMemberService) RegisterRouter(r *gin.RouterGroup) {
 	g.POST("/members/unpin", middleware.RequirePerm("shop:member:update"), s.UnpinMember)
 	g.POST("/members/update-remark", middleware.RequirePerm("shop:member:update"), s.UpdateRemark)
 	// 禁用/解禁成员
-	g.POST("/members/forbid", middleware.RequirePerm("shop:member:forbid"), s.ForbidMember)
-	g.POST("/members/unforbid", middleware.RequirePerm("shop:member:forbid"), s.UnforbidMember)
+	g.POST("/members/forbid", middleware.RequirePerm("shop:member:update"), s.ForbidMember)
+	g.POST("/members/unforbid", middleware.RequirePerm("shop:member:update"), s.UnforbidMember)
 	// 平台侧：按圈主返回“我圈子的成员”（基于已通过的入圈申请）
 	g.POST("/members/list_platform", middleware.RequirePerm("shop:member:view"), s.ListPlatformMembers)
 	// 平台侧：从圈中移除成员（标记该成员的入圈记录为移除）
@@ -415,32 +414,11 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 	// 返回快照（若无为 nil -> 空数组）
 	mems := sess.ListMembers()
 
-	// 合并数据库中的禁用成员（因为被禁用的成员可能已经被踢下线，不在 sess.ListMembers() 中）
-	if s.gameMember != nil {
-		forbiddenMembers, err := s.gameMember.ListForbiddenByHouse(c.Request.Context(), int32(in.HouseGID))
-		if err == nil && len(forbiddenMembers) > 0 {
-			// 建立现有 mems 的索引
-			existingIDs := make(map[uint32]struct{})
-			for _, m := range mems {
-				existingIDs[m.GameID] = struct{}{}
-			}
-
-			// 追加缺失的禁用成员
-			for _, fm := range forbiddenMembers {
-				gameID := uint32(fm.GameID)
-				if _, exists := existingIDs[gameID]; !exists {
-					// 构造伪造的 GroupMember，用于后续逻辑处理
-					mems = append(mems, &utilsplaza.GroupMember{
-						UserID:     0, // 暂时为0，后续会尝试通过 GameAccount 填充
-						UserStatus: 0, // 离线
-						GameID:     gameID,
-						MemberID:   0,
-						MemberType: 0,
-						NickName:   fm.GameName,
-					})
-				}
-			}
-		}
+	// 获取内存缓存中的禁用成员列表，转为 map 方便查询
+	forbiddenGameIDs := sess.ListForbiddenGameIDs()
+	forbiddenSet := make(map[int]struct{})
+	for _, gid := range forbiddenGameIDs {
+		forbiddenSet[gid] = struct{}{}
 	}
 
 	// 构建 GameID 到游戏账号的映射
@@ -538,9 +516,12 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 				item.PinOrder = member.PinOrder
 				// 设置备注信息
 				item.Remark = member.Remark
-				// 设置禁用状态
-				item.Forbid = member.Forbid
 			}
+		}
+
+		// 设置禁用状态（基于内存缓存）
+		if _, isForbidden := forbiddenSet[int(m.GameID)]; isForbidden {
+			item.Forbid = true
 		}
 
 		out = append(out, item)
@@ -1070,42 +1051,38 @@ func (s *GameShopMemberService) doForbidMember(c *gin.Context, forbid bool) {
 		return
 	}
 
-	// 查找在线信息以获取 MemberID 和 GameName
-	var gameName string
+	// 查找在线信息以获取 MemberID（使用任意会话，不限定当前用户）
 	var memberID int32
-	if sess, ok := s.mgr.Get(userID, int(in.HouseGID)); ok && sess != nil {
-		mems := sess.ListMembers()
-		for _, m := range mems {
-			if int32(m.GameID) == gameID {
-				gameName = m.NickName
-				memberID = int32(m.MemberID)
-				break
-			}
-		}
-	}
-
-	// 更新数据库 forbid 字段
-	if err := s.gameMember.UpsertForbid(c.Request.Context(), in.HouseGID, gameID, gameName, forbid); err != nil {
+	sess, ok := s.mgr.GetAnyByHouse(int(in.HouseGID))
+	if !ok || sess == nil {
 		action := "禁用"
 		if !forbid {
 			action = "解禁"
 		}
-		response.Fail(c, ecode.Failed, fmt.Sprintf("%s成员失败: %v", action, err))
+		response.Fail(c, ecode.Failed, fmt.Sprintf("%s失败: 未找到会话，请先登录店铺", action))
 		return
 	}
+	_ = userID // userID 仅用于日志或审计，不再用于查找会话
 
-	// 如果有在线会话，推送到游戏端（可选，失败不影响数据库更新）
-	if sess, ok := s.mgr.Get(userID, int(in.HouseGID)); ok && sess != nil {
-		targetID := int(gameID)
-		if memberID > 0 {
-			targetID = int(memberID)
+	mems := sess.ListMembers()
+	for _, m := range mems {
+		if int32(m.GameID) == gameID {
+			memberID = int32(m.MemberID)
+			break
 		}
+	}
 
-		key := fmt.Sprintf("forbid-%d-%d-%d", in.HouseGID, gameID, time.Now().UnixNano())
-		if err := s.mgr.ForbidMembers(userID, int(in.HouseGID), key, []int{targetID}, forbid); err != nil {
-			// 失败只记录日志，不影响结果（以数据库为准）
-			// 没有 log 字段，跳过日志记录
-		}
+	// 推送到游戏服务器（不存数据库）
+	// 游戏服务器需要发送多次禁用命令才能生效
+	targetID := int(gameID)
+	if memberID > 0 {
+		targetID = int(memberID)
+	}
+
+	for i := 0; i < 3; i++ {
+		key := fmt.Sprintf("forbid-%d-%d-%d-%d", in.HouseGID, gameID, time.Now().UnixNano(), i)
+		// 直接使用已获取的 session 调用 ForbidMembers
+		sess.ForbidMembers(key, []int{targetID}, forbid)
 	}
 
 	response.SuccessWithOK(c)

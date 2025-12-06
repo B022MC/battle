@@ -46,7 +46,7 @@ export const MembersView = () => {
   const [keyword, setKeyword] = useState<string>('');
   const [page, setPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'group' | 'game' | 'blocked'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'group' | 'game'>('all');
   const [showSetAdminModal, setShowSetAdminModal] = useState(false);
   const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<{ id: number; name: string } | null>(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<number | null>(null); // 超级管理员的圈子筛选
@@ -190,7 +190,7 @@ export const MembersView = () => {
 
   // 游戏成员列表自动刷新（每10秒）- 无感刷新
   React.useEffect(() => {
-    if (activeTab !== 'game' && activeTab !== 'blocked') return;
+    if (activeTab !== 'game') return;
 
     const effectiveHouseGid = isStoreAdmin && myAdminInfo?.house_gid 
       ? myAdminInfo.house_gid 
@@ -371,16 +371,9 @@ export const MembersView = () => {
         >
           <Text>游戏成员</Text>
         </Button>
-        <Button
-          variant={activeTab === 'blocked' ? 'default' : 'outline'}
-          onPress={() => setActiveTab('blocked')}
-          className="flex-1"
-        >
-          <Text>禁用名单</Text>
-        </Button>
       </View>
       <View className="px-4 py-3 gap-3 border-b border-border bg-card">
-        {activeTab === 'game' || activeTab === 'blocked' ? (
+        {activeTab === 'game' ? (
           <>
             {!isStoreAdmin ? (
               <View className="flex-row gap-2">
@@ -500,7 +493,7 @@ export const MembersView = () => {
                 handleLoadUsers();
               } else if (activeTab === 'group' && myGroup) {
                 runListGroupMembers({ group_id: myGroup.id, page: 1, size: 100 });
-              } else if (activeTab === 'game' || activeTab === 'blocked') {
+              } else if (activeTab === 'game') {
                 const effectiveHouseGid = isStoreAdmin && myAdminInfo?.house_gid 
                   ? myAdminInfo.house_gid 
                   : (houseGid ? Number(houseGid) : null);
@@ -514,7 +507,7 @@ export const MembersView = () => {
           />
         }
       >
-        {activeTab === 'game' || activeTab === 'blocked' ? (
+        {activeTab === 'game' ? (
           <View className="p-4">
             {myGroup && activeTab === 'game' ? (
               <View className="mb-4 p-3 bg-secondary/50 rounded-lg">
@@ -525,14 +518,8 @@ export const MembersView = () => {
             <MembersList 
               loading={loadingGameMembers && !silentMembersData} 
               data={(silentMembersData || gameMembersData)?.items?.filter(item => {
-                // 过滤逻辑：
-                // game 标签页: 显示未禁用的成员
-                // blocked 标签页: 显示已禁用的成员
-                if (activeTab === 'blocked') {
-                  return item.forbid === true;
-                }
-                // game 标签页只显示未禁用的
-                return !item.forbid;
+                // 过滤逻辑：显示所有成员
+                return true;
               })}
               houseGid={
                 isStoreAdmin && myAdminInfo?.house_gid 
@@ -549,7 +536,7 @@ export const MembersView = () => {
                   if (response?.data) setSilentMembersData(response.data);
                 }
               }}
-              isBlockedList={activeTab === 'blocked'}
+              isBlockedList={false}
             />
           </View>
         ) : activeTab === 'all' ? (

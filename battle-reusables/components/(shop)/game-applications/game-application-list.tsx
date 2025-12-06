@@ -155,7 +155,7 @@ export const GameApplicationList = ({ houseGid }: GameApplicationListProps) => {
               disabled={processingId === item.message_id}
               className="flex-1"
             >
-              {processingId === item.message_id ? '处理中...' : '拒绝'}
+              <Text>{processingId === item.message_id ? '处理中...' : '拒绝'}</Text>
             </Button>
             <Button
               size="sm"
@@ -163,7 +163,7 @@ export const GameApplicationList = ({ houseGid }: GameApplicationListProps) => {
               disabled={processingId === item.message_id}
               className="flex-1"
             >
-              {processingId === item.message_id ? '处理中...' : '通过'}
+              <Text>{processingId === item.message_id ? '处理中...' : '通过'}</Text>
             </Button>
           </View>
         </Card>

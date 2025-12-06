@@ -52,7 +52,8 @@ function GameApplicationsContent() {
 
   // 下拉框选项
   const filtered = useMemo(() => {
-    const list = (houseOptions ?? []).map((v) => String(v));
+    // houseOptions 是 MobileSelectOption[] 类型，需要提取 value 字段
+    const list = (houseOptions ?? []).map((opt) => opt.value);
     const q = houseGid.trim();
     if (!q) return list;
     return list.filter((v) => v.includes(q));

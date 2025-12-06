@@ -1,6 +1,11 @@
 package game
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"time"
+
 	gameBiz "battle-tiles/internal/biz/game"
 	gameModel "battle-tiles/internal/dal/model/game"
 	basicRepo "battle-tiles/internal/dal/repo/basic"
@@ -8,26 +13,23 @@ import (
 	"battle-tiles/internal/dal/req"
 	"battle-tiles/internal/dal/resp"
 	"battle-tiles/internal/infra/plaza"
+	utilsplaza "battle-tiles/internal/utils/plaza"
 	"battle-tiles/pkg/plugin/middleware"
 	"battle-tiles/pkg/utils"
 	"battle-tiles/pkg/utils/ecode"
 	"battle-tiles/pkg/utils/response"
-	"context"
-	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ShopApplicationService struct {
-	mgr              plaza.Manager
-	userRepo         gameRepo.UserApplicationRepo
-	users            basicRepo.BasicUserRepo
-	auth             basicRepo.AuthRepo
-	sAdm             gameRepo.GameShopAdminRepo
-	logRepo          gameRepo.ShopApplicationLogRepo // 游戏内申请日志
-	accountGroupUC   *gameBiz.GameAccountGroupUseCase // 游戏账号圈子业务逻辑
+	mgr            plaza.Manager
+	userRepo       gameRepo.UserApplicationRepo
+	users          basicRepo.BasicUserRepo
+	auth           basicRepo.AuthRepo
+	sAdm           gameRepo.GameShopAdminRepo
+	logRepo        gameRepo.ShopApplicationLogRepo  // 游戏内申请日志
+	accountGroupUC *gameBiz.GameAccountGroupUseCase // 游戏账号圈子业务逻辑
 }
 
 func NewShopApplicationService(
@@ -570,11 +572,14 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 		return
 	}
 
-	// 获取 plaza session
+	// 获取 plaza session（先尝试当前用户，再尝试共享会话）
 	sess, ok := s.mgr.Get(int(claims.BaseClaims.UserID), int(in.HouseGID))
 	if !ok {
-		response.Fail(c, ecode.Failed, "会话不存在，请先登录游戏")
-		return
+		sess, ok = s.mgr.GetAnyByHouse(int(in.HouseGID))
+		if !ok {
+			response.Fail(c, ecode.Failed, "会话不存在，请先登录游戏")
+			return
+		}
 	}
 
 	// 从内存查找申请信息
@@ -586,6 +591,9 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 
 	// 发送响应命令到游戏服务器
 	sess.RespondApplication(applyInfo, agree)
+
+	// 从缓存中删除已处理的申请
+	sess.RemoveApplication(in.MessageID)
 
 	// 如果同意申请，执行游戏账号入圈逻辑
 	if agree && s.accountGroupUC != nil {
@@ -622,34 +630,27 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 // handleGameAccountJoinGroup 处理游戏账号入圈逻辑
 func (s *ShopApplicationService) handleGameAccountJoinGroup(
 	ctx context.Context,
-	applyInfo interface{},
+	applyInfo *utilsplaza.ApplyInfo,
 	adminUserID int32,
 	houseGID int32,
 ) error {
-	// 类型断言获取申请信息
-	type ApplicationInfo interface {
-		GetApplierGid() int
-		GetApplierGName() string
+	if applyInfo == nil {
+		return fmt.Errorf("申请信息为空")
 	}
-	
-	app, ok := applyInfo.(ApplicationInfo)
-	if !ok {
-		return fmt.Errorf("invalid application info type")
-	}
-	
-	gameUserID := fmt.Sprintf("%d", app.GetApplierGid())
-	
+
+	gameUserID := fmt.Sprintf("%d", applyInfo.ApplierGid)
+
 	// 1. 查找或创建游戏账号
 	gameAccount, err := s.accountGroupUC.FindOrCreateGameAccount(
 		ctx,
 		gameUserID,
 		gameUserID, // 使用游戏ID作为账号
-		app.GetApplierGName(),
+		applyInfo.ApplierGName,
 	)
 	if err != nil {
 		return fmt.Errorf("查找或创建游戏账号失败: %w", err)
 	}
-	
+
 	// 2. 获取管理员昵称
 	adminUser, err := s.users.SelectByPK(ctx, []int32{adminUserID})
 	if err != nil || len(adminUser) == 0 {
@@ -659,13 +660,13 @@ func (s *ShopApplicationService) handleGameAccountJoinGroup(
 	if adminUser[0] != nil {
 		adminNickname = adminUser[0].NickName
 	}
-	
+
 	// 3. 确保管理员有圈子
 	group, err := s.accountGroupUC.EnsureGroupForAdmin(ctx, houseGID, adminUserID, adminNickname)
 	if err != nil {
 		return fmt.Errorf("确保管理员圈子失败: %w", err)
 	}
-	
+
 	// 4. 将游戏账号加入圈子
 	err = s.accountGroupUC.AddGameAccountToGroup(
 		ctx,
@@ -679,6 +680,6 @@ func (s *ShopApplicationService) handleGameAccountJoinGroup(
 	if err != nil {
 		return fmt.Errorf("游戏账号加入圈子失败: %w", err)
 	}
-	
+
 	return nil
 }

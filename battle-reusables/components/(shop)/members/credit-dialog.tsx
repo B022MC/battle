@@ -3,8 +3,10 @@ import { View, Modal, TextInput, TouchableOpacity, ActivityIndicator } from 'rea
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { showToast, toast } from '@/utils/toast';
+import { showToast } from '@/utils/toast';
+import { alert } from '@/utils/alert';
 import { showSuccessBubble } from '@/utils/bubble-toast';
+import { membersCreditDeposit, membersCreditWithdraw } from '@/services/game/funds';
 
 type CreditDialogProps = {
   visible: boolean;
@@ -41,13 +43,14 @@ export const CreditDialog = ({
       return;
     }
 
-    // 二次确认
-    toast.confirm({
+    // 先关闭弹框再显示确认
+    onClose();
+    
+    alert.show({
       title: type === 'deposit' ? '确认上分' : '确认下分',
       description: memberName 
         ? `确定要为 ${memberName} ${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`
         : `确定要${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`,
-      type: 'warning',
       confirmText: '确定',
       cancelText: '取消',
       onConfirm: async () => {
@@ -57,42 +60,32 @@ export const CreditDialog = ({
           const amountInCents = Math.round(amountNum * 100);
           const bizNo = generateBizNo();
 
-          const endpoint = type === 'deposit' 
-            ? '/members/credit/deposit'
-            : '/members/credit/withdraw';
+          const params = {
+            house_gid: houseGid,
+            member_id: memberId,
+            amount: amountInCents,
+            biz_no: bizNo,
+            reason: reason || (type === 'deposit' ? '上分' : '下分'),
+          };
 
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              house_gid: houseGid,
-              member_id: memberId,
-              amount: amountInCents,
-              biz_no: bizNo,
-              reason: reason || (type === 'deposit' ? '上分' : '下分'),
-            }),
-          });
+          const res = type === 'deposit' 
+            ? await membersCreditDeposit(params)
+            : await membersCreditWithdraw(params);
 
-          const res = await response.json();
-          if (res.code === 0) {
-            const actionText = type === 'deposit' ? '上分' : '下分';
-            showSuccessBubble(`${actionText}成功`, `已为${memberName || '成员'}${actionText} ${amountNum} 元`);
-            setAmount('');
-            setReason('');
-            onSuccess?.();
-            onClose();
-          } else {
-            showToast(res.msg || '操作失败', 'error');
-          }
-        } catch (error) {
-          showToast('操作失败', 'error');
+          const actionText = type === 'deposit' ? '上分' : '下分';
+          showSuccessBubble(`${actionText}成功`, `已为${memberName || '成员'}${actionText} ${amountNum} 元`);
+          onSuccess?.();
+        } catch (error: any) {
+          showToast(error?.message || '操作失败', 'error');
         } finally {
           setLoading(false);
         }
       },
     });
+    
+    // 重置表单
+    setAmount('');
+    setReason('');
   };
 
   const handleCancel = () => {

@@ -201,7 +201,7 @@ export const MyBalancesView = () => {
       {/* 说明 */}
       <Card className="p-4 mt-4 bg-muted">
         <Text className="text-sm text-muted-foreground">
-          💡 提示：
+          提示：
         </Text>
         <Text className="text-sm text-muted-foreground mt-2">
           • 不填写圈子ID将显示您在该店铺所有圈子的余额

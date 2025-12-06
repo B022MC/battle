@@ -3,20 +3,23 @@ package game
 import (
 	"context"
 	"fmt"
+	"time"
 
 	model "battle-tiles/internal/dal/model/game"
 	repo "battle-tiles/internal/dal/repo/game"
 	"battle-tiles/internal/infra/plaza"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/patrickmn/go-cache"
 )
 
 type RoomCreditLimitUseCase struct {
-	repo         repo.RoomCreditLimitRepo
-	memberRepo   repo.GameMemberRepo
-	settingsRepo repo.HouseSettingsRepo
-	plazaMgr     plaza.Manager
-	log          *log.Helper
+	repo           repo.RoomCreditLimitRepo
+	memberRepo     repo.GameMemberRepo
+	settingsRepo   repo.HouseSettingsRepo
+	plazaMgr       plaza.Manager
+	log            *log.Helper
+	violationCache *cache.Cache // 违规计数缓存：key = "houseGID:gameID", value = int
 }
 
 func NewRoomCreditLimitUseCase(
@@ -27,12 +30,34 @@ func NewRoomCreditLimitUseCase(
 	logger log.Logger,
 ) *RoomCreditLimitUseCase {
 	return &RoomCreditLimitUseCase{
-		repo:         r,
-		memberRepo:   memberRepo,
-		settingsRepo: settingsRepo,
-		plazaMgr:     plazaMgr,
-		log:          log.NewHelper(log.With(logger, "module", "usecase/room_credit_limit")),
+		repo:           r,
+		memberRepo:     memberRepo,
+		settingsRepo:   settingsRepo,
+		plazaMgr:       plazaMgr,
+		log:            log.NewHelper(log.With(logger, "module", "usecase/room_credit_limit")),
+		violationCache: cache.New(1*time.Hour, 10*time.Minute), // 违规计数保留1小时
 	}
+}
+
+// 违规阈值：超过此次数踢出店铺
+const ViolationThreshold = 3
+
+// incrementViolation 增加违规计数，返回当前计数
+func (uc *RoomCreditLimitUseCase) incrementViolation(houseGID int32, gameID int32) int {
+	key := fmt.Sprintf("%d:%d", houseGID, gameID)
+	if v, found := uc.violationCache.Get(key); found {
+		count := v.(int) + 1
+		uc.violationCache.Set(key, count, cache.DefaultExpiration)
+		return count
+	}
+	uc.violationCache.Set(key, 1, cache.DefaultExpiration)
+	return 1
+}
+
+// resetViolation 重置违规计数（如：玩家充值后）
+func (uc *RoomCreditLimitUseCase) resetViolation(houseGID int32, gameID int32) {
+	key := fmt.Sprintf("%d:%d", houseGID, gameID)
+	uc.violationCache.Delete(key)
 }
 
 // SetCreditLimit 设置房间额度限制
@@ -81,17 +106,9 @@ func (uc *RoomCreditLimitUseCase) HandlePlayerSitDown(ctx context.Context, userI
 		}
 
 		// 自动创建成员记录（forbid=true），方便管理员在列表中看到并解禁
-		newMember := &model.GameMember{
-			HouseGID:  houseGID,
-			GameID:    gameID,
-			GameName:  fmt.Sprintf("未录入玩家-%d", gameID), // 临时名称
-			GroupName: "",                              // 无圈子
-			Balance:   0,
-			Credit:    0,
-			Forbid:    true, // 禁用状态
-		}
-		if createErr := uc.memberRepo.Create(ctx, newMember); createErr != nil {
-			uc.log.Errorf("Failed to create member record for unregistered player gameID=%d: %v", gameID, createErr)
+		gameName := fmt.Sprintf("未录入玩家-%d", gameID)
+		if upsertErr := uc.memberRepo.UpsertForbid(ctx, houseGID, gameID, gameName, true); upsertErr != nil {
+			uc.log.Errorf("Failed to create member record for unregistered player gameID=%d: %v", gameID, upsertErr)
 		} else {
 			uc.log.Infof("Created forbidden member record: gameID=%d, houseGID=%d", gameID, houseGID)
 		}
@@ -122,23 +139,38 @@ func (uc *RoomCreditLimitUseCase) HandlePlayerSitDown(ctx context.Context, userI
 
 	// 4. 检查余额是否满足额度要求
 	if member.Balance < effectiveCredit {
-		// 余额不足，解散桌子
+		// 余额不足，先解散桌子
 		uc.log.Warnf("HandlePlayerSitDown: insufficient balance for credit limit, gameID=%d, balance=%d < credit=%d, dismissing table",
 			gameID, member.Balance, effectiveCredit)
 
-		// 先解散桌子
 		dismissErr := uc.dismissTable(ctx, userID, houseGID, kindID, tableNum, "insufficient balance for credit limit")
 		if dismissErr != nil {
 			uc.log.Errorf("Failed to dismiss table: %v", dismissErr)
 		}
 
-		// 禁用玩家（更新数据库 forbid 字段，类似 passing-dragonfly 的 _freezeMembers）
-		// TODO: 可以实现 thiefCache 机制，连续3次才禁用，现在先直接禁用
-		if err := uc.memberRepo.UpdateForbid(ctx, houseGID, gameID, true); err != nil {
-			uc.log.Errorf("Failed to forbid player with insufficient balance gameID=%d: %v", gameID, err)
-		} else {
-			uc.log.Infof("Forbid player with insufficient balance: gameID=%d, balance=%d < credit=%d",
-				gameID, member.Balance, effectiveCredit)
+		// 增加违规计数
+		violationCount := uc.incrementViolation(houseGID, gameID)
+		uc.log.Infof("[费用检查] 玩家违规计数: gameID=%d, count=%d/%d", gameID, violationCount, ViolationThreshold)
+
+		// 超过阈值才踢出店铺
+		if violationCount >= ViolationThreshold {
+			uc.log.Warnf("[费用检查] 玩家违规次数超过阈值，踢出店铺: gameID=%d, count=%d", gameID, violationCount)
+
+			// 更新数据库 forbid 字段（使用 UpsertForbid 确保记录存在）
+			if err := uc.memberRepo.UpsertForbid(ctx, houseGID, gameID, member.GameName, true); err != nil {
+				uc.log.Errorf("Failed to forbid player gameID=%d: %v", gameID, err)
+			}
+
+			// 推送禁用指令到游戏端
+			forbidErr := uc.plazaMgr.ForbidMembers(userID, int(houseGID), "", []int{int(gameID)}, true)
+			if forbidErr != nil {
+				uc.log.Errorf("Failed to forbid player via plaza gameID=%d: %v", gameID, forbidErr)
+			} else {
+				uc.log.Infof("Kicked player from shop: gameID=%d, houseGID=%d", gameID, houseGID)
+			}
+
+			// 重置违规计数
+			uc.resetViolation(houseGID, gameID)
 		}
 
 		return fmt.Errorf("insufficient balance: %d < %d", member.Balance, effectiveCredit)
@@ -174,12 +206,26 @@ func (uc *RoomCreditLimitUseCase) HandlePlayerSitDown(ctx context.Context, userI
 						uc.log.Errorf("Failed to dismiss table: %v", dismissErr)
 					}
 
-					// 禁用玩家（更新数据库 forbid 字段）
-					if err := uc.memberRepo.UpdateForbid(ctx, houseGID, gameID, true); err != nil {
-						uc.log.Errorf("Failed to forbid player with insufficient fee gameID=%d: %v", gameID, err)
-					} else {
-						uc.log.Infof("Forbid player with insufficient fee: gameID=%d, balance=%d < fee=%d",
-							gameID, member.Balance, requiredFee)
+					// 增加违规计数
+					violationCount := uc.incrementViolation(houseGID, gameID)
+					uc.log.Infof("[费用检查] 玩家违规计数: gameID=%d, count=%d/%d", gameID, violationCount, ViolationThreshold)
+
+					// 超过阈值才踢出店铺
+					if violationCount >= ViolationThreshold {
+						uc.log.Warnf("[费用检查] 玩家违规次数超过阈值，踢出店铺: gameID=%d, count=%d", gameID, violationCount)
+
+						if err := uc.memberRepo.UpsertForbid(ctx, houseGID, gameID, member.GameName, true); err != nil {
+							uc.log.Errorf("Failed to forbid player gameID=%d: %v", gameID, err)
+						}
+
+						forbidErr := uc.plazaMgr.ForbidMembers(userID, int(houseGID), "", []int{int(gameID)}, true)
+						if forbidErr != nil {
+							uc.log.Errorf("Failed to forbid player via plaza gameID=%d: %v", gameID, forbidErr)
+						} else {
+							uc.log.Infof("Kicked player from shop: gameID=%d, houseGID=%d", gameID, houseGID)
+						}
+
+						uc.resetViolation(houseGID, gameID)
 					}
 
 					return fmt.Errorf("insufficient balance for fee: %d < %d", member.Balance, requiredFee)

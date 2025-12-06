@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from 'react-native';
-import { Trash2, Plus, ChevronDown } from 'lucide-react-native';
+import { Trash2, Plus, ChevronDown, Pencil, X } from 'lucide-react-native';
 import { shopsFeesGet, shopsShareFeeSet, shopsFeesSet } from '@/services/shops/fees';
 import { showToast } from '@/utils/toast';
 import { PermissionGate } from '@/components/auth/PermissionGate';
@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/select';
 
 type GameFee = {
-  code: number;        // 游戏类型ID (0表示所有)
-  base_score: number;  // 底分 (0表示所有)
+  kind: string;        // 游戏类型ID ("0"表示所有)
+  base: number;        // 底分 (0表示所有)
   threshold: number;   // 门槛金额（分）
   fee: number;         // 运费金额（分）
 };
@@ -58,6 +58,7 @@ export function FeesView() {
   
   // 操作状态
   const [updating, setUpdating] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // 正在编辑的规则索引
   
   // 游戏类型选项
   const gameKinds = useMemo(() => {
@@ -93,8 +94,9 @@ export function FeesView() {
         
         // 解析运费规则
         try {
-          const fees = res.data.fees_json ? JSON.parse(res.data.fees_json) : [];
-          setGameFees(Array.isArray(fees) ? fees : (fees ? [fees] : []));
+          const parsed = res.data.fees_json ? JSON.parse(res.data.fees_json) : { rules: [] };
+          const rules = parsed.rules || [];
+          setGameFees(Array.isArray(rules) ? rules : []);
         } catch (e) {
           console.error('解析运费规则失败:', e);
           setGameFees([]);
@@ -141,8 +143,27 @@ export function FeesView() {
     }
   };
 
-  // 添加运费规则
-  const handleAddFee = async () => {
+  // 开始编辑规则
+  const handleEditFee = (index: number) => {
+    const fee = gameFees[index];
+    setEditingIndex(index);
+    setNewThreshold(String(fee.threshold));
+    setNewFee(String(fee.fee));
+    setNewGameKind(fee.kind || '0');
+    setNewBaseScore(String(fee.base || 0));
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setNewThreshold('');
+    setNewFee('');
+    setNewGameKind(undefined);
+    setNewBaseScore('');
+  };
+
+  // 添加/保存运费规则
+  const handleSaveFee = async () => {
     if (!houseGid || !newThreshold || !newFee) {
       showToast('请填写门槛和运费', 'error');
       return;
@@ -159,19 +180,27 @@ export function FeesView() {
     }
 
     const newRule: GameFee = {
-      code: gameKind,
-      base_score: baseScore,
+      kind: String(gameKind),
+      base: baseScore,
       threshold: threshold,
       fee: fee,
     };
 
-    const updatedFees = [...gameFees, newRule];
+    let updatedFees: GameFee[];
+    if (editingIndex !== null) {
+      // 编辑模式：替换对应索引的规则
+      updatedFees = [...gameFees];
+      updatedFees[editingIndex] = newRule;
+    } else {
+      // 新增模式
+      updatedFees = [...gameFees, newRule];
+    }
 
     try {
       setUpdating(true);
       const res = await shopsFeesSet({
         house_gid: Number(houseGid),
-        fees_json: JSON.stringify(updatedFees),
+        fees_json: JSON.stringify({ rules: updatedFees }),
       });
 
       if (res.code === 0) {
@@ -180,13 +209,14 @@ export function FeesView() {
         setNewFee('');
         setNewGameKind(undefined);
         setNewBaseScore('');
-        showToast('添加成功', 'success');
+        setEditingIndex(null);
+        showToast(editingIndex !== null ? '修改成功' : '添加成功', 'success');
       } else {
-        showToast(res.msg || '添加失败', 'error');
+        showToast(res.msg || '保存失败', 'error');
       }
     } catch (error) {
-      showToast('添加失败', 'error');
-      console.error('添加运费规则失败:', error);
+      showToast('保存失败', 'error');
+      console.error('保存运费规则失败:', error);
     } finally {
       setUpdating(false);
     }
@@ -202,7 +232,7 @@ export function FeesView() {
       setUpdating(true);
       const res = await shopsFeesSet({
         house_gid: Number(houseGid),
-        fees_json: JSON.stringify(updatedFees),
+        fees_json: JSON.stringify({ rules: updatedFees }),
       });
 
       if (res.code === 0) {
@@ -220,14 +250,25 @@ export function FeesView() {
   };
 
   // 获取游戏类型名称
-  const getGameKindName = (code: number) => {
-    if (code === 0) return '所有游戏';
-    return maps.game_kinds.get(code) || `类型${code}`;
+  const getGameKindName = (kindCode: string | number) => {
+    const code = typeof kindCode === 'string' ? Number(kindCode) : kindCode;
+    if (code === 0 || isNaN(code)) return '所有游戏';
+    const name = maps.game_kinds.get(code);
+    if (name) return name;
+    // 常见游戏类型硬编码备用
+    const fallback: Record<number, string> = {
+      60: '血战到底',
+      61: '血战换三张', 
+      70: '跑得快',
+      80: '斗地主',
+    };
+    return fallback[code] || `游戏${code}`;
   };
 
   // 店铺下拉框选项
   const filtered = useMemo(() => {
-    const list = (houseOptions ?? []).map((v) => String(v));
+    // houseOptions 是 MobileSelectOption[] 类型，需要提取 value 字段
+    const list = (houseOptions ?? []).map((opt) => opt.value);
     const q = houseGid.trim();
     if (!q) return list;
     return list.filter((v) => v.includes(q));
@@ -424,7 +465,7 @@ export function FeesView() {
               </Text>
               <View className="bg-yellow-50 p-3 rounded border border-yellow-200">
                 <Text className="text-xs text-yellow-700">
-                  ⚠️ 此功能已废弃：新版本不再使用机器人推送，此配额仅供查看历史数据
+                  此功能已废弃：新版本不再使用机器人推送，此配额仅供查看历史数据
                 </Text>
               </View>
             </Card>
@@ -442,23 +483,33 @@ export function FeesView() {
                   <View key={index} className="flex-row items-center justify-between p-3 bg-gray-50 rounded">
                     <View className="flex-1">
                       <Text className="text-sm font-medium">
-                        {fee.code === 0 && fee.base_score === 0
+                        {(fee.kind === '0' || !fee.kind) && (fee.base === 0 || !fee.base)
                           ? `通用规则: ${fee.threshold}分/${fee.fee}分`
-                          : `${getGameKindName(fee.code)} ${fee.base_score}底分: ${fee.threshold}分/${fee.fee}分`}
+                          : `${getGameKindName(Number(fee.kind))} ${fee.base}底分: ${fee.threshold}分/${fee.fee}分`}
                       </Text>
                       <Text className="text-xs text-gray-500 mt-1">
                         门槛: {fee.threshold}分 → 运费: {fee.fee}分
                       </Text>
                     </View>
                     <PermissionGate anyOf={['shop:fees:update']}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onPress={() => handleDeleteFee(index)}
-                        disabled={updating}
-                      >
-                        <Icon as={Trash2} size={18} className="text-red-500" />
-                      </Button>
+                      <View className="flex-row">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onPress={() => handleEditFee(index)}
+                          disabled={updating}
+                        >
+                          <Icon as={Pencil} size={16} className="text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onPress={() => handleDeleteFee(index)}
+                          disabled={updating}
+                        >
+                          <Icon as={Trash2} size={16} className="text-red-500" />
+                        </Button>
+                      </View>
                     </PermissionGate>
                   </View>
                 ))}
@@ -471,10 +522,20 @@ export function FeesView() {
           </Card>
         </PermissionGate>
 
-        {/* 添加运费规则 */}
+        {/* 添加/编辑运费规则 */}
         <PermissionGate anyOf={['shop:fees:update']}>
           <Card className="mb-4 p-4">
-            <Text className="text-base font-semibold mb-3">添加运费规则</Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-semibold">
+                {editingIndex !== null ? `编辑规则 #${editingIndex + 1}` : '添加运费规则'}
+              </Text>
+              {editingIndex !== null && (
+                <Button variant="ghost" size="sm" onPress={handleCancelEdit}>
+                  <Icon as={X} size={16} className="text-gray-500" />
+                  <Text className="text-xs text-gray-500 ml-1">取消</Text>
+                </Button>
+              )}
+            </View>
             
             <View className="mb-3">
               <Text className="text-sm text-gray-600 mb-1">门槛金额（分）*</Text>
@@ -497,11 +558,11 @@ export function FeesView() {
             </View>
 
             <View className="mb-3" style={{ zIndex: 50 }}>
-              <Text className="text-sm text-gray-600 mb-1">游戏类型</Text>
+              <Text className="text-sm text-gray-600 mb-1">游戏类型 *</Text>
               <Select
-                value={newGameKind ? { 
+                value={newGameKind && newGameKind !== '0' ? { 
                   value: newGameKind, 
-                  label: newGameKind === '0' ? '所有游戏' : (maps.game_kinds.get(Number(newGameKind)) || newGameKind) 
+                  label: maps.game_kinds.get(Number(newGameKind)) || getGameKindName(newGameKind)
                 } : undefined}
                 onValueChange={(option) => setNewGameKind(option?.value)}
               >
@@ -511,7 +572,6 @@ export function FeesView() {
                 <SelectContent portalHost="shop-layout-portal" style={{ zIndex: 9999 }}>
                   <SelectGroup>
                     <SelectLabel>游戏列表</SelectLabel>
-                    <SelectItem label="所有游戏" value="0" />
                     {gameKinds.map((k) => (
                       <SelectItem key={k.value} label={k.label} value={k.value} />
                     ))}
@@ -531,27 +591,24 @@ export function FeesView() {
             </View>
 
             <Button
-              onPress={handleAddFee}
-              disabled={!houseGid || !newThreshold || !newFee || !newGameKind || updating}
+              onPress={handleSaveFee}
+              disabled={!houseGid || !newThreshold || !newFee || !newGameKind || newGameKind === '0' || updating}
             >
               <View className="flex-row items-center gap-2">
-                <Icon as={Plus} size={16} className="text-white" />
-                <Text className="text-white">添加规则</Text>
+                {editingIndex === null && <Icon as={Plus} size={16} className="text-white" />}
+                <Text className="text-white">{editingIndex !== null ? '保存修改' : '添加规则'}</Text>
               </View>
             </Button>
 
             <View className="mt-3 bg-blue-50 p-3 rounded">
               <Text className="text-xs text-blue-700">
-                💡 说明：
+                说明：
               </Text>
               <Text className="text-xs text-blue-700 mt-1">
                 • 门槛、运费和游戏类型必填，底分可选
               </Text>
               <Text className="text-xs text-blue-700">
-                • 选择"所有游戏"表示通用规则（适用所有游戏）
-              </Text>
-              <Text className="text-xs text-blue-700">
-                • 指定游戏类型和底分表示特定游戏的运费规则
+                • 底分留空表示适用该游戏所有底分
               </Text>
               <Text className="text-xs text-blue-700">
                 • 规则示例：门槛50分，运费800分，表示达到50分收取800分运费

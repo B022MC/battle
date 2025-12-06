@@ -23,115 +23,92 @@ const (
 type FundsUseCase struct {
 	wallet     repo.WalletRepo
 	walletRead repo.WalletReadRepo
+	memberRepo repo.GameMemberRepo // 直接更新 game_member.balance
 }
 
-func NewFundsUseCase(w repo.WalletRepo, r repo.WalletReadRepo) *FundsUseCase {
-	return &FundsUseCase{wallet: w, walletRead: r}
+func NewFundsUseCase(w repo.WalletRepo, r repo.WalletReadRepo, m repo.GameMemberRepo) *FundsUseCase {
+	return &FundsUseCase{wallet: w, walletRead: r, memberRepo: m}
 }
 
 func (uc *FundsUseCase) Deposit(ctx context.Context, opUser int32, houseGID, memberID int32, amount int32, bizNo, reason string) (*model.GameMemberWallet, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount must be > 0")
 	}
+	// 简单去重：检查 bizNo 是否已存在
 	if ok, err := uc.wallet.ExistsLedgerBiz(ctx, houseGID, memberID, bizNo); err != nil {
 		return nil, err
 	} else if ok {
-		tx, _ := uc.wallet.BeginTx(ctx)
-		defer func() { _ = tx.Rollback() }()
-		return uc.wallet.GetForUpdate(ctx, tx, houseGID, memberID)
-	}
-
-	tx, txErr := uc.wallet.BeginTx(ctx)
-	if txErr != nil {
-		return nil, txErr
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	w, err := uc.wallet.GetForUpdate(ctx, tx, houseGID, memberID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
-	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		w = &model.GameMemberWallet{
-			HouseGID: houseGID,
-			MemberID: memberID,
+		// 重复请求，返回当前余额
+		m, _ := uc.memberRepo.GetByMemberID(ctx, houseGID, memberID)
+		if m != nil {
+			return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: m.Balance}, nil
 		}
+		return nil, errors.New("member not found")
 	}
-	before := w.Balance
-	after := before + amount
-	w.Balance = after
 
-	if err = uc.wallet.Upsert(ctx, tx, w); err != nil {
-		return nil, err
+	// 直接更新 game_member.balance
+	before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, memberID, amount)
+	if err != nil {
+		return nil, fmt.Errorf("上分失败: %w", err)
 	}
-	if err = uc.wallet.AppendLedger(ctx, tx, &model.GameWalletLedger{
-		HouseGID:       int32(houseGID),
-		MemberID:       int32(memberID),
+
+	// 记录流水
+	_ = uc.wallet.AppendLedger(ctx, nil, &model.GameWalletLedger{
+		HouseGID:       houseGID,
+		MemberID:       memberID,
 		ChangeAmount:   amount,
 		BalanceBefore:  before,
 		BalanceAfter:   after,
 		Type:           LedgerTypeDeposit,
 		Reason:         reason,
-		OperatorUserID: opUser, // int32
+		OperatorUserID: opUser,
 		BizNo:          bizNo,
-	}); err != nil {
-		return nil, err
-	}
+	})
 
-	if commit := tx.Commit(); commit.Error != nil {
-		return nil, commit.Error
-	}
-	return w, nil
+	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: after}, nil
 }
 
 func (uc *FundsUseCase) Withdraw(ctx context.Context, opUser int32, houseGID, memberID int32, amount int32, bizNo, reason string, force bool) (*model.GameMemberWallet, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount must be > 0")
 	}
+	// 简单去重
 	if ok, err := uc.wallet.ExistsLedgerBiz(ctx, houseGID, memberID, bizNo); err != nil {
 		return nil, err
 	} else if ok {
-		tx, _ := uc.wallet.BeginTx(ctx)
-		defer func() { _ = tx.Rollback() }()
-		return uc.wallet.GetForUpdate(ctx, tx, houseGID, memberID)
-	}
-
-	tx, txErr := uc.wallet.BeginTx(ctx)
-	if txErr != nil {
-		return nil, txErr
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	w, err := uc.wallet.GetForUpdate(ctx, tx, houseGID, memberID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("wallet not found")
+		m, _ := uc.memberRepo.GetByMemberID(ctx, houseGID, memberID)
+		if m != nil {
+			return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: m.Balance}, nil
 		}
-		return nil, err
+		return nil, errors.New("member not found")
 	}
 
+	// 先查询当前余额，检查是否可以下分
+	m, err := uc.memberRepo.GetByMemberID(ctx, houseGID, memberID)
+	if err != nil {
+		return nil, errors.New("member not found")
+	}
 	if !force {
-		if w.Forbid {
+		if m.Forbid {
 			return nil, errors.New("member forbidden")
 		}
-		if w.Balance-amount < w.LimitMin {
-			return nil, fmt.Errorf("withdraw would cross limit_min (%d)", w.LimitMin)
+		if m.Balance-amount < 0 {
+			return nil, fmt.Errorf("余额不足")
 		}
 	}
 
-	before := w.Balance
-	after := before - amount
-	w.Balance = after
-
-	if err = uc.wallet.Upsert(ctx, tx, w); err != nil {
-		return nil, err
+	// 直接更新 game_member.balance（负数代表减少）
+	before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, memberID, -amount)
+	if err != nil {
+		return nil, fmt.Errorf("下分失败: %w", err)
 	}
 
+	// 记录流水
 	tp := LedgerTypeWithdraw
 	if force {
 		tp = LedgerTypeForceWithdraw
 	}
-	if err = uc.wallet.AppendLedger(ctx, tx, &model.GameWalletLedger{
+	_ = uc.wallet.AppendLedger(ctx, nil, &model.GameWalletLedger{
 		HouseGID:       houseGID,
 		MemberID:       memberID,
 		ChangeAmount:   -amount,
@@ -139,16 +116,11 @@ func (uc *FundsUseCase) Withdraw(ctx context.Context, opUser int32, houseGID, me
 		BalanceAfter:   after,
 		Type:           tp,
 		Reason:         reason,
-		OperatorUserID: opUser, // int32
+		OperatorUserID: opUser,
 		BizNo:          bizNo,
-	}); err != nil {
-		return nil, err
-	}
+	})
 
-	if commit := tx.Commit(); commit.Error != nil {
-		return nil, commit.Error
-	}
-	return w, nil
+	return &model.GameMemberWallet{HouseGID: houseGID, MemberID: memberID, Balance: after}, nil
 }
 
 func (uc *FundsUseCase) UpdateLimit(ctx context.Context, opUser int32, houseGID, memberID int32, limitMin *int32, forbid *bool, reason string) (*model.GameMemberWallet, error) {
