@@ -192,17 +192,28 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 
 // updatePlayerBalances 根据战绩更新玩家余额并记录流水
 // 只更新已存在且有余额（或曾经上过分）的成员，不自动创建新成员
+// 余额计算公式（与 passing-dragonfly 对齐）：delta = score * factor - fee
 func (uc *BattleRecordUseCase) updatePlayerBalances(ctx context.Context, houseGID int32, records []*model.GameBattleRecord) {
 	const (
 		LedgerTypeBattleSettle int32 = 5 // 战绩结算类型
 	)
 
 	for _, record := range records {
-		if record.PlayerGameID == nil || record.Score == 0 {
-			continue // 跳过无效记录或分数为0的记录
+		if record.PlayerGameID == nil {
+			continue // 跳过无效记录
 		}
 
 		gameID := *record.PlayerGameID
+
+		// 计算余额变化：score * factor - fee
+		// 与 passing-dragonfly 对齐：delta = int(float64(record.Score*100)*record.Factor) - record.Fee
+		// 注意：battle-tiles 中分数和余额都是分，不需要乘以100
+		delta := int32(float64(record.Score)*record.Factor) - record.Fee
+
+		// 如果变化为0，跳过
+		if delta == 0 {
+			continue
+		}
 
 		// 查询成员信息（必须已存在）
 		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, gameID)
@@ -218,20 +229,18 @@ func (uc *BattleRecordUseCase) updatePlayerBalances(ctx context.Context, houseGI
 		// 判断条件：balance != 0 或者有过流水记录
 		if member.Balance == 0 {
 			// 检查是否有过流水记录（说明曾经上过分）
-			bizNoPrefix := fmt.Sprintf("battle-%d-", houseGID)
 			hasLedger, _ := uc.walletWriteRepo.ExistsLedgerByMember(ctx, houseGID, gameID)
 			if !hasLedger {
 				// 没有余额也没有流水记录，说明从未上过分，跳过
 				if uc.verboseTaskLog {
 					uc.log.Debugf("Member game_id=%d has no balance and no ledger history, skip", gameID)
 				}
-				_ = bizNoPrefix // 避免未使用警告
 				continue
 			}
 		}
 
-		// 更新余额（使用 game_id 查询，UpdateBalanceByGameID 不会自动创建）
-		before, after, err := uc.updateMemberBalance(ctx, houseGID, member.Id, gameID, record.Score)
+		// 更新余额
+		before, after, err := uc.updateMemberBalance(ctx, houseGID, member.Id, gameID, delta)
 		if err != nil {
 			uc.log.Errorf("Failed to update balance for game_id=%d: %v", gameID, err)
 			continue
@@ -239,12 +248,12 @@ func (uc *BattleRecordUseCase) updatePlayerBalances(ctx context.Context, houseGI
 
 		// 记录流水（member_id 使用 game_id，与上分接口保持一致）
 		bizNo := fmt.Sprintf("battle-%d-%d-%d", houseGID, record.RoomUID, gameID)
-		reason := fmt.Sprintf("战绩结算 房间:%d", record.RoomUID)
+		reason := fmt.Sprintf("战绩结算 房间:%d 分数:%d 运费:%d", record.RoomUID, record.Score, record.Fee)
 
 		ledger := &model.GameWalletLedger{
 			HouseGID:       houseGID,
 			MemberID:       gameID, // 使用 game_id，与上分接口保持一致
-			ChangeAmount:   record.Score,
+			ChangeAmount:   delta,
 			BalanceBefore:  before,
 			BalanceAfter:   after,
 			Type:           LedgerTypeBattleSettle,
@@ -258,8 +267,8 @@ func (uc *BattleRecordUseCase) updatePlayerBalances(ctx context.Context, houseGI
 		}
 
 		if uc.verboseTaskLog {
-			uc.log.Infof("Updated balance for game_id=%d: %d -> %d (change: %d)",
-				gameID, before, after, record.Score)
+			uc.log.Infof("Updated balance for game_id=%d: %d -> %d (delta: %d, score: %d, factor: %.4f, fee: %d)",
+				gameID, before, after, delta, record.Score, record.Factor, record.Fee)
 		}
 	}
 }
@@ -274,6 +283,7 @@ func (uc *BattleRecordUseCase) updateMemberBalance(ctx context.Context, houseGID
 // CompensateUnSettledBattles 补偿未结算的战绩（定时任务调用）
 // 查找有战绩记录但没有对应流水的记录，进行补偿结算
 // 只处理已存在且曾经上过分的成员（有余额或有流水记录）
+// 余额计算公式（与 passing-dragonfly 对齐）：delta = score * factor - fee
 func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, houseGID int32) (int, error) {
 	const LedgerTypeBattleSettle int32 = 5
 
@@ -292,11 +302,17 @@ func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, h
 
 	compensated := 0
 	for _, record := range records {
-		if record.PlayerGameID == nil || record.Score == 0 {
+		if record.PlayerGameID == nil {
 			continue
 		}
 
 		gameID := *record.PlayerGameID
+
+		// 计算余额变化：score * factor - fee
+		delta := int32(float64(record.Score)*record.Factor) - record.Fee
+		if delta == 0 {
+			continue // 变化为0，跳过
+		}
 
 		// 检查是否已有对应流水（通过 bizNo 判断）
 		bizNo := fmt.Sprintf("battle-%d-%d-%d", houseGID, record.RoomUID, gameID)
@@ -329,18 +345,18 @@ func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, h
 		}
 
 		// 更新余额（传入 gameID，因为 UpdateBalance 是按 game_id 查询的）
-		before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, gameID, record.Score)
+		before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, gameID, delta)
 		if err != nil {
 			uc.log.Errorf("Compensate: Failed to update balance for game_id=%d: %v", gameID, err)
 			continue
 		}
 
 		// 记录流水（member_id 使用 game_id，与上分接口保持一致）
-		reason := fmt.Sprintf("战绩补偿结算 房间:%d", record.RoomUID)
+		reason := fmt.Sprintf("战绩补偿结算 房间:%d 分数:%d 运费:%d", record.RoomUID, record.Score, record.Fee)
 		ledger := &model.GameWalletLedger{
 			HouseGID:       houseGID,
 			MemberID:       gameID, // 使用 game_id，与上分接口保持一致
-			ChangeAmount:   record.Score,
+			ChangeAmount:   delta,
 			BalanceBefore:  before,
 			BalanceAfter:   after,
 			Type:           LedgerTypeBattleSettle,
@@ -356,7 +372,8 @@ func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, h
 
 		compensated++
 		if uc.verboseTaskLog {
-			uc.log.Infof("Compensated battle settlement: game_id=%d, score=%d, bizNo=%s", gameID, record.Score, bizNo)
+			uc.log.Infof("Compensated: game_id=%d, delta=%d (score=%d, factor=%.4f, fee=%d)",
+				gameID, delta, record.Score, record.Factor, record.Fee)
 		}
 	}
 
