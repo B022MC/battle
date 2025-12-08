@@ -106,7 +106,7 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	walletQueryService := game3.NewWalletQueryService(fundsUseCase)
 	shopApplicationLogRepo := game.NewShopApplicationLogRepo(infraData, logger)
 	gameAccountGroupUseCase := game2.NewGameAccountGroupUseCase(gameAccountRepo, gameAccountGroupRepo, shopGroupRepo, logger)
-	shopApplicationService := game3.NewShopApplicationService(manager, userApplicationRepo, basicUserRepo, authRepo, gameShopAdminRepo, shopApplicationLogRepo, gameAccountGroupUseCase)
+	shopApplicationService := game3.NewShopApplicationService(manager, userApplicationRepo, basicUserRepo, authRepo, gameShopAdminRepo, shopApplicationLogRepo, gameAccountGroupUseCase, gameMemberRepo)
 	gameGroupService := game3.NewGameGroupService(manager)
 	houseSettingsUseCase := game2.NewHouseSettingsUseCase(houseSettingsRepo, feeSettleRepo, logger)
 	houseSettingsService := game3.NewHouseSettingsService(houseSettingsUseCase)

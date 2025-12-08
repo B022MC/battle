@@ -30,6 +30,7 @@ type ShopApplicationService struct {
 	sAdm           gameRepo.GameShopAdminRepo
 	logRepo        gameRepo.ShopApplicationLogRepo  // 游戏内申请日志
 	accountGroupUC *gameBiz.GameAccountGroupUseCase // 游戏账号圈子业务逻辑
+	memberRepo     gameRepo.GameMemberRepo          // 成员仓库，用于创建禁用状态的成员
 }
 
 func NewShopApplicationService(
@@ -40,6 +41,7 @@ func NewShopApplicationService(
 	sAdm gameRepo.GameShopAdminRepo,
 	logRepo gameRepo.ShopApplicationLogRepo,
 	accountGroupUC *gameBiz.GameAccountGroupUseCase,
+	memberRepo gameRepo.GameMemberRepo,
 ) *ShopApplicationService {
 	return &ShopApplicationService{
 		mgr:            mgr,
@@ -49,6 +51,7 @@ func NewShopApplicationService(
 		sAdm:           sAdm,
 		logRepo:        logRepo,
 		accountGroupUC: accountGroupUC,
+		memberRepo:     memberRepo,
 	}
 }
 
@@ -628,6 +631,7 @@ func (s *ShopApplicationService) respondGameApplication(c *gin.Context, agree bo
 }
 
 // handleGameAccountJoinGroup 处理游戏账号入圈逻辑
+// 通过申请后，玩家会被加入圈子并设置为禁用状态（需要管理员手动解禁才能进入游戏）
 func (s *ShopApplicationService) handleGameAccountJoinGroup(
 	ctx context.Context,
 	applyInfo *utilsplaza.ApplyInfo,
@@ -679,6 +683,16 @@ func (s *ShopApplicationService) handleGameAccountJoinGroup(
 	)
 	if err != nil {
 		return fmt.Errorf("游戏账号加入圈子失败: %w", err)
+	}
+
+	// 5. 创建成员记录并设置为禁用状态（需要管理员手动解禁才能进入游戏）
+	if s.memberRepo != nil {
+		gameID := int32(applyInfo.ApplierGid)
+		// UpsertForbid: 如果成员不存在则创建，存在则更新禁用状态
+		if err := s.memberRepo.UpsertForbid(ctx, houseGID, gameID, applyInfo.ApplierGName, true); err != nil {
+			// 记录错误但不影响主流程
+			fmt.Printf("创建禁用成员记录失败: %v\n", err)
+		}
 	}
 
 	return nil
