@@ -49,4 +49,4 @@ log:
 
 sync:
   battle_sync_interval: 10      # 战绩同步间隔（秒），默认 10
-  balance_compensate_every: 3  # 每隔多少次同步执行一次余额补偿，默认 30（约5分钟）
+  balance_compensate_every: 10  # 每隔多少次同步执行一次余额补偿，默认 30（约5分钟）
