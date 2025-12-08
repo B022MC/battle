@@ -82,6 +82,10 @@ type ShopMemberListItem struct {
 
 	// 禁用状态
 	Forbid bool `json:"forbid"` // 是否禁用
+
+	// 余额字段（来自 game_member 表）
+	Balance int32 `json:"balance"` // 余额（单位：分）
+	Credit  int32 `json:"credit"`  // 信用额度（单位：分）
 }
 
 // UserInfo 用户信息响应（过滤敏感字段）

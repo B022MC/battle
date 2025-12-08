@@ -125,7 +125,7 @@ func main() {
 
 	logger := kratoszap.NewLogger(zap.New(zapcore.NewCore(encoder, writeSyncer, logLevel)))
 
-	app, cleanup, err := wireApp(bc.Global, bc.Server, bc.Data, bc.Log, logger)
+	app, cleanup, err := wireApp(bc.Global, bc.Server, bc.Data, bc.Log, bc.Sync, logger)
 	if err != nil {
 		panic(err)
 	}

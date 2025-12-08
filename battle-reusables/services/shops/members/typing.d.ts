@@ -27,6 +27,9 @@ declare namespace API {
     remark?: string; // 管理员备注
     // 禁用功能字段
     forbid?: boolean; // 是否禁用
+    // 余额字段（来自 game_member 表）
+    balance?: number; // 余额（单位：分）
+    credit?: number; // 信用额度（单位：分）
   };
 
   type ShopsMembersList = { items?: ShopsMemberItem[] };

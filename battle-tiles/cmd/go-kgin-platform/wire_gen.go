@@ -33,7 +33,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, confLog *conf.Log, logger log.Logger) (*kratos.App, func(), error) {
+func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, confLog *conf.Log, syncConf *conf.Sync, logger log.Logger) (*kratos.App, func(), error) {
 	client := infra.NewRedis(data)
 	db := infra.NewPSQL(data, confLog)
 	v := infra.NewDBMap(data, confLog, logger)
@@ -76,8 +76,9 @@ func wireApp(global *conf.Global, confServer *conf.Server, data *conf.Data, conf
 	houseSettingsRepo := game.NewHouseSettingsRepo(infraData, logger)
 	feeSettleRepo := game.NewFeeSettleRepo(infraData, logger)
 	walletReadRepo := game.NewWalletReadRepo(infraData, logger)
-	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, walletReadRepo, confLog, logger)
-	battleSyncManager := game2.NewBattleSyncManager(battleRecordUseCase, infraData, logger)
+	walletRepoForBattle := game.NewWalletRepo(infraData, logger)
+	battleRecordUseCase := game2.NewBattleRecordUseCase(battleRecordRepo, gameCtrlAccountRepo, gameCtrlAccountHouseRepo, gameAccountRepo, gameMemberRepo, gameAccountGroupRepo, houseSettingsRepo, feeSettleRepo, walletReadRepo, walletRepoForBattle, confLog, logger)
+	battleSyncManager := game2.NewBattleSyncManager(battleRecordUseCase, infraData, syncConf, logger)
 	roomCreditLimitRepo := game.NewRoomCreditLimitRepo(db)
 	roomCreditLimitUseCase := game2.NewRoomCreditLimitUseCase(roomCreditLimitRepo, gameMemberRepo, houseSettingsRepo, manager, logger)
 	roomCreditEventHandler := game2.NewRoomCreditEventHandler(roomCreditLimitUseCase, manager, logger)

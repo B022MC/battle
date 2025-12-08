@@ -533,6 +533,9 @@ func (s *GameShopMemberService) List(c *gin.Context) {
 				item.PinOrder = member.PinOrder
 				// 设置备注信息
 				item.Remark = member.Remark
+				// 设置余额信息
+				item.Balance = member.Balance
+				item.Credit = member.Credit
 			}
 		}
 

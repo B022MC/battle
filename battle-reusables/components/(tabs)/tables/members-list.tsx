@@ -135,7 +135,7 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
         group_id: myGroupId,
         player_game_id: gameId,
         page: 1,
-        size: 10, // 获取最近10条战绩
+        size: 5, // 获取最近5条战绩
       });
       
       if (response?.data?.list) {
@@ -183,9 +183,9 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
     });
   };
 
-  // 格式化分数（分转元）
+  // 格式化分数（直接显示分数）
   const formatScore = (score: number) => {
-    return (score / 100).toFixed(2);
+    return score.toString();
   };
 
   if (loading) return <Loading text="加载中..." />;

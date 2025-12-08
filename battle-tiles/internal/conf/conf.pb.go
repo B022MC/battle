@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        v6.32.1
-// source: conf/conf.proto
+// source: conf.proto
 
 package conf
 
@@ -29,13 +29,14 @@ type Bootstrap struct {
 	Data          *Data                  `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	Global        *Global                `protobuf:"bytes,3,opt,name=global,proto3" json:"global,omitempty"`
 	Log           *Log                   `protobuf:"bytes,4,opt,name=log,proto3" json:"log,omitempty"`
+	Sync          *Sync                  `protobuf:"bytes,5,opt,name=sync,proto3" json:"sync,omitempty"` // 同步配置
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Bootstrap) Reset() {
 	*x = Bootstrap{}
-	mi := &file_conf_conf_proto_msgTypes[0]
+	mi := &file_conf_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +48,7 @@ func (x *Bootstrap) String() string {
 func (*Bootstrap) ProtoMessage() {}
 
 func (x *Bootstrap) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[0]
+	mi := &file_conf_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +61,7 @@ func (x *Bootstrap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bootstrap.ProtoReflect.Descriptor instead.
 func (*Bootstrap) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{0}
+	return file_conf_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Bootstrap) GetServer() *Server {
@@ -91,6 +92,13 @@ func (x *Bootstrap) GetLog() *Log {
 	return nil
 }
 
+func (x *Bootstrap) GetSync() *Sync {
+	if x != nil {
+		return x.Sync
+	}
+	return nil
+}
+
 // ============== Server ==============
 type Server struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -102,7 +110,7 @@ type Server struct {
 
 func (x *Server) Reset() {
 	*x = Server{}
-	mi := &file_conf_conf_proto_msgTypes[1]
+	mi := &file_conf_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -114,7 +122,7 @@ func (x *Server) String() string {
 func (*Server) ProtoMessage() {}
 
 func (x *Server) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[1]
+	mi := &file_conf_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -127,7 +135,7 @@ func (x *Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server.ProtoReflect.Descriptor instead.
 func (*Server) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{1}
+	return file_conf_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Server) GetHttp() *Server_HTTP {
@@ -157,7 +165,7 @@ type Data struct {
 
 func (x *Data) Reset() {
 	*x = Data{}
-	mi := &file_conf_conf_proto_msgTypes[2]
+	mi := &file_conf_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -169,7 +177,7 @@ func (x *Data) String() string {
 func (*Data) ProtoMessage() {}
 
 func (x *Data) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[2]
+	mi := &file_conf_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -182,7 +190,7 @@ func (x *Data) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data.ProtoReflect.Descriptor instead.
 func (*Data) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{2}
+	return file_conf_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Data) GetDatabase() *Data_Database {
@@ -224,7 +232,7 @@ type Global struct {
 
 func (x *Global) Reset() {
 	*x = Global{}
-	mi := &file_conf_conf_proto_msgTypes[3]
+	mi := &file_conf_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -236,7 +244,7 @@ func (x *Global) String() string {
 func (*Global) ProtoMessage() {}
 
 func (x *Global) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[3]
+	mi := &file_conf_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -249,7 +257,7 @@ func (x *Global) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Global.ProtoReflect.Descriptor instead.
 func (*Global) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{3}
+	return file_conf_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Global) GetRsa() *Global_RSA {
@@ -277,7 +285,7 @@ type Log struct {
 
 func (x *Log) Reset() {
 	*x = Log{}
-	mi := &file_conf_conf_proto_msgTypes[4]
+	mi := &file_conf_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -289,7 +297,7 @@ func (x *Log) String() string {
 func (*Log) ProtoMessage() {}
 
 func (x *Log) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[4]
+	mi := &file_conf_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -302,7 +310,7 @@ func (x *Log) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Log.ProtoReflect.Descriptor instead.
 func (*Log) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{4}
+	return file_conf_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Log) GetLevel() string {
@@ -319,6 +327,59 @@ func (x *Log) GetVerboseTaskLog() bool {
 	return false
 }
 
+// ============== Sync ==============
+type Sync struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	BattleSyncInterval     int32                  `protobuf:"varint,1,opt,name=battle_sync_interval,json=battleSyncInterval,proto3" json:"battle_sync_interval,omitempty"`             // 战绩同步间隔（秒），默认 10
+	BalanceCompensateEvery int32                  `protobuf:"varint,2,opt,name=balance_compensate_every,json=balanceCompensateEvery,proto3" json:"balance_compensate_every,omitempty"` // 每隔多少次同步执行一次余额补偿，默认 30（约5分钟）
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *Sync) Reset() {
+	*x = Sync{}
+	mi := &file_conf_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sync) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sync) ProtoMessage() {}
+
+func (x *Sync) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sync.ProtoReflect.Descriptor instead.
+func (*Sync) Descriptor() ([]byte, []int) {
+	return file_conf_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Sync) GetBattleSyncInterval() int32 {
+	if x != nil {
+		return x.BattleSyncInterval
+	}
+	return 0
+}
+
+func (x *Sync) GetBalanceCompensateEvery() int32 {
+	if x != nil {
+		return x.BalanceCompensateEvery
+	}
+	return 0
+}
+
 type Server_HTTP struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Addr          string                 `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
@@ -329,7 +390,7 @@ type Server_HTTP struct {
 
 func (x *Server_HTTP) Reset() {
 	*x = Server_HTTP{}
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -341,7 +402,7 @@ func (x *Server_HTTP) String() string {
 func (*Server_HTTP) ProtoMessage() {}
 
 func (x *Server_HTTP) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[5]
+	mi := &file_conf_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -354,7 +415,7 @@ func (x *Server_HTTP) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server_HTTP.ProtoReflect.Descriptor instead.
 func (*Server_HTTP) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{1, 0}
+	return file_conf_proto_rawDescGZIP(), []int{1, 0}
 }
 
 func (x *Server_HTTP) GetAddr() string {
@@ -383,7 +444,7 @@ type Server_Asynq struct {
 
 func (x *Server_Asynq) Reset() {
 	*x = Server_Asynq{}
-	mi := &file_conf_conf_proto_msgTypes[6]
+	mi := &file_conf_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +456,7 @@ func (x *Server_Asynq) String() string {
 func (*Server_Asynq) ProtoMessage() {}
 
 func (x *Server_Asynq) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[6]
+	mi := &file_conf_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +469,7 @@ func (x *Server_Asynq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server_Asynq.ProtoReflect.Descriptor instead.
 func (*Server_Asynq) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{1, 1}
+	return file_conf_proto_rawDescGZIP(), []int{1, 1}
 }
 
 func (x *Server_Asynq) GetAddr() string {
@@ -449,7 +510,7 @@ type Server_Asynq_Subscriber struct {
 
 func (x *Server_Asynq_Subscriber) Reset() {
 	*x = Server_Asynq_Subscriber{}
-	mi := &file_conf_conf_proto_msgTypes[7]
+	mi := &file_conf_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +522,7 @@ func (x *Server_Asynq_Subscriber) String() string {
 func (*Server_Asynq_Subscriber) ProtoMessage() {}
 
 func (x *Server_Asynq_Subscriber) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[7]
+	mi := &file_conf_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +535,7 @@ func (x *Server_Asynq_Subscriber) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server_Asynq_Subscriber.ProtoReflect.Descriptor instead.
 func (*Server_Asynq_Subscriber) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{1, 1, 0}
+	return file_conf_proto_rawDescGZIP(), []int{1, 1, 0}
 }
 
 func (x *Server_Asynq_Subscriber) GetName() string {
@@ -502,7 +563,7 @@ type Data_Database struct {
 
 func (x *Data_Database) Reset() {
 	*x = Data_Database{}
-	mi := &file_conf_conf_proto_msgTypes[8]
+	mi := &file_conf_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +575,7 @@ func (x *Data_Database) String() string {
 func (*Data_Database) ProtoMessage() {}
 
 func (x *Data_Database) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[8]
+	mi := &file_conf_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +588,7 @@ func (x *Data_Database) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_Database.ProtoReflect.Descriptor instead.
 func (*Data_Database) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{2, 0}
+	return file_conf_proto_rawDescGZIP(), []int{2, 0}
 }
 
 func (x *Data_Database) GetDriver() string {
@@ -564,7 +625,7 @@ type Data_Redis struct {
 
 func (x *Data_Redis) Reset() {
 	*x = Data_Redis{}
-	mi := &file_conf_conf_proto_msgTypes[9]
+	mi := &file_conf_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -576,7 +637,7 @@ func (x *Data_Redis) String() string {
 func (*Data_Redis) ProtoMessage() {}
 
 func (x *Data_Redis) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[9]
+	mi := &file_conf_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -589,7 +650,7 @@ func (x *Data_Redis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data_Redis.ProtoReflect.Descriptor instead.
 func (*Data_Redis) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{2, 1}
+	return file_conf_proto_rawDescGZIP(), []int{2, 1}
 }
 
 func (x *Data_Redis) GetAddr() string {
@@ -637,7 +698,7 @@ type Global_RSA struct {
 
 func (x *Global_RSA) Reset() {
 	*x = Global_RSA{}
-	mi := &file_conf_conf_proto_msgTypes[10]
+	mi := &file_conf_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +710,7 @@ func (x *Global_RSA) String() string {
 func (*Global_RSA) ProtoMessage() {}
 
 func (x *Global_RSA) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[10]
+	mi := &file_conf_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +723,7 @@ func (x *Global_RSA) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Global_RSA.ProtoReflect.Descriptor instead.
 func (*Global_RSA) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{3, 0}
+	return file_conf_proto_rawDescGZIP(), []int{3, 0}
 }
 
 func (x *Global_RSA) GetPublic() string {
@@ -688,7 +749,7 @@ type Global_Game struct {
 
 func (x *Global_Game) Reset() {
 	*x = Global_Game{}
-	mi := &file_conf_conf_proto_msgTypes[11]
+	mi := &file_conf_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +761,7 @@ func (x *Global_Game) String() string {
 func (*Global_Game) ProtoMessage() {}
 
 func (x *Global_Game) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[11]
+	mi := &file_conf_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +774,7 @@ func (x *Global_Game) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Global_Game.ProtoReflect.Descriptor instead.
 func (*Global_Game) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{3, 1}
+	return file_conf_proto_rawDescGZIP(), []int{3, 1}
 }
 
 func (x *Global_Game) GetPlaza() *Global_Game_Plaza {
@@ -735,7 +796,7 @@ type Global_Game_Plaza struct {
 
 func (x *Global_Game_Plaza) Reset() {
 	*x = Global_Game_Plaza{}
-	mi := &file_conf_conf_proto_msgTypes[12]
+	mi := &file_conf_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +808,7 @@ func (x *Global_Game_Plaza) String() string {
 func (*Global_Game_Plaza) ProtoMessage() {}
 
 func (x *Global_Game_Plaza) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[12]
+	mi := &file_conf_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +821,7 @@ func (x *Global_Game_Plaza) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Global_Game_Plaza.ProtoReflect.Descriptor instead.
 func (*Global_Game_Plaza) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{3, 1, 0}
+	return file_conf_proto_rawDescGZIP(), []int{3, 1, 0}
 }
 
 func (x *Global_Game_Plaza) GetServer82() string {
@@ -791,17 +852,19 @@ func (x *Global_Game_Plaza) GetAutoReconnect() bool {
 	return false
 }
 
-var File_conf_conf_proto protoreflect.FileDescriptor
+var File_conf_proto protoreflect.FileDescriptor
 
-const file_conf_conf_proto_rawDesc = "" +
+const file_conf_proto_rawDesc = "" +
 	"\n" +
-	"\x0fconf/conf.proto\x12\n" +
-	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\xac\x01\n" +
+	"\n" +
+	"conf.proto\x12\n" +
+	"kratos.api\x1a\x1egoogle/protobuf/duration.proto\"\xd2\x01\n" +
 	"\tBootstrap\x12*\n" +
 	"\x06server\x18\x01 \x01(\v2\x12.kratos.api.ServerR\x06server\x12$\n" +
 	"\x04data\x18\x02 \x01(\v2\x10.kratos.api.DataR\x04data\x12*\n" +
 	"\x06global\x18\x03 \x01(\v2\x12.kratos.api.GlobalR\x06global\x12!\n" +
-	"\x03log\x18\x04 \x01(\v2\x0f.kratos.api.LogR\x03log\"\x83\x03\n" +
+	"\x03log\x18\x04 \x01(\v2\x0f.kratos.api.LogR\x03log\x12$\n" +
+	"\x04sync\x18\x05 \x01(\v2\x10.kratos.api.SyncR\x04sync\"\x83\x03\n" +
 	"\x06Server\x12+\n" +
 	"\x04http\x18\x01 \x01(\v2\x17.kratos.api.Server.HTTPR\x04http\x12.\n" +
 	"\x05asynq\x18\x02 \x01(\v2\x18.kratos.api.Server.AsynqR\x05asynq\x1aO\n" +
@@ -850,80 +913,85 @@ const file_conf_conf_proto_rawDesc = "" +
 	"\x0eauto_reconnect\x18\x04 \x01(\bR\rautoReconnect\"E\n" +
 	"\x03Log\x12\x14\n" +
 	"\x05level\x18\x01 \x01(\tR\x05level\x12(\n" +
-	"\x10verbose_task_log\x18\x02 \x01(\bR\x0everboseTaskLogB!Z\x1fbattle-tiles/internal/conf;confb\x06proto3"
+	"\x10verbose_task_log\x18\x02 \x01(\bR\x0everboseTaskLog\"r\n" +
+	"\x04Sync\x120\n" +
+	"\x14battle_sync_interval\x18\x01 \x01(\x05R\x12battleSyncInterval\x128\n" +
+	"\x18balance_compensate_every\x18\x02 \x01(\x05R\x16balanceCompensateEveryB!Z\x1fbattle-tiles/internal/conf;confb\x06proto3"
 
 var (
-	file_conf_conf_proto_rawDescOnce sync.Once
-	file_conf_conf_proto_rawDescData []byte
+	file_conf_proto_rawDescOnce sync.Once
+	file_conf_proto_rawDescData []byte
 )
 
-func file_conf_conf_proto_rawDescGZIP() []byte {
-	file_conf_conf_proto_rawDescOnce.Do(func() {
-		file_conf_conf_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_conf_conf_proto_rawDesc), len(file_conf_conf_proto_rawDesc)))
+func file_conf_proto_rawDescGZIP() []byte {
+	file_conf_proto_rawDescOnce.Do(func() {
+		file_conf_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_conf_proto_rawDesc), len(file_conf_proto_rawDesc)))
 	})
-	return file_conf_conf_proto_rawDescData
+	return file_conf_proto_rawDescData
 }
 
-var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
-var file_conf_conf_proto_goTypes = []any{
+var file_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),               // 0: kratos.api.Bootstrap
 	(*Server)(nil),                  // 1: kratos.api.Server
 	(*Data)(nil),                    // 2: kratos.api.Data
 	(*Global)(nil),                  // 3: kratos.api.Global
 	(*Log)(nil),                     // 4: kratos.api.Log
-	(*Server_HTTP)(nil),             // 5: kratos.api.Server.HTTP
-	(*Server_Asynq)(nil),            // 6: kratos.api.Server.Asynq
-	(*Server_Asynq_Subscriber)(nil), // 7: kratos.api.Server.Asynq.Subscriber
-	(*Data_Database)(nil),           // 8: kratos.api.Data.Database
-	(*Data_Redis)(nil),              // 9: kratos.api.Data.Redis
-	(*Global_RSA)(nil),              // 10: kratos.api.Global.RSA
-	(*Global_Game)(nil),             // 11: kratos.api.Global.Game
-	(*Global_Game_Plaza)(nil),       // 12: kratos.api.Global.Game.Plaza
-	(*durationpb.Duration)(nil),     // 13: google.protobuf.Duration
+	(*Sync)(nil),                    // 5: kratos.api.Sync
+	(*Server_HTTP)(nil),             // 6: kratos.api.Server.HTTP
+	(*Server_Asynq)(nil),            // 7: kratos.api.Server.Asynq
+	(*Server_Asynq_Subscriber)(nil), // 8: kratos.api.Server.Asynq.Subscriber
+	(*Data_Database)(nil),           // 9: kratos.api.Data.Database
+	(*Data_Redis)(nil),              // 10: kratos.api.Data.Redis
+	(*Global_RSA)(nil),              // 11: kratos.api.Global.RSA
+	(*Global_Game)(nil),             // 12: kratos.api.Global.Game
+	(*Global_Game_Plaza)(nil),       // 13: kratos.api.Global.Game.Plaza
+	(*durationpb.Duration)(nil),     // 14: google.protobuf.Duration
 }
-var file_conf_conf_proto_depIdxs = []int32{
+var file_conf_proto_depIdxs = []int32{
 	1,  // 0: kratos.api.Bootstrap.server:type_name -> kratos.api.Server
 	2,  // 1: kratos.api.Bootstrap.data:type_name -> kratos.api.Data
 	3,  // 2: kratos.api.Bootstrap.global:type_name -> kratos.api.Global
 	4,  // 3: kratos.api.Bootstrap.log:type_name -> kratos.api.Log
-	5,  // 4: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
-	6,  // 5: kratos.api.Server.asynq:type_name -> kratos.api.Server.Asynq
-	8,  // 6: kratos.api.Data.database:type_name -> kratos.api.Data.Database
-	9,  // 7: kratos.api.Data.redis:type_name -> kratos.api.Data.Redis
-	8,  // 8: kratos.api.Data.database_list:type_name -> kratos.api.Data.Database
-	9,  // 9: kratos.api.Data.redis_list:type_name -> kratos.api.Data.Redis
-	10, // 10: kratos.api.Global.rsa:type_name -> kratos.api.Global.RSA
-	11, // 11: kratos.api.Global.game:type_name -> kratos.api.Global.Game
-	13, // 12: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
-	7,  // 13: kratos.api.Server.Asynq.subscriber:type_name -> kratos.api.Server.Asynq.Subscriber
-	12, // 14: kratos.api.Global.Game.plaza:type_name -> kratos.api.Global.Game.Plaza
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	5,  // 4: kratos.api.Bootstrap.sync:type_name -> kratos.api.Sync
+	6,  // 5: kratos.api.Server.http:type_name -> kratos.api.Server.HTTP
+	7,  // 6: kratos.api.Server.asynq:type_name -> kratos.api.Server.Asynq
+	9,  // 7: kratos.api.Data.database:type_name -> kratos.api.Data.Database
+	10, // 8: kratos.api.Data.redis:type_name -> kratos.api.Data.Redis
+	9,  // 9: kratos.api.Data.database_list:type_name -> kratos.api.Data.Database
+	10, // 10: kratos.api.Data.redis_list:type_name -> kratos.api.Data.Redis
+	11, // 11: kratos.api.Global.rsa:type_name -> kratos.api.Global.RSA
+	12, // 12: kratos.api.Global.game:type_name -> kratos.api.Global.Game
+	14, // 13: kratos.api.Server.HTTP.timeout:type_name -> google.protobuf.Duration
+	8,  // 14: kratos.api.Server.Asynq.subscriber:type_name -> kratos.api.Server.Asynq.Subscriber
+	13, // 15: kratos.api.Global.Game.plaza:type_name -> kratos.api.Global.Game.Plaza
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
-func init() { file_conf_conf_proto_init() }
-func file_conf_conf_proto_init() {
-	if File_conf_conf_proto != nil {
+func init() { file_conf_proto_init() }
+func file_conf_proto_init() {
+	if File_conf_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_conf_proto_rawDesc), len(file_conf_conf_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_proto_rawDesc), len(file_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_conf_conf_proto_goTypes,
-		DependencyIndexes: file_conf_conf_proto_depIdxs,
-		MessageInfos:      file_conf_conf_proto_msgTypes,
+		GoTypes:           file_conf_proto_goTypes,
+		DependencyIndexes: file_conf_proto_depIdxs,
+		MessageInfos:      file_conf_proto_msgTypes,
 	}.Build()
-	File_conf_conf_proto = out.File
-	file_conf_conf_proto_goTypes = nil
-	file_conf_conf_proto_depIdxs = nil
+	File_conf_proto = out.File
+	file_conf_proto_goTypes = nil
+	file_conf_proto_depIdxs = nil
 }

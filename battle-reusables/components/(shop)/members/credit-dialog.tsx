@@ -37,9 +37,9 @@ export const CreditDialog = ({
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    const amountNum = parseFloat(amount);
+    const amountNum = parseInt(amount, 10);
     if (!amountNum || amountNum <= 0) {
-      showToast('请输入正确的金额', 'error');
+      showToast('请输入正确的分数', 'error');
       return;
     }
 
@@ -49,21 +49,20 @@ export const CreditDialog = ({
     alert.show({
       title: type === 'deposit' ? '确认上分' : '确认下分',
       description: memberName 
-        ? `确定要为 ${memberName} ${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`
-        : `确定要${type === 'deposit' ? '上分' : '下分'} ${amountNum} 元吗？`,
+        ? `确定要为 ${memberName} ${type === 'deposit' ? '上分' : '下分'} ${amountNum} 分吗？`
+        : `确定要${type === 'deposit' ? '上分' : '下分'} ${amountNum} 分吗？`,
       confirmText: '确定',
       cancelText: '取消',
       onConfirm: async () => {
         setLoading(true);
         try {
-          // 金额转换为分（cents）
-          const amountInCents = Math.round(amountNum * 100);
+          // 直接使用输入的分数
           const bizNo = generateBizNo();
 
           const params = {
             house_gid: houseGid,
             member_id: memberId,
-            amount: amountInCents,
+            amount: amountNum,
             biz_no: bizNo,
             reason: reason || (type === 'deposit' ? '上分' : '下分'),
           };
@@ -73,7 +72,7 @@ export const CreditDialog = ({
             : await membersCreditWithdraw(params);
 
           const actionText = type === 'deposit' ? '上分' : '下分';
-          showSuccessBubble(`${actionText}成功`, `已为${memberName || '成员'}${actionText} ${amountNum} 元`);
+          showSuccessBubble(`${actionText}成功`, `已为${memberName || '成员'}${actionText} ${amountNum} 分`);
           onSuccess?.();
         } catch (error: any) {
           showToast(error?.message || '操作失败', 'error');
@@ -117,18 +116,17 @@ export const CreditDialog = ({
             ) : null}
             <View className="mb-4">
               <View className="flex-row mb-2">
-                <Text className="text-sm text-muted-foreground">金额（元）</Text>
+                <Text className="text-sm text-muted-foreground">分数</Text>
                 <Text className="text-sm text-red-500">*</Text>
               </View>
               <TextInput
                 className="border border-gray-300 rounded px-3 py-2"
-                placeholder="请输入金额"
+                placeholder="请输入分数"
                 keyboardType="numeric"
                 value={amount}
                 onChangeText={setAmount}
                 editable={!loading}
               />
-              <Text className="text-xs text-muted-foreground mt-1">1 元 = 100 分</Text>
             </View>
             <View className="mb-6">
               <Text className="text-sm text-muted-foreground mb-2">原因</Text>

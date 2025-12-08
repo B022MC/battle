@@ -26,6 +26,7 @@ type BattleRecordUseCase struct {
 	settingsRepo     repo.HouseSettingsRepo
 	feeRepo          repo.FeeSettleRepo
 	walletRepo       repo.WalletReadRepo
+	walletWriteRepo  repo.WalletRepo // 用于更新余额和记录流水
 	log              *log.Helper
 	verboseTaskLog   bool // 是否显示详细的任务日志
 }
@@ -40,6 +41,7 @@ func NewBattleRecordUseCase(
 	settingsRepo repo.HouseSettingsRepo,
 	feeRepo repo.FeeSettleRepo,
 	walletRepo repo.WalletReadRepo,
+	walletWriteRepo repo.WalletRepo,
 	logConf *conf.Log,
 	logger log.Logger,
 ) *BattleRecordUseCase {
@@ -57,6 +59,7 @@ func NewBattleRecordUseCase(
 		settingsRepo:     settingsRepo,
 		feeRepo:          feeRepo,
 		walletRepo:       walletRepo,
+		walletWriteRepo:  walletWriteRepo,
 		log:              log.NewHelper(log.With(logger, "module", "usecase/battle_record")),
 		verboseTaskLog:   verboseTaskLog,
 	}
@@ -165,17 +168,203 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 		}
 	}
 
-	// 批量保存战绩记录
+	// 批量保存战绩记录（自动去重）
 	if len(batch) == 0 {
 		return 0, nil
 	}
 
-	if err := uc.repo.SaveBatch(ctx, batch); err != nil {
+	savedRecords, err := uc.repo.SaveBatchWithDedup(ctx, batch)
+	if err != nil {
 		return 0, fmt.Errorf("保存战绩失败: %w", err)
 	}
 
-	uc.log.Infof("Successfully saved %d battle records for house %d (processed %d battles)", len(batch), houseGID, len(list))
-	return len(batch), nil
+	// 根据新保存的战绩更新玩家余额
+	if len(savedRecords) > 0 && uc.walletWriteRepo != nil {
+		uc.updatePlayerBalances(ctx, int32(houseGID), savedRecords)
+	}
+
+	if len(savedRecords) > 0 {
+		uc.log.Infof("Successfully saved %d new battle records for house %d (processed %d battles, %d duplicates skipped)",
+			len(savedRecords), houseGID, len(list), len(batch)-len(savedRecords))
+	}
+	return len(savedRecords), nil
+}
+
+// updatePlayerBalances 根据战绩更新玩家余额并记录流水
+// 只更新已存在且有余额（或曾经上过分）的成员，不自动创建新成员
+func (uc *BattleRecordUseCase) updatePlayerBalances(ctx context.Context, houseGID int32, records []*model.GameBattleRecord) {
+	const (
+		LedgerTypeBattleSettle int32 = 5 // 战绩结算类型
+	)
+
+	for _, record := range records {
+		if record.PlayerGameID == nil || record.Score == 0 {
+			continue // 跳过无效记录或分数为0的记录
+		}
+
+		gameID := *record.PlayerGameID
+
+		// 查询成员信息（必须已存在）
+		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, gameID)
+		if err != nil || member == nil {
+			// 成员不存在，跳过（不自动创建）
+			if uc.verboseTaskLog {
+				uc.log.Debugf("Member not found for game_id=%d, skip balance update", gameID)
+			}
+			continue
+		}
+
+		// 检查成员是否有余额记录（只有上过分的玩家才同步战绩余额）
+		// 判断条件：balance != 0 或者有过流水记录
+		if member.Balance == 0 {
+			// 检查是否有过流水记录（说明曾经上过分）
+			bizNoPrefix := fmt.Sprintf("battle-%d-", houseGID)
+			hasLedger, _ := uc.walletWriteRepo.ExistsLedgerByMember(ctx, houseGID, gameID)
+			if !hasLedger {
+				// 没有余额也没有流水记录，说明从未上过分，跳过
+				if uc.verboseTaskLog {
+					uc.log.Debugf("Member game_id=%d has no balance and no ledger history, skip", gameID)
+				}
+				_ = bizNoPrefix // 避免未使用警告
+				continue
+			}
+		}
+
+		// 更新余额（使用 game_id 查询，UpdateBalanceByGameID 不会自动创建）
+		before, after, err := uc.updateMemberBalance(ctx, houseGID, member.Id, gameID, record.Score)
+		if err != nil {
+			uc.log.Errorf("Failed to update balance for game_id=%d: %v", gameID, err)
+			continue
+		}
+
+		// 记录流水（member_id 使用 game_id，与上分接口保持一致）
+		bizNo := fmt.Sprintf("battle-%d-%d-%d", houseGID, record.RoomUID, gameID)
+		reason := fmt.Sprintf("战绩结算 房间:%d", record.RoomUID)
+
+		ledger := &model.GameWalletLedger{
+			HouseGID:       houseGID,
+			MemberID:       gameID, // 使用 game_id，与上分接口保持一致
+			ChangeAmount:   record.Score,
+			BalanceBefore:  before,
+			BalanceAfter:   after,
+			Type:           LedgerTypeBattleSettle,
+			Reason:         reason,
+			OperatorUserID: 0, // 系统自动结算
+			BizNo:          bizNo,
+		}
+
+		if err := uc.walletWriteRepo.AppendLedger(ctx, nil, ledger); err != nil {
+			uc.log.Errorf("Failed to append ledger for game_id=%d: %v", gameID, err)
+		}
+
+		if uc.verboseTaskLog {
+			uc.log.Infof("Updated balance for game_id=%d: %d -> %d (change: %d)",
+				gameID, before, after, record.Score)
+		}
+	}
+}
+
+// updateMemberBalance 更新成员余额（不自动创建）
+func (uc *BattleRecordUseCase) updateMemberBalance(ctx context.Context, houseGID int32, memberID int32, gameID int32, amount int32) (before int32, after int32, err error) {
+	// 直接使用 memberRepo.UpdateBalance，但传入的是 member.Id 而不是 game_id
+	// 这样可以避免自动创建新成员
+	return uc.memberRepo.UpdateBalance(ctx, houseGID, gameID, amount)
+}
+
+// CompensateUnSettledBattles 补偿未结算的战绩（定时任务调用）
+// 查找有战绩记录但没有对应流水的记录，进行补偿结算
+// 只处理已存在且曾经上过分的成员（有余额或有流水记录）
+func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, houseGID int32) (int, error) {
+	const LedgerTypeBattleSettle int32 = 5
+
+	// 查询最近24小时内的战绩记录
+	now := time.Now()
+	start := now.Add(-24 * time.Hour)
+
+	records, _, err := uc.repo.List(ctx, houseGID, nil, nil, &start, &now, 1, 1000)
+	if err != nil {
+		return 0, fmt.Errorf("查询战绩失败: %w", err)
+	}
+
+	if len(records) == 0 {
+		return 0, nil
+	}
+
+	compensated := 0
+	for _, record := range records {
+		if record.PlayerGameID == nil || record.Score == 0 {
+			continue
+		}
+
+		gameID := *record.PlayerGameID
+
+		// 检查是否已有对应流水（通过 bizNo 判断）
+		bizNo := fmt.Sprintf("battle-%d-%d-%d", houseGID, record.RoomUID, gameID)
+		exists, err := uc.walletWriteRepo.ExistsLedgerBiz(ctx, houseGID, 0, bizNo)
+		if err != nil {
+			uc.log.Warnf("Check ledger exists failed for bizNo=%s: %v", bizNo, err)
+			continue
+		}
+		if exists {
+			continue // 已结算，跳过
+		}
+
+		// 查询成员信息（必须已存在）
+		member, err := uc.memberRepo.GetByGameID(ctx, houseGID, gameID)
+		if err != nil || member == nil {
+			// 成员不存在，跳过（不自动创建）
+			continue
+		}
+
+		// 检查成员是否曾经上过分（有余额或有流水记录）
+		if member.Balance == 0 {
+			hasLedger, _ := uc.walletWriteRepo.ExistsLedgerByMember(ctx, houseGID, gameID)
+			if !hasLedger {
+				// 没有余额也没有流水记录，说明从未上过分，跳过
+				if uc.verboseTaskLog {
+					uc.log.Debugf("Compensate: Member game_id=%d has no balance and no ledger, skip", gameID)
+				}
+				continue
+			}
+		}
+
+		// 更新余额（传入 gameID，因为 UpdateBalance 是按 game_id 查询的）
+		before, after, err := uc.memberRepo.UpdateBalance(ctx, houseGID, gameID, record.Score)
+		if err != nil {
+			uc.log.Errorf("Compensate: Failed to update balance for game_id=%d: %v", gameID, err)
+			continue
+		}
+
+		// 记录流水（member_id 使用 game_id，与上分接口保持一致）
+		reason := fmt.Sprintf("战绩补偿结算 房间:%d", record.RoomUID)
+		ledger := &model.GameWalletLedger{
+			HouseGID:       houseGID,
+			MemberID:       gameID, // 使用 game_id，与上分接口保持一致
+			ChangeAmount:   record.Score,
+			BalanceBefore:  before,
+			BalanceAfter:   after,
+			Type:           LedgerTypeBattleSettle,
+			Reason:         reason,
+			OperatorUserID: 0,
+			BizNo:          bizNo,
+		}
+
+		if err := uc.walletWriteRepo.AppendLedger(ctx, nil, ledger); err != nil {
+			uc.log.Errorf("Compensate: Failed to append ledger for game_id=%d: %v", gameID, err)
+			continue
+		}
+
+		compensated++
+		if uc.verboseTaskLog {
+			uc.log.Infof("Compensated battle settlement: game_id=%d, score=%d, bizNo=%s", gameID, record.Score, bizNo)
+		}
+	}
+
+	if compensated > 0 {
+		uc.log.Infof("Compensated %d unsettled battles for house %d", compensated, houseGID)
+	}
+
+	return compensated, nil
 }
 
 // buildPlayerGroupMapping 构建玩家到圈子的映射

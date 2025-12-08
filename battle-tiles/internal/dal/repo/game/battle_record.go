@@ -12,7 +12,7 @@ import (
 
 type BattleRecordRepo interface {
 	SaveBatch(ctx context.Context, list []*model.GameBattleRecord) error
-	SaveBatchWithDedup(ctx context.Context, list []*model.GameBattleRecord) (int, error)
+	SaveBatchWithDedup(ctx context.Context, list []*model.GameBattleRecord) ([]*model.GameBattleRecord, error)
 	List(ctx context.Context, houseGID int32, groupID *int32, gameID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error)
 
 	// 按游戏用户ID查询（保留用于向后兼容）
@@ -52,35 +52,36 @@ func (r *battleRecordRepo) SaveBatch(ctx context.Context, list []*model.GameBatt
 	return r.db(ctx).Create(&list).Error
 }
 
-// SaveBatchWithDedup 鎵归噺淇濆瓨鎴樼哗锛岃嚜鍔ㄥ幓閲嶏紙鏍规嵁 battle_at + player_game_id 鍒ゆ柇锛?
-func (r *battleRecordRepo) SaveBatchWithDedup(ctx context.Context, list []*model.GameBattleRecord) (int, error) {
+// SaveBatchWithDedup 批量保存战绩，自动去重（根据 battle_at + player_game_id + house_gid 判断）
+// 返回实际保存的记录列表（用于后续更新余额）
+func (r *battleRecordRepo) SaveBatchWithDedup(ctx context.Context, list []*model.GameBattleRecord) ([]*model.GameBattleRecord, error) {
 	if len(list) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
-	saved := 0
+	var savedRecords []*model.GameBattleRecord
 	for _, record := range list {
-		// 妫€鏌ユ槸鍚﹀凡瀛樺湪
+		// 检查是否已存在
 		var existing model.GameBattleRecord
 		err := r.db(ctx).Where("battle_at = ? AND player_game_id = ? AND house_gid = ?",
 			record.BattleAt, record.PlayerGameID, record.HouseGID).
 			First(&existing).Error
 
 		if err == gorm.ErrRecordNotFound {
-			// 涓嶅瓨鍦紝鎻掑叆
+			// 不存在，插入
 			if err := r.db(ctx).Create(record).Error; err != nil {
 				r.log.Errorf("save battle record failed: %v", err)
 				continue
 			}
-			saved++
+			savedRecords = append(savedRecords, record)
 		} else if err != nil {
 			r.log.Errorf("check battle record existence failed: %v", err)
 			continue
 		}
-		// 宸插瓨鍦紝璺宠繃
+		// 已存在，跳过
 	}
 
-	return saved, nil
+	return savedRecords, nil
 }
 
 func (r *battleRecordRepo) List(ctx context.Context, houseGID int32, groupID *int32, gameID *int32, start, end *time.Time, page, size int32) ([]*model.GameBattleRecord, int64, error) {

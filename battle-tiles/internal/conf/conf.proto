@@ -11,6 +11,7 @@ message Bootstrap {
   Data data = 2;
   Global global = 3;
   Log log = 4;
+  Sync sync = 5; // 同步配置
 }
 
 /* ============== Server ============== */
@@ -84,4 +85,10 @@ message Global {
 message Log {
   string level = 1; // 日志级别: debug, info, warn, error (默认: info)
   bool verbose_task_log = 2; // 是否显示详细的定时任务日志 (默认: false)
+}
+
+/* ============== Sync ============== */
+message Sync {
+  int32 battle_sync_interval = 1;     // 战绩同步间隔（秒），默认 10
+  int32 balance_compensate_every = 2; // 每隔多少次同步执行一次余额补偿，默认 30（约5分钟）
 }

@@ -46,3 +46,7 @@ global:
 log:
   level: "debug"  # 可选值: debug, info, warn, error (默认: info)
   verbose_task_log: false  # 是否显示详细的定时任务日志 (默认: false，设为true时显示战绩同步等任务的debug日志)
+
+sync:
+  battle_sync_interval: 10      # 战绩同步间隔（秒），默认 10
+  balance_compensate_every: 3  # 每隔多少次同步执行一次余额补偿，默认 30（约5分钟）

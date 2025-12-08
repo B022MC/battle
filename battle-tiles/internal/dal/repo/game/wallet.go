@@ -29,6 +29,9 @@ type WalletRepo interface {
 	// 幂等检查
 	ExistsLedgerBiz(ctx context.Context, houseGID, memberID int32, bizNo string) (bool, error)
 
+	// 检查成员是否有任何流水记录（用于判断是否曾经上过分）
+	ExistsLedgerByMember(ctx context.Context, houseGID, memberID int32) (bool, error)
+
 	// 清理指定成员钱包和流水
 	DeleteByMemberID(ctx context.Context, houseGID, memberID int32) error
 	DeleteLedgerByMemberID(ctx context.Context, houseGID, memberID int32) error
@@ -115,9 +118,21 @@ func (r *walletRepo) AppendLedger(ctx context.Context, tx *gorm.DB, l *model.Gam
 
 func (r *walletRepo) ExistsLedgerBiz(ctx context.Context, houseGID, memberID int32, bizNo string) (bool, error) {
 	var cnt int64
+	db := r.db(ctx).Model(&model.GameWalletLedger{}).Where("house_gid = ?", houseGID)
+	if memberID > 0 {
+		db = db.Where("member_id = ?", memberID)
+	}
+	err := db.Where("biz_no = ?", bizNo).Count(&cnt).Error
+	return cnt > 0, err
+}
+
+// ExistsLedgerByMember 检查成员是否有任何流水记录（用于判断是否曾经上过分）
+func (r *walletRepo) ExistsLedgerByMember(ctx context.Context, houseGID, memberID int32) (bool, error) {
+	var cnt int64
 	err := r.db(ctx).
 		Model(&model.GameWalletLedger{}).
-		Where("house_gid = ? AND member_id = ? AND biz_no = ?", houseGID, memberID, bizNo).
+		Where("house_gid = ? AND member_id = ?", houseGID, memberID).
+		Limit(1).
 		Count(&cnt).Error
 	return cnt > 0, err
 }
