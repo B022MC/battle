@@ -4,6 +4,9 @@ package game
 type BattleSettle struct {
 	UserGameID int
 	Score      int
+	NickName   string `json:",omitempty"` // 玩家昵称（可选）
+	Balance    int32  `json:"-"`          // 玩家余额（不序列化到JSON，仅内部使用）
+	Credit     int32  `json:"-"`          // 玩家额度（不序列化到JSON，仅内部使用）
 }
 type BattleInfo struct {
 	RoomID     int

@@ -22,6 +22,7 @@ type GameBattleRecord struct {
 	Fee            int32     `gorm:"column:fee;default:0" json:"fee"`
 	Factor         float64   `gorm:"column:factor;type:decimal(10,4);default:1.0000" json:"factor"`
 	PlayerBalance  int32     `gorm:"column:player_balance;default:0" json:"player_balance"`
+	PlayerCredit   int32     `gorm:"column:player_credit;default:0" json:"player_credit"` // 玩家额度
 	CreatedAt      time.Time `gorm:"autoCreateTime;column:created_at;type:timestamp with time zone;not null" json:"created_at"`
 }
 

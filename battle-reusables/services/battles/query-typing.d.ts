@@ -107,6 +107,7 @@ export interface BattleRecord {
   fee: number;
   factor: number;
   player_balance: number;
+  player_credit: number; // 玩家额度
   created_at: string;
 }
 

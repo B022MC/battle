@@ -97,39 +97,86 @@ export const BattlesView = () => {
                 </View>
               ) : (
                 <View className="gap-3">
-                  {battles.map((battle: BattleRecord, index: number) => (
-                    <View
-                      key={battle.id || index}
-                      className="border-b border-border pb-3 last:border-b-0"
-                    >
-                      <View className="flex-row justify-between items-center mb-2">
-                        <Text className="text-sm font-medium">
-                          房间 {battle.room_uid}
-                        </Text>
-                        <Text className="text-xs text-muted-foreground">
-                          {new Date(battle.battle_at).toLocaleString('zh-CN')}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between items-center">
-                        <View className="flex-row gap-4">
-                          <View>
-                            <Text className="text-xs text-muted-foreground">底分</Text>
-                            <Text className="text-sm">{battle.base_score}</Text>
-                          </View>
-                          <View>
-                            <Text className="text-xs text-muted-foreground">得分</Text>
-                            <Text className={`text-sm font-semibold ${battle.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {battle.score}
+                  {battles.map((battle: BattleRecord, index: number) => {
+                    // 解析对战信息
+                    let playersInfo: { players: Array<{ UserGameID: number; Score: number }>; opponents: Array<{ UserGameID: number; Score: number }> } | null = null;
+                    try {
+                      const players = JSON.parse(battle.players_json || '[]') as Array<{ UserGameID: number; Score: number }>;
+                      if (players.length > 0) {
+                        const opponents = players.filter(p => p.UserGameID !== battle.player_game_id);
+                        playersInfo = { players, opponents };
+                      }
+                    } catch {}
+                    
+                    // 胜负状态
+                    const result = battle.score > 0 
+                      ? { text: '胜', color: 'text-green-600', bg: 'bg-green-100' }
+                      : battle.score < 0 
+                        ? { text: '负', color: 'text-red-600', bg: 'bg-red-100' }
+                        : { text: '平', color: 'text-gray-600', bg: 'bg-gray-100' };
+                    
+                    const formatScore = (s: number) => s > 0 ? `+${s}` : String(s);
+                    
+                    return (
+                      <View
+                        key={battle.id || index}
+                        className="border-b border-border pb-3 last:border-b-0"
+                      >
+                        {/* 第一行：时间 + 胜负 + 得分 */}
+                        <View className="flex-row justify-between items-center mb-2">
+                          <View className="flex-row items-center gap-2">
+                            <Text className="text-xs text-muted-foreground">
+                              {new Date(battle.battle_at).toLocaleString('zh-CN')}
                             </Text>
+                            <View className={`px-1.5 py-0.5 rounded ${result.bg}`}>
+                              <Text className={`text-xs font-bold ${result.color}`}>{result.text}</Text>
+                            </View>
                           </View>
-                          <View>
-                            <Text className="text-xs text-muted-foreground">手续费</Text>
-                            <Text className="text-sm">{battle.fee}</Text>
+                          <Text className={`text-lg font-bold ${result.color}`}>
+                            {formatScore(battle.score)}
+                          </Text>
+                        </View>
+                        
+                        {/* 第二行：对战详情 */}
+                        {playersInfo && playersInfo.opponents.length > 0 && (
+                          <View className="bg-secondary/50 rounded p-2 mb-2">
+                            <View className="flex-row flex-wrap gap-2">
+                              {playersInfo.players.map((p) => (
+                                <View 
+                                  key={p.UserGameID}
+                                  className={`flex-row items-center gap-1 px-2 py-0.5 rounded ${
+                                    p.UserGameID === battle.player_game_id 
+                                      ? 'bg-primary/10' 
+                                      : 'bg-background'
+                                  }`}
+                                >
+                                  <Text className="text-xs">
+                                    {p.UserGameID === battle.player_game_id ? '我' : '对手'}
+                                  </Text>
+                                  <Text className={`text-xs font-medium ${
+                                    p.Score > 0 ? 'text-green-600' : p.Score < 0 ? 'text-red-600' : ''
+                                  }`}>
+                                    {formatScore(p.Score)}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
                           </View>
+                        )}
+                        
+                        {/* 第三行：房间、底分、手续费 */}
+                        <View className="flex-row justify-between items-center">
+                          <View className="flex-row gap-3">
+                            <Text className="text-xs text-muted-foreground">房间 {battle.room_uid}</Text>
+                            <Text className="text-xs text-muted-foreground">底分 {battle.base_score}</Text>
+                          </View>
+                          {battle.fee > 0 && (
+                            <Text className="text-xs text-orange-600">费用 {battle.fee}</Text>
+                          )}
                         </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
             </InfoCardContent>

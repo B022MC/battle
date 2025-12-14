@@ -10,10 +10,29 @@ import (
 
 // FeeRule 运费规则
 type FeeRule struct {
-	Threshold int `json:"threshold"` // 阈值（分数）
-	Fee       int `json:"fee"`       // 费用（单位：分）
-	Kind      int `json:"kind"`      // 玩法类型ID（可选，0表示所有玩法）
-	Base      int `json:"base"`      // 底分（可选，0表示所有底分）
+	Threshold int         `json:"threshold"` // 阈值（分数）
+	Fee       int         `json:"fee"`       // 费用（单位：分）
+	Kind      interface{} `json:"kind"`      // 玩法类型ID（可选，0表示所有玩法）- 支持 int 或 string
+	Base      int         `json:"base"`      // 底分（可选，0表示所有底分）
+}
+
+// GetKindID 获取 Kind 的整数值（兼容 string 和 int）
+func (r *FeeRule) GetKindID() int {
+	switch v := r.Kind.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case string:
+		if v == "" {
+			return 0
+		}
+		var id int
+		fmt.Sscanf(v, "%d", &id)
+		return id
+	default:
+		return 0
+	}
 }
 
 // FeesConfig 运费配置
@@ -57,7 +76,8 @@ func CalculateFee(feesJSON string, battle *gameVO.BattleInfo) int32 {
 	// 匹配逻辑与 passing-dragonfly 对齐：
 	// 1. 优先查找全局通用规则 (kind=0 && base=0)
 	for _, rule := range config.Rules {
-		if rule.Kind == 0 && rule.Base == 0 {
+		kindID := rule.GetKindID()
+		if kindID == 0 && rule.Base == 0 {
 			// 全局规则：检查分数是否达到阈值
 			if maxScore >= rule.Threshold {
 				return int32(rule.Fee)
@@ -67,13 +87,14 @@ func CalculateFee(feesJSON string, battle *gameVO.BattleInfo) int32 {
 
 	// 2. 如果没有全局规则，查找特定游戏类型和底分的规则
 	for _, rule := range config.Rules {
+		kindID := rule.GetKindID()
 		// 跳过全局规则（已经处理过）
-		if rule.Kind == 0 && rule.Base == 0 {
+		if kindID == 0 && rule.Base == 0 {
 			continue
 		}
 
 		// 匹配游戏类型
-		kindMatches := (rule.Kind == 0 || rule.Kind == battle.KindID)
+		kindMatches := (kindID == 0 || kindID == battle.KindID)
 		// 匹配底分
 		baseMatches := (rule.Base == 0 || rule.Base == battle.BaseScore)
 

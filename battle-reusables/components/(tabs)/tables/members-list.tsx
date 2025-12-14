@@ -300,12 +300,76 @@ export const MembersList = ({ loading, data, houseGid, myGroupId, onPullToGroup,
               {battleRecords[item.game_player_id].length === 0 ? (
                 <Text className="text-xs text-muted-foreground py-2 text-center">暂无战绩</Text>
               ) : (
-                battleRecords[item.game_player_id].map((record) => (
-                  <View key={record.id} className="bg-secondary/30 rounded p-1.5 flex-row items-center justify-between">
-                    <Text className="text-xs text-muted-foreground">{formatTime(record.battle_at)}</Text>
-                    <Text className={`text-xs font-medium ${record.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>{`${record.score >= 0 ? '+' : ''}${formatScore(record.score)}`}</Text>
-                  </View>
-                ))
+                battleRecords[item.game_player_id].map((record) => {
+                  // 解析对战信息
+                  let opponents: Array<{ UserGameID: number; Score: number; NickName?: string }> = [];
+                  try {
+                    const players = JSON.parse(record.players_json || '[]') as Array<{ UserGameID: number; Score: number; NickName?: string }>;
+                    opponents = players.filter(p => p.UserGameID !== record.player_game_id);
+                  } catch {}
+                  
+                  // 胜负状态
+                  const result = record.score > 0 
+                    ? { text: '胜', color: 'text-green-600', bg: 'bg-green-600/20' }
+                    : record.score < 0 
+                      ? { text: '负', color: 'text-red-600', bg: 'bg-red-600/20' }
+                      : { text: '平', color: 'text-gray-500', bg: 'bg-gray-500/20' };
+                  
+                  // 计算实得分数：score * factor - fee
+                  const factor = record.factor || 1;
+                  const actualScore = Math.floor(record.score * factor) - record.fee;
+                  
+                  // 判断是否是历史数据（player_balance 和 player_credit 都是 0 说明是旧数据）
+                  const isLegacyData = record.player_balance === 0 && record.player_credit === 0;
+                  
+                  // 构建额度字符串：🈲额度（历史数据不显示）
+                  const buildCreditStr = () => {
+                    if (isLegacyData) return '';
+                    const credit = record.player_credit || 0;
+                    return `🈲${credit}`;
+                  };
+                  
+                  // 构建详细计算字符串：得分-费用=实得
+                  const buildDetailStr = () => {
+                    const scoreWithFactor = Math.floor(record.score * factor);
+                    if (record.fee > 0) {
+                      // 有费用：得46-5=41
+                      return `🉐${scoreWithFactor}-${record.fee}=${actualScore}`;
+                    } else {
+                      // 无费用：得46
+                      return `🉐${scoreWithFactor}`;
+                    }
+                  };
+                  
+                  // 构建余额变化字符串：之前+实得=现在（历史数据不显示）
+                  const buildBalanceStr = () => {
+                    if (isLegacyData) return '';
+                    const before = record.player_balance - actualScore;
+                    return `🈴${before}${actualScore >= 0 ? '+' : ''}${actualScore}=${record.player_balance}`;
+                  };
+                  
+                  return (
+                    <View key={record.id} className="bg-secondary/30 rounded p-1.5">
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-1.5">
+                          <Text className="text-xs text-muted-foreground">{formatTime(record.battle_at)}</Text>
+                          <View className={`px-1 py-0.5 rounded ${result.bg}`}>
+                            <Text className={`text-xs font-bold ${result.color}`}>{result.text}</Text>
+                          </View>
+                        </View>
+                        <Text className={`text-sm font-bold ${actualScore >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {actualScore >= 0 ? '+' : ''}{actualScore}
+                        </Text>
+                      </View>
+                      {/* 详细计算过程 */}
+                      <View className="mt-1">
+                        <Text className="text-xs text-muted-foreground">
+                          {buildCreditStr()} {buildDetailStr()} {buildBalanceStr()}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
               )}
             </View>
           ) : null}

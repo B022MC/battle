@@ -177,6 +177,33 @@ export const GroupBattlesView = () => {
     return score > 0 ? `+${score}` : score.toString();
   };
 
+  // 解析 players_json 获取对战信息
+  const parsePlayersInfo = (playersJson: string, currentPlayerId?: number) => {
+    try {
+      const players = JSON.parse(playersJson) as Array<{ UserGameID: number; Score: number }>;
+      if (!players || players.length === 0) return null;
+      
+      const currentPlayer = players.find(p => p.UserGameID === currentPlayerId);
+      const opponents = players.filter(p => p.UserGameID !== currentPlayerId);
+      
+      return {
+        players,
+        currentPlayer,
+        opponents,
+        playerCount: players.length,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  // 获取胜负状态
+  const getBattleResult = (score: number) => {
+    if (score > 0) return { text: '胜', color: 'text-green-600', bg: 'bg-green-100' };
+    if (score < 0) return { text: '负', color: 'text-red-600', bg: 'bg-red-100' };
+    return { text: '平', color: 'text-gray-600', bg: 'bg-gray-100' };
+  };
+
   if (!isStoreAdmin) {
     return (
       <View className="flex-1 bg-background p-4 justify-center items-center">
@@ -312,47 +339,88 @@ export const GroupBattlesView = () => {
             </Text>
           ) : (
             <View>
-              {battlesData.list.map((battle: BattleRecord) => (
-                <View
-                  key={battle.id}
-                  className="border-b border-border py-3 last:border-b-0"
-                >
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-1">
-                      <Text className="font-medium mb-1">
-                        玩家ID: {battle.player_game_id}
-                      </Text>
-                      <Text className="text-sm text-muted-foreground">
-                        {formatDate(battle.battle_at)}
-                      </Text>
-                    </View>
-                    <View className="items-end">
+              {battlesData.list.map((battle: BattleRecord) => {
+                const playersInfo = parsePlayersInfo(battle.players_json, battle.player_game_id);
+                const result = getBattleResult(battle.score);
+                
+                return (
+                  <View
+                    key={battle.id}
+                    className="border-b border-border py-3 last:border-b-0"
+                  >
+                    {/* 第一行：玩家信息 + 胜负标签 + 得分 */}
+                    <View className="flex-row justify-between items-center mb-2">
+                      <View className="flex-row items-center gap-2">
+                        <Text className="font-medium">
+                          {battle.player_game_id}
+                        </Text>
+                        <View className={`px-2 py-0.5 rounded ${result.bg}`}>
+                          <Text className={`text-xs font-bold ${result.color}`}>
+                            {result.text}
+                          </Text>
+                        </View>
+                      </View>
                       <Text
-                        className={`text-lg font-bold ${
-                          battle.score > 0
-                            ? 'text-green-600'
-                            : battle.score < 0
-                            ? 'text-red-600'
-                            : 'text-foreground'
-                        }`}
+                        className={`text-xl font-bold ${result.color}`}
                       >
                         {formatScore(battle.score)}
                       </Text>
-                      <Text className="text-sm text-muted-foreground">
-                        费用: {battle.fee}
-                      </Text>
+                    </View>
+
+                    {/* 第二行：对战详情 */}
+                    {playersInfo && playersInfo.opponents.length > 0 && (
+                      <View className="bg-secondary/50 rounded-lg p-2 mb-2">
+                        <Text className="text-xs text-muted-foreground mb-1">对战详情</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                          {playersInfo.players.map((p, idx) => (
+                            <View 
+                              key={p.UserGameID} 
+                              className={`flex-row items-center gap-1 px-2 py-1 rounded ${
+                                p.UserGameID === battle.player_game_id 
+                                  ? 'bg-primary/10 border border-primary/30' 
+                                  : 'bg-background'
+                              }`}
+                            >
+                              <Text className={`text-xs ${p.UserGameID === battle.player_game_id ? 'font-bold' : ''}`}>
+                                {p.UserGameID === battle.player_game_id ? '我' : `对手${playersInfo.opponents.length > 1 ? idx : ''}`}
+                              </Text>
+                              <Text 
+                                className={`text-xs font-medium ${
+                                  p.Score > 0 ? 'text-green-600' : p.Score < 0 ? 'text-red-600' : 'text-muted-foreground'
+                                }`}
+                              >
+                                {formatScore(p.Score)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 第三行：时间、房间、费用等信息 */}
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-row gap-3">
+                        <Text className="text-xs text-muted-foreground">
+                          {formatDate(battle.battle_at)}
+                        </Text>
+                        <Text className="text-xs text-muted-foreground">
+                          房间 {battle.room_uid}
+                        </Text>
+                      </View>
+                      <View className="flex-row gap-3">
+                        {battle.fee > 0 && (
+                          <Text className="text-xs text-orange-600">
+                            费用 {battle.fee}
+                          </Text>
+                        )}
+                        <Text className="text-xs text-muted-foreground">
+                          余额 {battle.player_balance}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-sm text-muted-foreground">
-                      房间: {battle.room_uid}
-                    </Text>
-                    <Text className="text-sm text-muted-foreground">
-                      余额: {battle.player_balance}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
 
               {/* 分页 */}
               {battlesData.total > 20 && (

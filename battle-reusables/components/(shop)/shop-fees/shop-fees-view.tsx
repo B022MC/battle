@@ -337,10 +337,10 @@ export function ShopFeesView() {
 
             <View className="mb-3">
               <Text className="text-sm text-muted-foreground mb-1">
-                费用（单位：分）*
+                费用（分数）*
               </Text>
               <Input
-                placeholder="如：1000（表示10元）"
+                placeholder="如：1000"
                 keyboardType="numeric"
                 value={fee}
                 onChangeText={setFee}
@@ -440,10 +440,7 @@ export function ShopFeesView() {
                     </View>
                     <View className="flex-row items-center justify-between">
                       <Text className="text-lg font-semibold text-primary">
-                        ¥{(rule.fee / 100).toFixed(2)}
-                      </Text>
-                      <Text className="text-xs text-muted-foreground">
-                        ({rule.fee} 分)
+                        {rule.fee} 分
                       </Text>
                     </View>
                   </View>

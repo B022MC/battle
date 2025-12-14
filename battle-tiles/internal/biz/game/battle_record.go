@@ -89,15 +89,22 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 
 	// 处理每局战绩
 	for bIdx, b := range list {
-		// 序列化玩家数据
+		// 1. 构建玩家圈子映射并验证数据有效性
+		playerGroups, playerAccounts, validPlayers := uc.buildPlayerGroupMapping(ctx, int32(houseGID), b.Players)
+
+		// 填充玩家昵称到 players 数据中
+		for _, p := range b.Players {
+			if name, ok := playerAccounts[p.UserGameID]; ok {
+				p.NickName = name
+			}
+		}
+
+		// 序列化玩家数据（包含昵称）
 		pbytes, err := json.Marshal(b.Players)
 		if err != nil {
 			uc.log.Errorf("Failed to marshal players for battle %d: %v", bIdx, err)
 			pbytes = []byte("[]")
 		}
-
-		// 1. 构建玩家圈子映射并验证数据有效性
-		playerGroups, playerAccounts, validPlayers := uc.buildPlayerGroupMapping(ctx, int32(houseGID), b.Players)
 		if len(validPlayers) == 0 {
 			if uc.verboseTaskLog {
 				uc.log.Warnf("Battle room %d has no valid players, skipping", b.RoomID)
@@ -118,9 +125,17 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 		feeDistribution := make(map[int32]*GroupInfo)
 		if settings != nil {
 			totalFee = CalculateFee(settings.FeesJSON, b)
+			// 调试日志：显示费用计算结果
+			uc.log.Infof("[费用计算] room=%d kind=%d base=%d maxScore=%d totalFee=%d validPlayers=%d",
+				b.RoomID, b.KindID, b.BaseScore, getMaxScore(b.Players), totalFee, len(validPlayerList))
 			if totalFee > 0 {
 				// 只基于有效玩家计算费用分配
 				feeDistribution = CalculateFeeDistribution(validPlayerList, playerGroups, totalFee, settings.ShareFee)
+				// 调试日志：显示费用分配结果
+				for gid, info := range feeDistribution {
+					uc.log.Infof("[费用分配] room=%d group=%d isWinner=%v totalFee=%d playerFee=%d players=%v",
+						b.RoomID, gid, info.IsWinner, info.TotalFee, info.PlayerFee, info.PlayerIDs)
+				}
 			}
 		}
 
@@ -154,6 +169,8 @@ func (uc *BattleRecordUseCase) PullAndSave(ctx context.Context, httpc plazaHTTP.
 				PlayersJSON:    string(pbytes),
 				Score:          int32(player.Score),
 				Fee:            playerFee,
+				PlayerBalance:  player.Balance, // 玩家当前余额
+				PlayerCredit:   player.Credit,  // 玩家额度
 				CreatedAt:      now,
 			}
 			batch = append(batch, rec)
@@ -384,13 +401,22 @@ func (uc *BattleRecordUseCase) CompensateUnSettledBattles(ctx context.Context, h
 	return compensated, nil
 }
 
+// PlayerMemberInfo 玩家成员信息（用于战绩保存）
+type PlayerMemberInfo struct {
+	GroupID int32
+	Name    string
+	Balance int32
+	Credit  int32
+}
+
 // buildPlayerGroupMapping 构建玩家到圈子的映射
 // 验证玩家是否在系统中且有有效圈子
 // 关键流程：游戏玩家ID（UserGameID） -> game_account.game_player_id -> game_account.id -> game_member -> group_id
 // 返回：
 //   - playerGroups: 游戏玩家ID到圈子ID的映射
-//   - playerAccounts: 游戏玩家ID到账号名称的映射
+//   - playerAccounts: 游戏玩家ID到账号名称的映射（已废弃，使用 playerMembers）
 //   - validPlayers: 有效玩家的标记（只有在系统中且有圈子的玩家才是有效的）
+//   - playerMembers: 游戏玩家ID到成员信息的映射（包含余额和额度）
 func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 	ctx context.Context,
 	houseGID int32,
@@ -436,6 +462,10 @@ func (uc *BattleRecordUseCase) buildPlayerGroupMapping(
 		playerGroups[player.UserGameID] = *member.GroupID
 		playerAccounts[player.UserGameID] = accountName
 		validPlayers[player.UserGameID] = true
+
+		// 保存余额和额度到 player 对象（用于后续保存战绩）
+		player.Balance = member.Balance
+		player.Credit = member.Credit
 	}
 
 	if uc.verboseTaskLog {
@@ -684,4 +714,15 @@ func parseGameUserID(gameUserIDStr string, out *int32) (bool, error) {
 	}
 	*out = int32(id)
 	return true, nil
+}
+
+// getMaxScore 获取玩家列表中的最高分
+func getMaxScore(players []*gameVO.BattleSettle) int {
+	maxScore := 0
+	for _, p := range players {
+		if p.Score > maxScore {
+			maxScore = p.Score
+		}
+	}
+	return maxScore
 }
